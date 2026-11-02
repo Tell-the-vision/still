@@ -9,10 +9,19 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.still.placeholder"
+      "bundleIdentifier": "app.still.placeholder",
+      "associatedDomains": ["applinks:still.example"]
     },
     "android": {
       "package": "app.still.placeholder",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "still.example", "pathPrefix": "/e" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
