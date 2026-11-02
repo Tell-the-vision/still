@@ -2,7 +2,7 @@ import { Link, type Href } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Text } from "./Text";
-import { colors } from "./theme";
+import { colors, focusRing } from "./theme";
 
 type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean } & (
   | { href: Href; onPress?: undefined }
@@ -37,5 +37,5 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: colors.black },
   secondary: { backgroundColor: colors.white },
   disabled: { opacity: 0.4 },
-  focus: { outlineWidth: 2, outlineOffset: 2, outlineColor: colors.black, outlineStyle: "solid" },
+  focus: focusRing,
 });

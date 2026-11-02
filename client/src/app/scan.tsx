@@ -1,14 +1,15 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useIsFocused, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { parseExhibitionTarget } from "@still/shared/entry";
 import { entryStrings } from "../features/entry/strings";
 import { Button } from "../ui/Button";
 import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
 import { Text } from "../ui/Text";
-import { colors, spacing } from "../ui/theme";
+import { TextField } from "../ui/TextField";
+import { spacing } from "../ui/theme";
 
 const stillOrigin =
   process.env.EXPO_OS === "web" ? window.location.origin : (process.env.EXPO_PUBLIC_STILL_ORIGIN ?? "");
@@ -47,21 +48,22 @@ export default function Scan() {
         {cameraOn && (
           <CameraView
             style={styles.camera}
+            accessibilityLabel={entryStrings.viewfinder}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
             onBarcodeScanned={({ data }) => onScanned(data)}
             onMountError={() => setNotice(entryStrings.readFailed)}
           />
         )}
         {permission && !permission.granted && <Notice message={entryStrings.cameraOff} />}
-        <Text variant="label">{entryStrings.title}</Text>
-        <TextInput
-          accessibilityLabel={entryStrings.inputLabel}
-          placeholder={entryStrings.inputLabel}
+        <Text variant="label" role="heading">{entryStrings.title}</Text>
+        <TextField
+          label={entryStrings.inputLabel}
           value={value}
           onChangeText={setValue}
+          onSubmit={() => openTarget(value)}
           autoCapitalize="none"
           autoCorrect={false}
-          style={styles.input}
+          keyboardType="url"
         />
         <Button label={entryStrings.open} onPress={() => openTarget(value)} />
         {notice && <Notice message={notice} error />}
@@ -73,5 +75,4 @@ export default function Scan() {
 const styles = StyleSheet.create({
   body: { flex: 1, justifyContent: "center", gap: spacing.gap },
   camera: { aspectRatio: 1, width: "100%" },
-  input: { borderWidth: 1, borderColor: colors.black, padding: 12 },
 });
