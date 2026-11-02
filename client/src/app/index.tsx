@@ -1,23 +1,22 @@
-import { Link } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Button } from "../ui/Button";
+import { Screen } from "../ui/Screen";
+import { Wordmark } from "../ui/Wordmark";
+import { spacing } from "../ui/theme";
 
-// Home 01 (SPEC §1.1): wordmark with login and QR scan entry points.
+// Home 01 (SPEC §1.1): wordmark with login and QR scan entry points. No tab bar.
 export default function Home() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.wordmark}>STILL</Text>
-      <Link href="/login?returnTo=/" style={styles.button}>
-        Login
-      </Link>
-      <Link href="/scan" style={styles.button}>
-        QR Scan
-      </Link>
-    </View>
+    <Screen>
+      <View style={styles.center}>
+        <Wordmark />
+        <Button label="Login" href="/login?returnTo=/" variant="secondary" />
+        <Button label="QR Scan" href="/scan" />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
-  wordmark: { fontSize: 40, letterSpacing: 8, marginBottom: 24 },
-  button: { fontSize: 16, paddingVertical: 8, paddingHorizontal: 24 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.gap },
 });

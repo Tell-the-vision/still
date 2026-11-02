@@ -9,6 +9,16 @@ test("home shows the wordmark and entry links, and QR Scan navigates", async ({ 
   await expect(page).toHaveURL(/\/scan$/);
 });
 
+test("home uses the design kit: Montserrat wordmark, keyboard-reachable buttons, no tab bar", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("STILL", { exact: true })).toHaveCSS("font-family", /Montserrat/);
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Login" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "QR Scan" })).toBeFocused();
+  await expect(page.getByRole("navigation")).toHaveCount(0);
+});
+
 test("the SPA fallback does not shadow the API", async ({ request }) => {
   const res = await request.get("/api/nope");
   expect(res.status()).toBe(404);
