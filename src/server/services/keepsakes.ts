@@ -36,7 +36,7 @@ export async function getKeepsake(userId: string, code: string) {
   };
 }
 
-export async function upsertKeepsake(userId: string, { code, templateId, sentenceIds }: z.infer<typeof keepsakeUpsertInput>) {
+export async function upsertKeepsake(userId: string, { code, templateId, sentenceIds, journalExcerpt }: z.infer<typeof keepsakeUpsertInput>) {
   if (!(KEEPSAKE_TEMPLATES as readonly string[]).includes(templateId)) {
     throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("UNKNOWN_TEMPLATE") });
   }
@@ -55,7 +55,15 @@ export async function upsertKeepsake(userId: string, { code, templateId, sentenc
       if (!scrap) throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("SCRAP_NOT_IN_ARCHIVE") });
       return scrap;
     });
-    const content: KeepsakeContent = { version: 1, sentences: picked ?? defaults.sentences, journalExcerpt: defaults.journalExcerpt };
+    // An explicit excerpt must appear in the saved journal, compared after NFC normalization on both sides.
+    if (journalExcerpt !== undefined && !journal?.content.normalize("NFC").includes(journalExcerpt.normalize("NFC"))) {
+      throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("EXCERPT_NOT_IN_JOURNAL") });
+    }
+    const content: KeepsakeContent = {
+      version: 1,
+      sentences: picked ?? defaults.sentences,
+      journalExcerpt: journalExcerpt?.normalize("NFC") ?? defaults.journalExcerpt,
+    };
     const inserted = await tx.insert(digitalKeepsakes).values({ archiveId: archive.id, templateId, contentData: content }).onConflictDoNothing().returning();
     if (inserted.length > 0) return true;
     await tx.update(digitalKeepsakes).set({ templateId, contentData: content, updatedAt: sql`now()` }).where(eq(digitalKeepsakes.archiveId, archive.id));

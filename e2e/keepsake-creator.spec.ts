@@ -39,4 +39,35 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   expect((await getKeepsake(page)).createdAt).toBe(first.createdAt);
 });
 
+test("a visitor picks sentences and an excerpt; the server checks the excerpt", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await openGuide(page, code);
+  const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  await trpcCall(page, "scrap.upsert", { code, sentenceId: id(1) });
+  await trpcCall(page, "scrap.upsert", { code, sentenceId: id(2) });
+  await trpcCall(page, "journal.upsert", { code, content: "First paragraph.\nSecond paragraph.", audioType: null, revision: null });
+  const scraps = (await trpcCall(page, "scrap.list", { code })).json.result.data as { content: string }[];
+
+  await page.goto(`/archive/${code}/keepsake`);
+  await page.getByRole("button", { name: "Reflection" }).click();
+  await page.getByRole("button", { name: scraps[1].content }).click();
+  await page.getByRole("button", { name: "Second paragraph." }).click();
+  await page.getByRole("button", { name: "Save Web Card" }).click();
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  const card = (await getKeepsake(page)).card;
+  expect(card.sentences.map((s: { content: string }) => s.content)).toEqual([scraps[1].content]);
+  expect(card.journalExcerpt).toBe("Second paragraph.");
+
+  const missing = await trpcCall(page, "keepsake.upsert", { code, templateId: "reflection", journalExcerpt: "Nowhere." });
+  expect(missing.status).toBe(400);
+  expect(missing.json.error.data.appCode).toBe("EXCERPT_NOT_IN_JOURNAL");
+
+  const { revision } = (await trpcCall(page, "journal.get", { code })).json.result.data;
+  await trpcCall(page, "journal.upsert", { code, content: "café", audioType: null, revision });
+  const nfc = await trpcCall(page, "keepsake.upsert", { code, templateId: "reflection", journalExcerpt: "café" });
+  expect(nfc.status).toBe(200);
+});
+
 const getKeepsake = async (page: Page) => (await trpcCall(page, "keepsake.get", { code })).json.result.data;

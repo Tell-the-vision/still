@@ -10,6 +10,8 @@ export const keepsakeStrings = {
     { id: "reflection", label: "Reflection" },
     { id: "cover", label: "Cover" },
   ],
+  sentencesHeading: "Sentences (up to 3)",
+  excerptHeading: "Excerpt",
   save: "Save Web Card",
   failed: "Couldn't save. Your selection is kept.",
 };

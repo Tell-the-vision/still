@@ -7,6 +7,7 @@ export const keepsakeUpsertInput = z.object({
   code: codeSchema,
   templateId: z.string(),
   sentenceIds: z.uuid().array().max(3).optional(),
+  journalExcerpt: z.string().max(280).optional(),
 });
 
 // SPEC §7.1 defaults, shared so the server and the client preview agree.
