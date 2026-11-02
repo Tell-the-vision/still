@@ -78,7 +78,7 @@ src/
 ## 5. 역할과 배포
 
 - 역할: Guest(공개 가이드 열람) → USER(Scrap·Journal·Keepsake, 좋아요, 신고) → ARTIST(승인 후 내 전시 등록·공개·QR) → ADMIN(사용자·승인·전시·신고 관리). 전시 상태 `DRAFT / ACTIVE / HIDDEN / DELETED`, 정지(SUSPENDED) 계정은 쓰기 불가.
-- 스펙 ↔ 구현 대조는 [docs/SPEC-CHECK.md](./docs/SPEC-CHECK.md), API는 [docs/API.md](./docs/API.md), 구현 결정은 [docs/DECISIONS.md](./docs/DECISIONS.md), 원문 기획은 [docs/spec](./docs/spec), Figma 적용 기록은 [docs/UI-FIGMA-PROGRESS.md](./docs/UI-FIGMA-PROGRESS.md)에 있습니다.
+- 스펙 ↔ 구현 대조는 [docs/SPEC-CHECK.md](./docs/SPEC-CHECK.md), API는 [docs/API.md](./docs/API.md), 구현 결정은 [docs/DECISIONS.md](./docs/DECISIONS.md), 원문 기획은 [docs/spec](./docs/spec)에 있습니다. [docs/UI-FIGMA-PROGRESS.md](./docs/UI-FIGMA-PROGRESS.md)
 - **배포**: 아직 로컬 전용입니다(Vercel 프로젝트·호스팅 DB 없음). 예정 경로는 Vercel + Turso이며 아직 검증되지 않았습니다. `drizzle.config.ts`에 `dialect: "turso"`와 `authToken: process.env.DATABASE_AUTH_TOKEN`을 추가해야 `drizzle-kit push`가 Turso에 인증하고, 시드 스크립트는 `.env`를 읽지 않으니 변수를 셸에서 넘겨 실행합니다: `DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… npm run setup`. 프로덕션에는 `AUTH_SECRET`, `AUTH_GOOGLE_*`(리디렉션 URI는 배포 도메인의 `/api/auth/callback/google`), `NEXT_PUBLIC_APP_URL`(배포 도메인)이 필요합니다. Dev Login은 `ENABLE_DEV_LOGIN=true`가 아니면 꺼집니다.
 
 ## 6. 팀 작업 규칙 ([AGENTS.md](./AGENTS.md) 기준)
