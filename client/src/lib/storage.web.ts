@@ -3,6 +3,7 @@ const wrap = (storage: Storage) => ({
   getItem: async (key: string) => storage.getItem(key),
   setItem: async (key: string, value: string) => storage.setItem(key, value),
   removeItem: async (key: string) => storage.removeItem(key),
+  keys: async () => Object.keys(storage),
 });
 
 export const sessionStore = wrap(sessionStorage);

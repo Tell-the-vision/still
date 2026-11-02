@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
+import { useDraft } from "../../../features/journal/drafts";
 import { useMe } from "../../../features/auth/use-me";
 import { journalStrings } from "../../../features/journal/strings";
 import { useTRPC } from "../../../lib/trpc";
@@ -20,15 +21,17 @@ export default function Journal() {
   const queryClient = useQueryClient();
   const exhibition = useQuery(trpc.exhibition.get.queryOptions({ code }));
   const journal = useQuery(trpc.journal.get.queryOptions({ code }));
+  const drafts = useDraft(code, me?.id ?? null);
   const [draft, setDraft] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const content = draft ?? journal.data?.content ?? "";
+  const content = draft ?? drafts.restored ?? journal.data?.content ?? "";
   const save = useMutation(
     trpc.journal.upsert.mutationOptions({
       onSuccess: (r) => {
         queryClient.setQueryData(trpc.journal.get.queryKey({ code }), r.journal);
         if (r.created) void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
         setDraft(null);
+        drafts.discard();
         setSaved(true);
       },
       // The local text stays in the field; refetching gives the next save the new revision.
@@ -52,8 +55,8 @@ export default function Journal() {
     <Screen tabs>
       <Text variant="title">{exhibition.data?.title ?? ""}</Text>
       <Text variant="secondary">{journalStrings.heading}</Text>
-      {!journal.isPending && (
-        <TextField multiline label={journalStrings.label} value={content} onChangeText={(text) => { setDraft(text); setSaved(false); }} />
+      {!journal.isPending && drafts.restored !== undefined && (
+        <TextField multiline label={journalStrings.label} value={content} onChangeText={(text) => { setDraft(text); drafts.save(text); setSaved(false); }} />
       )}
       <Button label={journalStrings.save} disabled={save.isPending} onPress={submit} />
       {appCode === "JOURNAL_INVALID" && <Notice error message={journalStrings.invalid} />}
