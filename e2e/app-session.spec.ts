@@ -22,7 +22,7 @@ async function callFromHome(page: Page, path: string, headers: Record<string, st
 }
 
 const create = (page: Page, redirectUri: string) =>
-  callFromHome(page, "session.create", { "x-client": "ios" }, { provider: "GOOGLE", code: "test", codeVerifier: "v", redirectUri });
+  callFromHome(page, "session.create", { "x-client": "ios", "x-client-version": "1.0.0" }, { provider: "GOOGLE", code: "test", codeVerifier: "v", redirectUri });
 
 test("session.create returns tokens and a Bearer token authenticates without a cookie or matching Origin", async ({ page, next }) => {
   stubGoogleToken(next, newUser());

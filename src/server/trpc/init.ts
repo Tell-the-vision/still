@@ -39,7 +39,31 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
+// Dotted numeric compare; a missing or malformed version counts as below (SPEC §11.2).
+function isBelow(version: string | null, minimum: string) {
+  const parts = (v: string) => v.split(".").map(Number);
+  if (!version || parts(version).some(Number.isNaN)) return true;
+  const [a, b] = [parts(version), parts(minimum)];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const diff = (a[i] ?? 0) - (b[i] ?? 0);
+    if (diff !== 0) return diff < 0;
+  }
+  return false;
+}
+
+// Native clients older than MIN_CLIENT_VERSION must upgrade; web is never checked.
+const versionCheck = t.middleware(({ ctx, next }) => {
+  const client = ctx.req.headers.get("x-client");
+  const native = client === "ios" || client === "android";
+  if (native && isBelow(ctx.req.headers.get("x-client-version"), process.env.MIN_CLIENT_VERSION ?? "1.0.0")) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", cause: new AppError("CLIENT_UPGRADE_REQUIRED") });
+  }
+  return next();
+});
+
+export const clientProcedure = t.procedure.use(versionCheck);
+
+export const protectedProcedure = clientProcedure.use(async ({ ctx, next }) => {
   const session = await ctx.getSession();
   if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
   return next({ ctx: { session } });

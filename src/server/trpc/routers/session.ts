@@ -8,13 +8,13 @@ import { db } from "../../db/client";
 import { userSessions } from "../../db/schema";
 import { createAppSession, rotateAppSession } from "../../services/app-sessions";
 import { getMe } from "../../services/me";
-import { protectedProcedure, publicProcedure, router } from "../init";
+import { clientProcedure, protectedProcedure, router } from "../init";
 
 const nativeClientIds = () => ({ ios: process.env.GOOGLE_IOS_CLIENT_ID, android: process.env.GOOGLE_ANDROID_CLIENT_ID });
 
 export const sessionRouter = router({
   // Native sign-in (SPEC §2.2 Sign in 4): exchange the Google code, then issue app tokens.
-  create: publicProcedure.input(sessionCreateInput).mutation(async ({ input, ctx }) => {
+  create: clientProcedure.input(sessionCreateInput).mutation(async ({ input, ctx }) => {
     const client = ctx.req.headers.get("x-client");
     const clientId = client === "ios" || client === "android" ? nativeClientIds()[client] : undefined;
     const redirects = (process.env.GOOGLE_NATIVE_REDIRECT_URIS ?? "").split(",");
@@ -28,7 +28,7 @@ export const sessionRouter = router({
   }),
 
   // SPEC §2.3: trade a refresh token for a new pair.
-  refresh: publicProcedure.input(sessionRefreshInput).mutation(({ input }) => rotateAppSession(input.refreshToken)),
+  refresh: clientProcedure.input(sessionRefreshInput).mutation(({ input }) => rotateAppSession(input.refreshToken)),
 
   // Sign out (SPEC §2.2): drop this session's row and clear the web cookie.
   delete: protectedProcedure.mutation(async ({ ctx }) => {
