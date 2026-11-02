@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { useState } from "react";
 import { PolicyLinks } from "../features/account/PolicyLinks";
 import { useRequireLogin } from "../features/auth/require-login";
 import { useLeaveSession } from "../features/auth/sign-out";
+import { authStrings } from "../features/auth/strings";
 import { PUBLIC_PATHS, STALE_TIME, queryPath, useTRPC } from "../lib/trpc";
 import { Button } from "../ui/Button";
+import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
+import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
-import { spacing } from "../ui/theme";
 
 // Paths that stay as they are after consent; everything else is personal data to reload (SPEC §11.10).
 const KEEP_PATHS = [...PUBLIC_PATHS, "me.get", "consent.get", "policy.get"];
@@ -26,6 +28,9 @@ export default function Consent() {
   const upsert = useMutation(trpc.consent.upsert.mutationOptions());
   const deleteAccount = useMutation(trpc.me.delete.mutationOptions());
 
+  const [declineFailed, setDeclineFailed] = useState(false);
+  const busy = upsert.isPending || deleteAccount.isPending;
+
   const agree = async () => {
     try {
       const { consent } = await upsert.mutateAsync(policy.data!);
@@ -37,24 +42,25 @@ export default function Consent() {
     }
   };
   const decline = async () => {
-    await deleteAccount.mutateAsync();
-    await leave();
+    try {
+      await deleteAccount.mutateAsync();
+      await leave();
+    } catch {
+      setDeclineFailed(true);
+    }
   };
 
   if (!me) return <Screen>{null}</Screen>;
   return (
     <Screen>
-      <View style={styles.center}>
-        <Text variant="label">CONSENT</Text>
-        <Text>Please agree to the Terms of Service and Privacy Policy to continue.</Text>
+      <Stack centered>
+        {declineFailed && <Notice error message={authStrings.failed} />}
+        <Text variant="label" role="heading">{authStrings.consentTitle}</Text>
+        <Text>{authStrings.consentBody}</Text>
         <PolicyLinks />
-        <Button label="Agree" onPress={agree} disabled={!policy.data} />
-        <Button label="Decline" variant="secondary" onPress={decline} />
-      </View>
+        <Button label={authStrings.agree} onPress={agree} disabled={!policy.data || busy} />
+        <Button label={authStrings.decline} variant="secondary" onPress={decline} disabled={busy} />
+      </Stack>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.gap },
-});

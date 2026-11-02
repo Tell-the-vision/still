@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import * as AuthSession from "expo-auth-session";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Platform, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { Platform } from "react-native";
 import { authStrings } from "../features/auth/strings";
 import { isInAppBrowser } from "../features/auth/in-app-browser";
 import { tokenStorage } from "../features/auth/token-storage";
@@ -9,8 +10,8 @@ import { PUBLIC_PATHS, queryPath, useTRPCClient } from "../lib/trpc";
 import { Button } from "../ui/Button";
 import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
+import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
-import { spacing } from "../ui/theme";
 
 // Login (SPEC §2.2 Sign in). Web starts the OAuth Route; native runs PKCE and calls session.create.
 export default function Login() {
@@ -25,11 +26,22 @@ export default function Login() {
     { clientId, scopes: ["openid", "email", "profile"], redirectUri },
     AuthSession.useAutoDiscovery("https://accounts.google.com"),
   );
+  const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(false);
   const signInNative = async () => {
-    const result = await promptAsync();
-    if (result.type !== "success" || !request?.codeVerifier) return;
-    const session = await trpcClient.session.create.mutate({ provider: "GOOGLE", code: result.params.code, codeVerifier: request.codeVerifier, redirectUri });
-    await tokenStorage.save(session);
+    setPending(true);
+    setFailed(false);
+    try {
+      const result = await promptAsync();
+      if (result.type !== "success" || !request?.codeVerifier) return;
+      const session = await trpcClient.session.create.mutate({ provider: "GOOGLE", code: result.params.code, codeVerifier: request.codeVerifier, redirectUri });
+      await tokenStorage.save(session);
+    } catch {
+      setFailed(true);
+      return;
+    } finally {
+      setPending(false);
+    }
     await queryClient.cancelQueries();
     queryClient.removeQueries({ predicate: (q) => !PUBLIC_PATHS.includes(queryPath(q.queryKey)) });
     router.replace(returnTo as never);
@@ -39,21 +51,18 @@ export default function Login() {
   const inApp = isWeb && isInAppBrowser();
   return (
     <Screen>
-      <View style={styles.center}>
-        <Text variant="label">{authStrings.title}</Text>
+      <Stack centered>
+        {failed && <Notice error message={authStrings.failed} />}
+        <Text variant="label" role="heading">{authStrings.title}</Text>
         {inApp ? (
           <>
             <Notice message={authStrings.openInBrowser} />
-            <Button label={authStrings.copyLink} onPress={() => navigator.clipboard.writeText(window.location.href)} />
+            <Button label={authStrings.copyLink} onPress={() => navigator.clipboard?.writeText(window.location.href).catch(() => undefined)} />
           </>
         ) : (
-          <Button label={authStrings.continueWithGoogle} onPress={startGoogle} disabled={!isWeb && !request} />
+          <Button label={authStrings.continueWithGoogle} onPress={startGoogle} disabled={pending || (!isWeb && !request)} />
         )}
-      </View>
+      </Stack>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.gap },
-});
