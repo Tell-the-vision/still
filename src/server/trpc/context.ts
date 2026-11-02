@@ -9,7 +9,7 @@ function readCookie(req: Request, name: string) {
   return pair?.slice(name.length + 1);
 }
 
-export type Session = { userId: string; userTokenId: string | null };
+export type Session = { userId: string; userTokenId: string | null; tokenHash: string };
 
 // Public procedures never call getSession, so they never read cookies (SPEC §11.1).
 export function createContext(req: Request, resHeaders: Headers) {
@@ -21,7 +21,7 @@ export function createContext(req: Request, resHeaders: Headers) {
     // CSRF guard (SPEC §2.3): a cookie-authenticated request must come from our own origin.
     if (req.headers.get("origin") !== process.env.STILL_ORIGIN) throw new TRPCError({ code: "FORBIDDEN" });
     const [row] = await db
-      .select({ userId: userSessions.userId, userTokenId: userSessions.userTokenId })
+      .select({ userId: userSessions.userId, userTokenId: userSessions.userTokenId, tokenHash: userSessions.tokenHash })
       .from(userSessions)
       .where(and(eq(userSessions.tokenHash, hashToken(token)), eq(userSessions.kind, "WEB"), gt(userSessions.expiresAt, new Date())));
     return row ?? null;

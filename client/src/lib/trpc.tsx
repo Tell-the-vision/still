@@ -10,7 +10,7 @@ import { AppState, Platform } from "react-native";
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 
 // Procedures served as cacheable GET without headers (SPEC §11.1).
-const PUBLIC_PATHS = ["exhibition.get", "guide.get"];
+export const PUBLIC_PATHS = ["exhibition.get", "guide.get"];
 
 // Staleness per kind of query (SPEC §11.10). policy.get sets 0 in its own query options.
 export const STALE_TIME = { public: 5 * 60_000, personal: 30_000, policy: 0 };
@@ -29,8 +29,8 @@ export function retryNetworkErrors(failureCount: number, error: unknown) {
 }
 
 const isUnauthorized = (error: unknown) => error instanceof TRPCClientError && error.data?.code === "UNAUTHORIZED";
-const ME_KEY = [["me", "get"], { type: "query" }];
-const queryPath = (key: readonly unknown[]) => (key[0] as string[]).join(".");
+export const ME_KEY = [["me", "get"], { type: "query" }];
+export const queryPath = (key: readonly unknown[]) => (key[0] as string[]).join(".");
 
 // SPEC §2.3: a 401 while signed in means the session ended. Drop personal data, keep drafts and pending actions.
 // A guest's own me.get 401 is ignored because me.get has no data.
