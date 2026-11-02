@@ -7,7 +7,9 @@
     "shared"
   ],
   "scripts": {
-    "dev": "next dev",
+    "web:export": "npm run export:web -w @still/client",
+    "dev": "npm run web:export && next dev",
+    "dev:hot": "rm -rf public && (npm run web -w @still/client & EXPO_WEB_DEV_URL=http://localhost:8081 next dev)",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -17,7 +19,7 @@
     "client:android": "npm run android -w @still/client",
     "client:typecheck": "npm run typecheck -w @still/client",
     "e2e": "playwright test --project=chromium",
-    "e2e:server": "next build && next start -p $E2E_PORT -H localhost"
+    "e2e:server": "npm run web:export && next build && next start -p $E2E_PORT -H localhost"
   },
   "dependencies": {
     "@trpc/server": "^11.22.1",
