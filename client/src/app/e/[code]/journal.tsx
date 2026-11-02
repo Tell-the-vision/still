@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { TRPCClientError } from "@trpc/client";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
+import { useMe } from "../../../features/auth/use-me";
 import { journalStrings } from "../../../features/journal/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
@@ -9,9 +11,11 @@ import { Screen } from "../../../ui/Screen";
 import { Text } from "../../../ui/Text";
 import { TextField } from "../../../ui/TextField";
 
-// Journal 05 (SPEC §5). Signed-in only here; guest save arrives later.
+// Journal 05 (SPEC §5). A guest's Save goes to login first.
 export default function Journal() {
   const { code } = useLocalSearchParams<{ code: string }>();
+  const router = useRouter();
+  const me = useMe();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const exhibition = useQuery(trpc.exhibition.get.queryOptions({ code }));
@@ -27,18 +31,35 @@ export default function Journal() {
         setDraft(null);
         setSaved(true);
       },
+      // The local text stays in the field; refetching gives the next save the new revision.
+      onError: (error) => {
+        if (error instanceof TRPCClientError && error.data?.appCode === "REVISION_MISMATCH") void journal.refetch();
+      },
     }),
   );
   const { audioType = null, revision = null } = journal.data ?? {};
+  const error = save.error instanceof TRPCClientError ? save.error : null;
+  const appCode = error?.data?.appCode;
+  const isNetworkError = !!error && !error.data;
+
+  const submit = () => {
+    if (!me) return router.push({ pathname: "/login", params: { returnTo: `/e/${code}/journal` } });
+    setSaved(false);
+    save.mutate({ code, content, audioType, revision });
+  };
 
   return (
     <Screen tabs>
       <Text variant="title">{exhibition.data?.title ?? ""}</Text>
       <Text variant="secondary">{journalStrings.heading}</Text>
-      {journal.isSuccess && (
+      {!journal.isPending && (
         <TextField multiline label={journalStrings.label} value={content} onChangeText={(text) => { setDraft(text); setSaved(false); }} />
       )}
-      <Button label={journalStrings.save} disabled={save.isPending} onPress={() => save.mutate({ code, content, audioType, revision })} />
+      <Button label={journalStrings.save} disabled={save.isPending} onPress={submit} />
+      {appCode === "JOURNAL_INVALID" && <Notice error message={journalStrings.invalid} />}
+      {isNetworkError && <Notice error message={journalStrings.network} />}
+      {isNetworkError && <Button label={journalStrings.retry} variant="secondary" onPress={submit} />}
+      {appCode === "REVISION_MISMATCH" && <Notice message={journalStrings.conflict} />}
       {saved && <Notice message={journalStrings.saved} />}
     </Screen>
   );
