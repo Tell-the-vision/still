@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------------------------------------------------------------------------
+   STILL design tokens  (PRD §3.2 — Minimal / Editorial / Monochrome)
+
+   UI 담당자에게: 색/폰트/간격은 여기서만 바꾸면 전체에 반영됩니다.
+   - 배경은 순수 화이트, 주요 UI는 블랙/화이트, 그레이(#666)는 텍스트 전용.
+   - Display: Montserrat (Futura 대체), Body: DM Sans.
+   Tailwind v4 `@theme` 로 선언했으므로 `text-muted`, `font-display`,
+   `bg-paper`, `text-ink` 같은 유틸리티 클래스로 바로 사용할 수 있습니다.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-paper: #ffffff; /* background */
+  --color-ink: #000000; /* primary text / buttons / icons */
+  --color-muted: #666666; /* secondary text ONLY */
+  --color-line: #e5e5e5; /* hairline dividers */
+
+  --font-display: "Montserrat", "Futura", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "DM Sans", "Helvetica Neue", Arial, sans-serif;
+
+  --spacing-screen: 390px; /* reference design width (390 × 844) */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light only; /* the brand is white-on-black regardless of OS theme */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Keep the mobile frame centred on wide screens (390px reference). */
+.app-frame {
+  max-width: var(--spacing-screen);
+  margin-inline: auto;
+  min-height: 100dvh;
+  background: var(--color-paper);
+}
+
+/* Hairline (PRD: 얇은 구분선) */
+.hairline {
+  border-top: 1px solid var(--color-line);
+}
+
+/* Native textarea / input reset — styling is left to the UI pass. */
+textarea,
+input {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+textarea:focus,
+input:focus {
+  outline: none;
+}
+
+/* Keepsake card: fixed geometry so PNG export matches the web card. */
+.keepsake-card {
+  width: 360px;
+  height: 480px;
+  background: #ffffff;
+  color: #000000;
+  overflow: hidden;
+  position: relative;
 }
