@@ -12,7 +12,10 @@ export function useArchiveVisit(code: string, ready: boolean) {
   const { mutate } = useMutation(
     trpc.archive.upsert.mutationOptions({
       retry: retryNetworkErrors,
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() }),
+      onSuccess: async (result) => {
+        queryClient.setQueryData(trpc.archive.get.queryKey({ code }), result.archive);
+        await queryClient.invalidateQueries({ queryKey: trpc.archive.list.pathKey() });
+      },
     }),
   );
   useEffect(() => {

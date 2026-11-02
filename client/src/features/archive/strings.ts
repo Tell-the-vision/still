@@ -5,4 +5,6 @@ export const archiveStrings = {
   scan: "QR Scan",
   error: "Could not load your archive.",
   retry: "Retry",
+  missing: "No archive for this exhibition.",
+  lastVisited: (iso: string) => `Last visited ${iso.slice(0, 10)}`,
 };

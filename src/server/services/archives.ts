@@ -35,7 +35,12 @@ export function toArchive(row: ArchiveRow) {
       venue: { name: exhibition.venue.name, city: exhibition.venue.city },
       startDate: exhibition.startDate,
       endDate: exhibition.endDate,
-      coverImage: exhibition.coverImage && { url: publicImageUrl(exhibition.coverImage.objectKey) },
+      coverImage: exhibition.coverImage && {
+        url: publicImageUrl(exhibition.coverImage.objectKey),
+        altText: exhibition.coverImage.altText,
+        width: exhibition.coverImage.width,
+        height: exhibition.coverImage.height,
+      },
     },
     scrapCount: row.scraps.length,
     hasJournal: row.journal !== null,
@@ -54,6 +59,13 @@ export async function findExhibition(code: string, executor: Executor = db) {
 
 const insertArchive = (userId: string, exhibitionId: string, executor: Executor) =>
   executor.insert(archives).values({ userId, exhibitionId }).onConflictDoNothing({ target: [archives.userId, archives.exhibitionId] }).returning();
+
+// Any status; null when the user never visited it.
+export async function getArchive(userId: string, code: string) {
+  const exhibition = await findExhibition(code);
+  const archive = await findArchive(userId, exhibition.id, db);
+  return archive ? toArchive(archive) : null;
+}
 
 // Opening a guide: creates the archive, or refreshes its last visit.
 export async function upsertArchive(userId: string, code: string) {
