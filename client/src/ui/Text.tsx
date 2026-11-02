@@ -4,7 +4,14 @@ import { colors, fontFamily } from "./theme";
 export type TextVariant = "display" | "title" | "body" | "label" | "secondary";
 
 export function Text({ variant = "body", style, ...props }: TextProps & { variant?: TextVariant }) {
-  return <RNText style={[styles[variant], style]} {...props} />;
+  return (
+    <RNText
+      role={variant === "title" ? "heading" : undefined}
+      maxFontSizeMultiplier={variant === "display" ? 1.5 : undefined}
+      style={[styles[variant], style]}
+      {...props}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

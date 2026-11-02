@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 
 // SPEC §0.3: monochrome palette, gray only for secondary text.
 export const colors = { white: "#FFFFFF", black: "#000000", gray: "#666666" };
-export const spacing = { gutter: 24, gap: 16 };
+export const spacing = { gutter: 24, gap: 16, inset: 12 };
 
 // Hangul glyphs come from Noto Sans KR. Only web supports a font-family stack;
 // native falls back per glyph on its own.

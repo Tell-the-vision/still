@@ -10,7 +10,10 @@ export function Artwork({ url, altText, width, height }: Props) {
   return (
     <Image
       source={{ uri: url }}
-      accessibilityLabel={altText ?? ""}
+      alt={altText ?? undefined}
+      accessibilityLabel={altText ?? undefined}
+      accessibilityRole="image"
+      aria-hidden={!altText}
       onError={() => setFailed(true)}
       style={{ width: "100%", aspectRatio: width / height }}
     />

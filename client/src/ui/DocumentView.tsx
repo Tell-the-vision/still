@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import type { ExpandedBlock, ExpandedDocument } from "@still/shared/document";
+import { Artwork } from "./Artwork";
 import { Text } from "./Text";
+import { spacing } from "./theme";
 
 type SentenceBlock = Extract<ExpandedBlock, { type: "sentence" }>;
 
@@ -14,7 +16,7 @@ export function DocumentView({
   renderSentence?: (block: SentenceBlock) => ReactNode;
 }) {
   return (
-    <View style={{ gap: 12 }}>
+    <View style={{ gap: spacing.inset }}>
       {document?.blocks.map((block, i) => {
         switch (block.type) {
           case "heading":
@@ -23,12 +25,7 @@ export function DocumentView({
             return <Text key={i}>{block.text}</Text>;
           case "image":
             return (
-              <Image
-                key={i}
-                source={{ uri: block.url }}
-                accessibilityLabel={block.altText ?? undefined}
-                style={{ width: "100%", aspectRatio: block.width / block.height }}
-              />
+              <Artwork key={i} url={block.url} altText={block.altText} width={block.width} height={block.height} />
             );
           case "sentence":
             return (
