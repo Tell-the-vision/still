@@ -21,7 +21,7 @@ test("a web card shows on Archive Detail once saved", async ({ page, next }) => 
   expect(saved.json.result.data.created).toBe(true);
   await page.reload();
   await expect(page.getByText("01 web card")).toBeVisible();
-  const webCard = page.getByLabel("Web card");
+  const webCard = page.getByLabel("Web card", { exact: true });
   const text = saved.json.result.data.keepsake.card.sentences[0].content;
   await expect(webCard).toContainText("STILL");
   await expect(webCard).toContainText("Forms of Stillness");

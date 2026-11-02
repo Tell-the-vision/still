@@ -1,9 +1,9 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { z } from "zod";
-import { KEEPSAKE_TEMPLATES, type keepsakeUpsertInput } from "@still/shared/keepsake";
+import { KEEPSAKE_TEMPLATES, templateDefaults, type keepsakeUpsertInput } from "@still/shared/keepsake";
 import { db } from "../db/client";
-import { archives, digitalKeepsakes, scraps } from "../db/schema";
+import { archives, digitalKeepsakes, journals, scraps } from "../db/schema";
 import { publicImageUrl } from "../media/public-url";
 import { AppError } from "../trpc/init";
 import { ensureArchive, findExhibition } from "./archives";
@@ -36,22 +36,26 @@ export async function getKeepsake(userId: string, code: string) {
   };
 }
 
-export async function upsertKeepsake(userId: string, { code, templateId, sentenceIds = [] }: z.infer<typeof keepsakeUpsertInput>) {
+export async function upsertKeepsake(userId: string, { code, templateId, sentenceIds }: z.infer<typeof keepsakeUpsertInput>) {
   if (!(KEEPSAKE_TEMPLATES as readonly string[]).includes(templateId)) {
     throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("UNKNOWN_TEMPLATE") });
   }
   const created = await db.transaction(async (tx) => {
     const archive = await ensureArchive(userId, code, tx);
-    const saved = await tx.query.scraps.findMany({
-      where: and(eq(scraps.archiveId, archive.id), inArray(scraps.guideSentenceId, sentenceIds)),
-    });
-    // The text comes from the saved snapshot, in the order the user picked.
-    const content: KeepsakeContent = { version: 1, sentences: [], journalExcerpt: null };
-    for (const id of sentenceIds) {
-      const scrap = saved.find((s) => s.guideSentenceId === id);
+    const saved = await tx
+      .select({ sentenceId: scraps.guideSentenceId, content: scraps.sentenceContentSnapshot })
+      .from(scraps)
+      .where(eq(scraps.archiveId, archive.id))
+      .orderBy(asc(scraps.createdAt), asc(scraps.guideSentenceId));
+    const journal = await tx.query.journals.findFirst({ where: eq(journals.archiveId, archive.id) });
+    const defaults = templateDefaults(templateId, saved, journal?.content ?? null);
+    // Picked sentences come from the saved snapshot, in the order the user picked.
+    const picked = sentenceIds?.map((id) => {
+      const scrap = saved.find((s) => s.sentenceId === id);
       if (!scrap) throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("SCRAP_NOT_IN_ARCHIVE") });
-      content.sentences.push({ sentenceId: id, content: scrap.sentenceContentSnapshot });
-    }
+      return scrap;
+    });
+    const content: KeepsakeContent = { version: 1, sentences: picked ?? defaults.sentences, journalExcerpt: defaults.journalExcerpt };
     const inserted = await tx.insert(digitalKeepsakes).values({ archiveId: archive.id, templateId, contentData: content }).onConflictDoNothing().returning();
     if (inserted.length > 0) return true;
     await tx.update(digitalKeepsakes).set({ templateId, contentData: content, updatedAt: sql`now()` }).where(eq(digitalKeepsakes.archiveId, archive.id));
