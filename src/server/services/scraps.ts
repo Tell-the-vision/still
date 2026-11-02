@@ -44,3 +44,11 @@ export async function upsertScrap(userId: string, code: string, sentenceId: stri
     return { created: false };
   });
 }
+
+// Idempotent; never creates an archive (SPEC §4.2).
+export async function deleteScrap(userId: string, code: string, sentenceId: string) {
+  const exhibition = await findExhibition(code);
+  const archive = await db.query.archives.findFirst({ where: and(eq(archives.userId, userId), eq(archives.exhibitionId, exhibition.id)) });
+  if (!archive) return;
+  await db.delete(scraps).where(and(eq(scraps.archiveId, archive.id), eq(scraps.guideSentenceId, sentenceId)));
+}

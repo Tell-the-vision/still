@@ -3,6 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { DeleteArchive } from "../../../features/archive/DeleteArchive";
 import { archiveStrings } from "../../../features/archive/strings";
 import { useRequireLogin } from "../../../features/auth/require-login";
+import { ScrapSection } from "../../../features/scrap/ScrapSection";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
@@ -29,7 +30,7 @@ export default function ArchiveDetail() {
         <Stack>
           <GuideHeader {...archive.exhibition} />
           <Text variant="secondary">{archiveStrings.lastVisited(archive.lastVisitedAt)}</Text>
-          {/* S2a ScrapSection */}
+          <ScrapSection code={code} />
           {/* J2 JournalSection */}
           {/* K1a KeepsakeSection */}
           {/* R3 DeleteArchive */}
