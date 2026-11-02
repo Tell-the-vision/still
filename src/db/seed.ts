@@ -10,6 +10,7 @@
  *
  * Content below is fictional sample content for the MVP demo.
  */
+import "./load-env";
 import { eq } from "drizzle-orm";
 import { db } from "./index";
 import {

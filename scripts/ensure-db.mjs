@@ -10,11 +10,12 @@ import path from "node:path";
 function loadDotEnv() {
   const file = path.resolve(process.cwd(), ".env");
   if (!existsSync(file)) return;
+  const parsed = {};
   for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-    if (!m || process.env[m[1]] !== undefined) continue;
-    process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2");
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m) parsed[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2"); // last occurrence wins (dotenv semantics)
   }
+  for (const [k, v] of Object.entries(parsed)) if (process.env[k] === undefined) process.env[k] = v;
 }
 
 // First run: create .env from the example so defaults (ADMIN_EMAILS etc.) apply.

@@ -8,10 +8,12 @@ import path from "node:path";
 
 const envFile = path.resolve(process.cwd(), ".env");
 if (existsSync(envFile)) {
+  const parsed = {};
   for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2");
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m) parsed[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2"); // last occurrence wins (dotenv semantics)
   }
+  for (const [k, v] of Object.entries(parsed)) if (process.env[k] === undefined) process.env[k] = v;
 }
 const url = process.env.DATABASE_URL || "file:./data/still.db";
 if (!url.startsWith("file:")) {

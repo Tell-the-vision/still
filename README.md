@@ -205,12 +205,23 @@ src/
 
 ## 8. 배포 (Vercel + Turso)
 
-1. [Turso](https://turso.tech)에서 DB 생성 → `DATABASE_URL=libsql://…`, `DATABASE_AUTH_TOKEN=…`
-2. 로컬에서 원격 DB에 스키마/시드: `DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… npm run setup`
-3. Vercel에 레포 연결, 환경변수 입력: `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `NEXT_PUBLIC_APP_URL=https://<도메인>`, `ADMIN_EMAILS=<팀원 Gmail>`
-4. Google Cloud 리디렉션 URI에 `https://<도메인>/api/auth/callback/google` 추가
+1. [Turso](https://turso.tech)에서 DB 생성 → URL(`libsql://…`)과 토큰 복사
+2. 로컬 `.env`의 **기존 `DATABASE_URL=file:./data/still.db` 줄을 고쳐서**(아래에 새 줄을 추가하지 말고) 원격 DB를 가리키게 한 뒤 스키마/시드:
+   ```
+   DATABASE_URL=libsql://<db>.turso.io
+   DATABASE_AUTH_TOKEN=<token>
+   ```
+   ```bash
+   npm run setup        # drizzle-kit push + seed → 원격 DB에 테이블·샘플 전시 3개
+   ```
+   (Windows에서 한 줄 명령 대신 이렇게 `.env`를 쓰는 편이 안전합니다. 로컬 파일 DB로 돌아가려면 두 줄을 원래대로.)
+3. Vercel에 레포 연결, 환경변수 입력: `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `AUTH_SECRET`(배포 환경 필수, 32자 이상 랜덤), `NEXT_PUBLIC_APP_URL=https://<도메인>`, `ADMIN_EMAILS=<관리자 이메일>`, 그리고 `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` 또는 데모용 `ENABLE_DEV_LOGIN=true`
+4. (Google 로그인 시) Google Cloud 리디렉션 URI에 `https://<도메인>/api/auth/callback/google` 추가
+5. 환경변수를 바꿨으면 **Redeploy** (빌드 시점에 반영됨)
 
 프로덕션에서 Dev Login은 `ENABLE_DEV_LOGIN=true`를 명시하지 않는 한 꺼져 있습니다.
+
+**`/login?error=Configuration`이 뜰 때**: 로그인 과정에서 서버 오류가 난 것입니다. 대부분 (a) `AUTH_SECRET` 누락, (b) 원격 DB에 테이블이 없음(2번을 안 했거나 `.env`가 로컬 파일 DB를 가리킨 채 실행), (c) `DATABASE_AUTH_TOKEN` 오류. Vercel → Deployments → 해당 배포 → **Logs**에서 실제 오류 메시지를 확인하세요.
 
 ---
 
