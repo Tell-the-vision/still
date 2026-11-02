@@ -18,3 +18,23 @@ export async function captureAuthorize(page: Page) {
   });
   return captured;
 }
+
+// SPEC §2.8: replaces Google. Fulfills the start route with HTML that navigates to our callback,
+// because a 302 to the callback would skip routing. `cancel` simulates the user denying consent.
+export async function stubGoogle(page: Page, opts: { cancel?: boolean } = {}) {
+  const stub = { callbackUrl: "" };
+  await page.route(/\/api\/auth\/google(\?|$)/, async (route) => {
+    const res = await route.fetch({ maxRedirects: 0 });
+    const origin = new URL(route.request().url()).origin;
+    const state = new URL(res.headers()["location"]).searchParams.get("state") ?? "";
+    const cookie = (res.headers()["set-cookie"] ?? "").split(";")[0];
+    const [name, ...value] = cookie.split("=");
+    // Same Path as the real cookie, so the callback's clearing Set-Cookie removes it.
+    await page.context().addCookies([{ name, value: value.join("="), domain: new URL(origin).hostname, path: "/api/auth" }]);
+    const result = opts.cancel ? "error=access_denied" : "code=test";
+    const callback = `${origin}/api/auth/google/callback?${result}&state=${state}`;
+    stub.callbackUrl = callback;
+    await route.fulfill({ status: 200, contentType: "text/html", body: `<script>location.replace(${JSON.stringify(callback)})</script>` });
+  });
+  return stub;
+}

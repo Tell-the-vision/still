@@ -1,5 +1,5 @@
 import { expect, test } from "next/experimental/testmode/playwright";
-import { captureAuthorize } from "./support/google";
+import { captureAuthorize, stubGoogle } from "./support/google";
 
 test("Home -> Login -> Continue with Google starts OAuth with PKCE and an HttpOnly state cookie", async ({ page }) => {
   const captured = await captureAuthorize(page);
@@ -17,6 +17,25 @@ test("Home -> Login -> Continue with Google starts OAuth with PKCE and an HttpOn
   expect(url.searchParams.get("redirect_uri")).toBe(`${new URL(page.url()).origin}/api/auth/google/callback`);
   expect(url.searchParams.get("state")).toBeTruthy();
   expect(captured.setCookie).toMatch(/^still_oauth=.*HttpOnly/);
+});
+
+test("cancelling at Google returns to Home with a cancelled notice", async ({ page }) => {
+  await stubGoogle(page, { cancel: true });
+  await page.goto("/");
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+  await expect(page.getByText("Sign-in was cancelled.")).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("replaying a consumed callback fails", async ({ page }) => {
+  const stub = await stubGoogle(page, { cancel: true });
+  await page.goto("/");
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+  await expect(page.getByText("Sign-in was cancelled.")).toBeVisible();
+  await page.goto(stub.callbackUrl);
+  await expect(page.getByText("Sign-in failed. Try again.")).toBeVisible();
 });
 
 test("the start route rejects unknown providers and non sign_in intents", async ({ request }) => {
