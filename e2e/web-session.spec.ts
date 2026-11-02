@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "next/experimental/testmode/playwright";
-import { newUser, stubGoogle, stubGoogleToken } from "./support/google";
+import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 
 async function continueWithGoogle(page: Page) {
   await page.goto("/");
@@ -13,7 +13,7 @@ const hasSession = async (page: Page) => (await page.context().cookies()).some((
 test("Google sign-in lands on Home with an HttpOnly Lax session cookie", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
-  await continueWithGoogle(page);
+  await signIn(page);
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByText("Sign-in failed. Try again.")).toHaveCount(0);
   const session = (await page.context().cookies()).find((c) => c.name === "still_session");
@@ -23,7 +23,7 @@ test("Google sign-in lands on Home with an HttpOnly Lax session cookie", async (
 test("signing in again as the same Google account succeeds", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
-  await continueWithGoogle(page);
+  await signIn(page);
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByText("Sign-in failed. Try again.")).toHaveCount(0);
   await expect.poll(() => hasSession(page)).toBe(true);
@@ -45,7 +45,7 @@ test("a rejected token exchange shows the failed notice and sets no session", as
 test("signed-in Home shows Welcome back with the tab bar, and cookie requests must match the origin", async ({ page, next, request, baseURL }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
-  await continueWithGoogle(page);
+  await signIn(page);
   await expect(page.getByText("Welcome back.")).toBeVisible();
   await expect(page.getByRole("navigation")).toBeVisible();
   await expect(page.getByRole("link", { name: "Login" })).toHaveCount(0);
@@ -66,7 +66,7 @@ test("a lost session sends the user to the login screen with the session-ended n
   await page.clock.install();
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
-  await continueWithGoogle(page);
+  await signIn(page);
   await expect(page.getByText("Welcome back.")).toBeVisible();
   await page.context().clearCookies({ name: "still_session" });
   // /archive has no screen yet, so trigger the stale me.get refetch by refocusing the page.

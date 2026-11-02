@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { NextFixture } from "next/experimental/testmode/playwright";
 
 // SPEC §2.8: server-side fetch stub. Answers Google's token endpoint with an unsigned id_token for `user`.
@@ -11,6 +11,15 @@ export function stubGoogleToken(next: NextFixture, user: ReturnType<typeof newUs
     const idToken = `${part({ alg: "none" })}.${part(claims)}.`;
     return Response.json({ id_token: idToken, refresh_token: "test-refresh", access_token: "test-access", expires_in: 3600 });
   });
+}
+
+// Home → Login → Continue with Google. A first-time user also agrees on the consent screen (SPEC §2.2 Consent).
+export async function signIn(page: Page, { firstTime = true } = {}) {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+  if (firstTime) await page.getByRole("button", { name: "Agree" }).click();
+  await expect(page.getByText("Welcome back.")).toBeVisible();
 }
 
 export function newUser() {

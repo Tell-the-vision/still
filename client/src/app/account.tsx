@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { PolicyLinks } from "../features/account/PolicyLinks";
 import { useRequireLogin } from "../features/auth/require-login";
 import { useLeaveSession, useSignOut } from "../features/auth/sign-out";
 import { useTRPC } from "../lib/trpc";
@@ -48,6 +49,7 @@ export default function Account() {
           <Text variant="label">ABOUT STILL</Text>
           <Text>Art stays with you.</Text>
           <Text>A quiet place for what remains after the exhibition ends.</Text>
+          <PolicyLinks />
         </View>
         <View>
           <Text variant="label">ACCOUNT</Text>

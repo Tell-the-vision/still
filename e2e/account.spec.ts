@@ -1,13 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "next/experimental/testmode/playwright";
-import { newUser, stubGoogle, stubGoogleToken } from "./support/google";
-
-async function signIn(page: Page) {
-  await page.goto("/");
-  await page.getByRole("link", { name: "Login" }).click();
-  await page.getByRole("button", { name: "Continue with Google" }).click();
-  await expect(page.getByText("Welcome back.")).toBeVisible();
-}
+import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 
 test("signed in: ACCOUNT tab shows the email, Log out returns to guest Home and clears the cookie", async ({ page, next }) => {
   const user = newUser();
@@ -17,6 +10,7 @@ test("signed in: ACCOUNT tab shows the email, Log out returns to guest Home and 
   await page.getByRole("link", { name: "ACCOUNT" }).click();
   await expect(page.getByText(user.email)).toBeVisible();
   await expect(page.getByText("Art stays with you.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "https://policy.test.invalid/terms");
   await page.getByRole("button", { name: "Log out →" }).click();
   await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
   expect((await page.context().cookies()).some((c) => c.name === "still_session")).toBe(false);
@@ -31,6 +25,7 @@ test("guest: ACCOUNT redirects to Login and returns to /account after Google", a
   await page.getByRole("link", { name: "ACCOUNT" }).click();
   await expect(page).toHaveURL(/\/login\?returnTo=%2Faccount/);
   await page.getByRole("button", { name: "Continue with Google" }).click();
+  await page.getByRole("button", { name: "Agree" }).click();
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByText(user.email)).toBeVisible();
 });

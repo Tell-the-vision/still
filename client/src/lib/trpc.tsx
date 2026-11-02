@@ -31,12 +31,16 @@ export function retryNetworkErrors(failureCount: number, error: unknown) {
 
 const isUnauthorized = (error: unknown) => error instanceof TRPCClientError && error.data?.code === "UNAUTHORIZED";
 export const ME_KEY = [["me", "get"], { type: "query" }];
+export const CONSENT_KEY = [["consent", "get"], { type: "query" }];
 export const queryPath = (key: readonly unknown[]) => (key[0] as string[]).join(".");
+const isConsentRequired = (error: unknown) => error instanceof TRPCClientError && error.data?.appCode === "CONSENT_REQUIRED";
 
 // SPEC §2.3: a 401 while signed in means the session ended. Drop personal data, keep drafts and pending actions.
 // A guest's own me.get 401 is ignored because me.get has no data.
 export function makeQueryClient(onSessionEnded: () => void) {
   const handleError = (error: unknown) => {
+    // The server says consent is missing: ConsentGate redirects when it sees consent.get is null.
+    if (isConsentRequired(error)) queryClient.setQueryData(CONSENT_KEY, null);
     if (!isUnauthorized(error) || !queryClient.getQueryData(ME_KEY)) return;
     queryClient.removeQueries({ predicate: (q) => !PUBLIC_PATHS.includes(queryPath(q.queryKey)) && queryPath(q.queryKey) !== "me.get" });
     queryClient.setQueryData(ME_KEY, null);
