@@ -47,3 +47,21 @@ test("concurrent first sign-ins for one Google account resolve to one user", asy
   const [a, b] = await Promise.all([create(page, REDIRECT), create(page, REDIRECT)]);
   expect(a.json.result.data.user.id).toBe(b.json.result.data.user.id);
 });
+
+test("session.refresh rotates, tolerates a replay within the grace window, then ends the session", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  const refresh = (refreshToken: string) => callFromHome(page, "session.refresh", {}, { refreshToken });
+  const created = (await create(page, REDIRECT)).json.result.data;
+
+  const second = (await refresh(created.refreshToken)).json.result.data;
+  expect(second.refreshToken).not.toBe(created.refreshToken);
+
+  const replay = await refresh(created.refreshToken); // within the 1 s grace
+  expect(replay.status).toBe(200);
+  const last = replay.json.result.data;
+
+  await page.waitForTimeout(1200);
+  expect((await refresh(created.refreshToken)).status).toBe(401); // theft replay deletes the session
+  const headers = { authorization: `Bearer ${last.accessToken}`, "content-type": "application/json" };
+  expect((await page.request.post("/api/trpc/me.get", { headers, data: {} })).status()).toBe(401);
+});

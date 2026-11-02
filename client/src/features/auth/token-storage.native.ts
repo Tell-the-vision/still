@@ -6,6 +6,7 @@ const options = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK };
 // SPEC §2.3: native app tokens live in the keychain/keystore.
 export const tokenStorage = {
   getAccessToken: () => SecureStore.getItemAsync(KEYS.accessToken, options),
+  getRefreshToken: () => SecureStore.getItemAsync(KEYS.refreshToken, options),
   save: async (tokens: { accessToken: string; refreshToken: string }) => {
     for (const [name, key] of Object.entries(KEYS)) await SecureStore.setItemAsync(key, tokens[name as keyof typeof KEYS], options);
   },

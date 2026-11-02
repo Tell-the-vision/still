@@ -6,3 +6,5 @@ export const sessionCreateInput = z.object({
   codeVerifier: z.string().optional(),
   redirectUri: z.string().optional(),
 });
+
+export const sessionRefreshInput = z.object({ refreshToken: z.string().min(1) });

@@ -1,4 +1,4 @@
-import { sessionCreateInput } from "@still/shared/session";
+import { sessionCreateInput, sessionRefreshInput } from "@still/shared/session";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { exchangeCode, readIdToken } from "../../auth/google";
@@ -6,7 +6,7 @@ import { signInWithIdentity } from "../../auth/identity";
 import { clearSessionCookie } from "../../auth/sessions";
 import { db } from "../../db/client";
 import { userSessions } from "../../db/schema";
-import { createAppSession } from "../../services/app-sessions";
+import { createAppSession, rotateAppSession } from "../../services/app-sessions";
 import { getMe } from "../../services/me";
 import { protectedProcedure, publicProcedure, router } from "../init";
 
@@ -26,6 +26,9 @@ export const sessionRouter = router({
     const appSession = await createAppSession(userId, userTokenId);
     return { ...appSession, user: await getMe({ userId, userTokenId }) };
   }),
+
+  // SPEC §2.3: trade a refresh token for a new pair.
+  refresh: publicProcedure.input(sessionRefreshInput).mutation(({ input }) => rotateAppSession(input.refreshToken)),
 
   // Sign out (SPEC §2.2): drop this session's row and clear the web cookie.
   delete: protectedProcedure.mutation(async ({ ctx }) => {

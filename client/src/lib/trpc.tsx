@@ -1,7 +1,8 @@
 import type { AppRouter } from "@still/shared/router";
 import { addEventListener } from "@react-native-community/netinfo";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider, focusManager, onlineManager } from "@tanstack/react-query";
-import { TRPCClientError, createTRPCClient, httpBatchLink, httpLink, splitLink } from "@trpc/client";
+import { TRPCClientError, createTRPCClient, httpBatchLink, httpLink, splitLink, type TRPCLink } from "@trpc/client";
+import { observable } from "@trpc/server/observable";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import Constants from "expo-constants";
 import { createContext, useContext, useState, type ReactNode } from "react";
@@ -72,10 +73,64 @@ if (Platform.OS !== "web") {
   });
 }
 
+const clientHeaders = () => ({ "x-client": Platform.OS, "x-client-version": Constants.expoConfig?.version ?? "unknown" });
+
+// One refresh at a time: concurrent 401s wait for the same request (SPEC §2.3).
+let refreshing: Promise<boolean> | null = null;
+
+// Plain fetch, so the refresh itself never passes through this link. Returns false when the server
+// answers UNAUTHORIZED (tokens cleared); any other failure throws a network error and keeps the tokens.
+async function refreshTokens() {
+  const refreshToken = await tokenStorage.getRefreshToken();
+  let json;
+  try {
+    const res = await fetch(`${API_URL}/api/trpc/session.refresh`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...clientHeaders() },
+      body: JSON.stringify({ refreshToken }),
+    });
+    json = await res.json();
+  } catch {
+    throw new TRPCClientError("Network request failed");
+  }
+  if (json.result) {
+    await tokenStorage.save(json.result.data);
+    return true;
+  }
+  if (json.error?.data?.code === "UNAUTHORIZED") {
+    await tokenStorage.clear();
+    return false;
+  }
+  throw new TRPCClientError("Network request failed");
+}
+
+// Native only: on UNAUTHORIZED refresh the tokens and retry the call once. If the refresh is also
+// UNAUTHORIZED, the original error goes on and the query cache ends the session.
+const refreshLink: TRPCLink<AppRouter> = () => ({ op, next }) =>
+  observable((observer) => {
+    const run = (retry: boolean) =>
+      next(op).subscribe({
+        next: (value) => observer.next(value),
+        complete: () => observer.complete(),
+        error: async (error) => {
+          if (!retry || !isUnauthorized(error)) return observer.error(error);
+          refreshing ??= refreshTokens().finally(() => (refreshing = null));
+          try {
+            if (!(await refreshing)) return observer.error(error);
+          } catch (networkError) {
+            return observer.error(networkError as TRPCClientError<AppRouter>);
+          }
+          run(false);
+        },
+      });
+    return run(true).unsubscribe;
+  });
+
 function makeTRPCClient() {
   const url = `${API_URL}/api/trpc`;
   return createTRPCClient<AppRouter>({
     links: [
+      ...(Platform.OS === "web" ? [] : [refreshLink]),
       splitLink({
         condition: (op) => PUBLIC_PATHS.includes(op.path),
         true: httpLink({ url }),
@@ -85,8 +140,7 @@ function makeTRPCClient() {
           headers: async () => {
             const accessToken = await tokenStorage.getAccessToken(); // always null on web
             return {
-              "x-client": Platform.OS,
-              "x-client-version": Constants.expoConfig?.version ?? "unknown",
+              ...clientHeaders(),
               ...(accessToken && { authorization: `Bearer ${accessToken}` }),
             };
           },
