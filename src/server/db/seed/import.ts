@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "../client";
-import { putObject } from "../../media/r2";
+import { deleteObject, putObject } from "../../media/r2";
 import { exhibitionPlaylists, exhibitions, guideSentences, images, institutions, venues } from "../schema";
 import type { ContentPackage } from "./content";
 import { imageContentType, sentenceRefs, validatePackage } from "./validate";
@@ -13,6 +13,7 @@ import { imageContentType, sentenceRefs, validatePackage } from "./validate";
 // The whole package is one transaction, so a failed import leaves no partial rows.
 export async function importPackage(pkg: ContentPackage) {
   validatePackage(pkg);
+  const removedKeys = new Map<string, string[]>();
   await db.transaction(async (tx) => {
     const [institution] = await tx
       .insert(institutions)
@@ -52,10 +53,19 @@ export async function importPackage(pkg: ContentPackage) {
         const [row] = await tx.select({ id: images.id }).from(images).where(eq(images.objectKey, objectKey));
         imageRows.push(row);
       }
-      await tx
-        .update(exhibitions)
-        .set({ coverImageId: cover === null ? null : imageRows[cover].id })
-        .where(eq(exhibitions.id, exhibition.id));
+      const coverImageId = cover === null ? null : imageRows[cover].id;
+      await tx.update(exhibitions).set({ coverImageId }).where(eq(exhibitions.id, exhibition.id));
+
+      // Image rows that are neither the cover nor an image block of a stored document (SPEC §9).
+      const used = new Set<string>(coverImageId ? [coverImageId] : []);
+      for (const doc of [exhibition.description, exhibition.guide] as (StoredDocument | null)[]) {
+        for (const block of doc?.blocks ?? []) if (block.type === "image") used.add(block.imageId);
+      }
+      const removed = await tx
+        .delete(images)
+        .where(and(eq(images.exhibitionId, exhibition.id), used.size > 0 ? notInArray(images.id, [...used]) : undefined))
+        .returning({ objectKey: images.objectKey });
+      removedKeys.set(code, removed.map((r) => r.objectKey));
 
       for (const s of sentences) {
         await tx
@@ -91,4 +101,10 @@ export async function importPackage(pkg: ContentPackage) {
       }
     }
   });
+
+  // After COMMIT: a failed R2 delete only leaves a harmless orphan object (SPEC §10.5).
+  for (const [code, keys] of removedKeys) {
+    await Promise.allSettled(keys.map(deleteObject));
+    console.log(`${code}: deleted ${keys.length} image row(s)`);
+  }
 }
