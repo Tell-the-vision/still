@@ -2,6 +2,7 @@ import { useQueries } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams } from "expo-router";
 import { useArchiveVisit } from "../../../features/archive/useArchiveVisit";
+import { AudioArea } from "../../../features/audio/AudioArea";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
 import { SentenceAction } from "../../../features/scrap/SentenceAction";
@@ -28,6 +29,7 @@ export default function ExhibitionGuide() {
     return (
       <Screen tabs>
         <GuideHeader {...exhibition.data} />
+        <AudioArea audio={exhibition.data.audio} screen="guide" />
         <DocumentView document={exhibition.data.description} />
         <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
         <Button label={guideStrings.writeJournal} trailing="→" variant="secondary" href={`/e/${code}/journal`} />
