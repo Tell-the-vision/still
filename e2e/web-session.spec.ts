@@ -41,3 +41,37 @@ test("a rejected token exchange shows the failed notice and sets no session", as
   await expect(page.getByText("Sign-in failed. Try again.")).toBeVisible();
   expect(await hasSession(page)).toBe(false);
 });
+
+test("signed-in Home shows Welcome back with the tab bar, and cookie requests must match the origin", async ({ page, next, request, baseURL }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await continueWithGoogle(page);
+  await expect(page.getByText("Welcome back.")).toBeVisible();
+  await expect(page.getByRole("navigation")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Login" })).toHaveCount(0);
+
+  const session = (await page.context().cookies()).find((c) => c.name === "still_session");
+  const call = (origin: string) =>
+    request.post("/api/trpc/me.get?batch=1", {
+      headers: { cookie: `still_session=${session?.value}`, origin, "content-type": "application/json" },
+      data: {},
+    });
+  const forged = await call("http://evil.example");
+  expect(forged.status()).toBe(403);
+  expect(JSON.stringify(await forged.json())).toContain("FORBIDDEN");
+  expect((await call(baseURL!)).status()).toBe(200);
+});
+
+test("a lost session sends the user to the login screen with the session-ended notice", async ({ page, next }) => {
+  await page.clock.install();
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await continueWithGoogle(page);
+  await expect(page.getByText("Welcome back.")).toBeVisible();
+  await page.context().clearCookies({ name: "still_session" });
+  // /archive has no screen yet, so trigger the stale me.get refetch by refocusing the page.
+  await page.clock.fastForward(31_000);
+  await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
+  await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
+  await expect(page.getByText("Your session ended. Sign in again.")).toBeVisible();
+});

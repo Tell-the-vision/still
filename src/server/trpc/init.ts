@@ -1,4 +1,4 @@
-import { initTRPC } from "@trpc/server";
+import { TRPCError, initTRPC } from "@trpc/server";
 import { ZodError } from "zod";
 import type { AppCode } from "@still/shared/errors";
 import type { Context } from "./context";
@@ -37,3 +37,9 @@ const t = initTRPC.context<Context>().create({
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
+
+export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
+  const session = await ctx.getSession();
+  if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
+  return next({ ctx: { session } });
+});
