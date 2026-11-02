@@ -1,5 +1,7 @@
 export const accountStrings = {
   signedInWith: (provider: string) => `SIGNED IN WITH ${provider}`,
+  linkedAccounts: "LINKED ACCOUNTS",
+  identityRow: (provider: string, email: string | null) => `${provider} · ${email ?? ""}`,
   preferences: "PREFERENCES",
   about: "ABOUT STILL",
   tagline: "Art stays with you.",

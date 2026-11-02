@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { LinkedAccounts } from "../features/account/LinkedAccounts";
 import { PolicyLinks } from "../features/account/PolicyLinks";
 import { accountStrings } from "../features/account/strings";
 import { useRequireLogin } from "../features/auth/require-login";
@@ -47,6 +48,9 @@ export default function Account() {
         <Section label={accountStrings.signedInWith(providerNames[me.provider] ?? me.provider)}>
           <Text>{me.displayName}</Text>
           <Text>{me.email}</Text>
+        </Section>
+        <Section label={accountStrings.linkedAccounts}>
+          <LinkedAccounts />
         </Section>
         <Section label={accountStrings.preferences} />
         <Section label={accountStrings.about}>

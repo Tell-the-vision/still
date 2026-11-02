@@ -4,14 +4,16 @@ import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-nat
 import { Text } from "./Text";
 import { colors } from "./theme";
 
-type Props = { href: Href; label: string; style?: StyleProp<ViewStyle>; selected?: boolean };
+type Props = { href: Href; label: string; style?: StyleProp<ViewStyle>; selected?: boolean; variant?: "label" | "secondary"; target?: "_blank" };
 
 // A text-only navigation link. Shows the same web focus ring as `Button`.
-export function TextLink({ href, label, style, selected = false }: Props) {
+export function TextLink({ href, label, style, selected = false, variant = "label", target }: Props) {
   const [focused, setFocused] = useState(false);
   return (
     <Link href={href} asChild>
       <Pressable
+        // react-native-web renders anchor attributes from `hrefAttrs`; `Link asChild` would pass bare `target`.
+        {...(target && { hrefAttrs: { target, rel: "noopener noreferrer" } })}
         accessibilityRole="link"
         accessibilityLabel={label}
         accessibilityState={{ selected }}
@@ -22,7 +24,7 @@ export function TextLink({ href, label, style, selected = false }: Props) {
         // Flattened because `Link asChild` forwards the style prop untouched.
         style={StyleSheet.flatten([style, focused && styles.focus])}
       >
-        <Text variant="label" maxFontSizeMultiplier={1.5} numberOfLines={1}>
+        <Text variant={variant} maxFontSizeMultiplier={1.5} numberOfLines={1}>
           {label}
         </Text>
       </Pressable>
