@@ -218,7 +218,7 @@ export const archives = pgTable(
   (t) => [
     unique().on(t.userId, t.exhibitionId),
     unique().on(t.id, t.exhibitionId),
-    index().on(t.userId, t.lastVisitedAt.desc(), t.id.desc()),
+    index().on(t.userId, t.lastVisitedAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
     index().on(t.exhibitionId),
   ],
 );
@@ -235,7 +235,7 @@ export const scraps = pgTable(
   (t) => [
     primaryKey({ columns: [t.archiveId, t.guideSentenceId] }),
     foreignKey({ columns: [t.archiveId, t.exhibitionId], foreignColumns: [archives.id, archives.exhibitionId] }).onDelete('cascade'),
-    foreignKey({ columns: [t.exhibitionId, t.guideSentenceId], foreignColumns: [guideSentences.exhibitionId, guideSentences.id] }).onDelete('restrict'),
+    foreignKey({ name: 'scraps_sentence_fk', columns: [t.exhibitionId, t.guideSentenceId], foreignColumns: [guideSentences.exhibitionId, guideSentences.id] }).onDelete('restrict'),
     index().on(t.exhibitionId, t.guideSentenceId),
   ],
 );

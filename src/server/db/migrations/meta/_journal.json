@@ -15,6 +15,13 @@
       "when": 1793644441042,
       "tag": "0001_exhibition_cover_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793648182835,
+      "tag": "0002_worthless_sheva_callister",
+      "breakpoints": true
     }
   ]
 }
