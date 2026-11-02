@@ -37,3 +37,19 @@ export async function deleteObject(key: string) {
   const res = await fetchObject(key, { method: "DELETE" });
   if (!res.ok) throw new Error(`R2 delete of ${key} failed: ${res.status}`);
 }
+
+// Lists every object key under a prefix, following ListObjectsV2 continuation tokens.
+export async function listObjects(prefix: string) {
+  const keys: string[] = [];
+  let token: string | undefined;
+  do {
+    const query = new URLSearchParams({ "list-type": "2", prefix });
+    if (token) query.set("continuation-token", token);
+    const res = await fetchObject(`?${query}`, { method: "GET" });
+    if (!res.ok) throw new Error(`R2 list of ${prefix} failed: ${res.status}`);
+    const xml = await res.text();
+    keys.push(...Array.from(xml.matchAll(/<Key>(.*?)<\/Key>/g), (m) => m[1]));
+    token = xml.match(/<NextContinuationToken>(.*?)<\/NextContinuationToken>/)?.[1];
+  } while (token);
+  return keys;
+}
