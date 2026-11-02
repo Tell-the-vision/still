@@ -19,7 +19,8 @@ const ERRORS: Record<string, string> = {
   OAuthCallbackError: "Google 인증이 취소되었거나 실패했습니다. 다시 시도해 주세요.",
   OAuthSignin: "Google 로그인을 시작하지 못했습니다.",
   AccessDenied: "접근이 거부되었습니다.",
-  Configuration: "로그인 설정에 문제가 있습니다. .env의 AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET을 확인해 주세요.",
+  Configuration:
+    "로그인 설정에 문제가 있습니다. 환경변수 AUTH_SECRET이 비어 있거나(배포 환경에서 필수), AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET이 잘못되었을 수 있습니다.",
   CredentialsSignin: "로그인에 실패했습니다. 이메일을 확인해 주세요.",
   Default: "로그인에 실패했습니다. 다시 시도해 주세요.",
 };
