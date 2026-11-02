@@ -23,7 +23,7 @@
     "client:android": "npm run android -w @still/client",
     "client:typecheck": "npm run typecheck -w @still/client",
     "e2e": "playwright test --project=chromium",
-    "e2e:server": "npm run web:export && next build && next start -p $E2E_PORT -H localhost"
+    "e2e:server": "tsx --env-file-if-exists=.env src/server/db/reset.ts && npm run db:migrate && npm run web:export && next build && next start -p $E2E_PORT -H localhost"
   },
   "dependencies": {
     "@trpc/server": "^11.22.1",

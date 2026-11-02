@@ -8,8 +8,8 @@ if (!name.startsWith('still')) {
 }
 
 const pool = new Pool({ connectionString: url.toString() });
-await pool.query('DROP SCHEMA IF EXISTS drizzle CASCADE');
-await pool.query('DROP SCHEMA public CASCADE');
-await pool.query('CREATE SCHEMA public');
-await pool.end();
-console.log(`Reset database "${name}"`);
+pool
+  .query('DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA public')
+  .then(() => pool.end())
+  .then(() => console.log(`Reset database "${name}"`))
+  .catch((e) => { console.error(e); process.exit(1); });
