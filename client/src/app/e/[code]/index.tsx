@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useArchiveVisit } from "../../../features/archive/useArchiveVisit";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
+import { SentenceAction } from "../../../features/scrap/SentenceAction";
 import { STALE_TIME, useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
 import { DocumentView } from "../../../ui/DocumentView";
@@ -28,7 +29,7 @@ export default function ExhibitionGuide() {
       <Screen tabs>
         <GuideHeader {...exhibition.data} />
         <DocumentView document={exhibition.data.description} />
-        <DocumentView document={guide.data.document} />
+        <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
       </Screen>
     );
   }
