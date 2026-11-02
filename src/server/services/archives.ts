@@ -1,5 +1,7 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+import type { z } from "zod";
+import { archiveCursor, type archiveListInput } from "../../../shared/src/archive";
 import { db } from "../db/client";
 import { archives, exhibitions } from "../db/schema";
 import { publicImageUrl } from "../media/public-url";
@@ -77,4 +79,34 @@ export async function ensureArchive(userId: string, code: string, executor: Exec
   const archive = await findArchive(userId, exhibition.id, executor);
   if (!archive) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   return { id: archive.id, exhibitionId: exhibition.id };
+}
+
+function parseCursor(cursor: string) {
+  try {
+    return archiveCursor.parse(JSON.parse(Buffer.from(cursor, "base64url").toString()));
+  } catch {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid cursor" });
+  }
+}
+
+// Most recently visited first (SPEC §11.1); fetches one extra row to know whether a next page exists.
+export async function listArchives(userId: string, { limit, cursor }: z.infer<typeof archiveListInput>) {
+  const after = cursor ? parseCursor(cursor) : undefined;
+  const rows = await db.query.archives.findMany({
+    where: and(
+      eq(archives.userId, userId),
+      after && sql`(${archives.lastVisitedAt}, ${archives.id}) < (${after.lastVisitedAt}::timestamptz, ${after.id}::uuid)`,
+    ),
+    orderBy: [desc(archives.lastVisitedAt), desc(archives.id)],
+    limit: limit + 1,
+    with: archiveWith,
+  });
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+  const nextCursor =
+    rows.length > limit && last
+      ? Buffer.from(JSON.stringify({ lastVisitedAt: last.lastVisitedAt.toISOString(), id: last.id })).toString("base64url")
+      : null;
+  const totalSize = await db.$count(archives, eq(archives.userId, userId));
+  return { items: page.map(toArchive), nextCursor, totalSize };
 }

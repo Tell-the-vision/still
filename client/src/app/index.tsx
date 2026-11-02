@@ -1,4 +1,5 @@
 import { useMe } from "../features/auth/use-me";
+import { CurrentExhibition } from "../features/home/CurrentExhibition";
 import { homeStrings } from "../features/home/strings";
 import { Button } from "../ui/Button";
 import { Screen } from "../ui/Screen";
@@ -18,6 +19,7 @@ export default function Home() {
         ) : (
           <Button label={homeStrings.login} href="/login?returnTo=/" variant="secondary" />
         )}
+        {me && <CurrentExhibition />}
         <Button label={homeStrings.scan} href="/scan" />
       </Stack>
     </Screen>
