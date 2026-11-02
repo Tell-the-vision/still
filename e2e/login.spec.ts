@@ -38,6 +38,17 @@ test("replaying a consumed callback fails", async ({ page }) => {
   await expect(page.getByText("Sign-in failed. Try again.")).toBeVisible();
 });
 
+test("in-app browsers see a default-browser notice instead of the Google button", async ({ browser }) => {
+  const context = await browser.newContext({ userAgent: "Mozilla/5.0 (Linux; Android 14) KAKAOTALK 10.0" });
+  const page = await context.newPage();
+  await page.goto("/");
+  await page.getByRole("link", { name: "Login" }).click();
+  await expect(page.getByText("Open STILL in your default browser to sign in.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
+  await context.close();
+});
+
 test("the start route rejects unknown providers and non sign_in intents", async ({ request }) => {
   expect((await request.get("/api/auth/github?intent=sign_in", { maxRedirects: 0 })).status()).toBe(404);
   expect((await request.get("/api/auth/google?intent=link", { maxRedirects: 0 })).status()).toBe(400);
