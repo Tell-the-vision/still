@@ -35,9 +35,9 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
   const callbackUrl = safeCallback(params.get("callbackUrl"));
   const errorCode = params.get("error");
   const [intent, setIntent] = useState<SigninIntent>(params.get("as") === "artist" ? "artist" : "user");
-  // Neutral demo defaults (never a real person's data). Editable.
-  const [email, setEmail] = useState("gdg@gmail.com");
-  const [name, setName] = useState("홍길동");
+  // Fields start empty; the placeholders show neutral sample values only.
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
