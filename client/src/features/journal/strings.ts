@@ -7,6 +7,10 @@ export const journalStrings = {
   network: "Couldn't save. Your text is kept.",
   conflict: "This journal was changed on another device.",
   retry: "Retry",
+  leaveLabel: "Leave without saving?",
+  leaveBody: "Your draft is kept on this device.",
+  stay: "Stay",
+  leave: "Leave",
 };
 
 export const journalSectionStrings = {

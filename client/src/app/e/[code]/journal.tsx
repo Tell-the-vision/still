@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { savePendingAction, takePendingAction } from "../../../features/auth/pending-action";
 import { takeGuestDraft, useDraft } from "../../../features/journal/drafts";
@@ -8,6 +8,7 @@ import { useMe } from "../../../features/auth/use-me";
 import { journalStrings } from "../../../features/journal/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
+import { Dialog } from "../../../ui/Dialog";
 import { Notice } from "../../../ui/Notice";
 import { Screen } from "../../../ui/Screen";
 import { Text } from "../../../ui/Text";
@@ -41,6 +42,12 @@ export default function Journal() {
       },
     }),
   );
+  const dirty = content !== (journal.data?.content ?? "");
+
+  // Leaving with unsaved text asks first (also warns on web unload); Leave replays the held navigation.
+  const [leave, setLeave] = useState<(() => void) | null>(null);
+  usePreventRemove(dirty, ({ repeat }) => setLeave(() => repeat));
+
   const { audioType = null, revision = null } = journal.data ?? {};
   const error = save.error instanceof TRPCClientError ? save.error : null;
   const appCode = error?.data?.appCode;
@@ -87,6 +94,15 @@ export default function Journal() {
       {isNetworkError && <Button label={journalStrings.retry} variant="secondary" onPress={submit} />}
       {appCode === "REVISION_MISMATCH" && <Notice message={journalStrings.conflict} />}
       {saved && <Notice message={journalStrings.saved} />}
+      <Dialog visible={!!leave} onClose={() => setLeave(null)} label={journalStrings.leaveLabel}>
+        <Text>{journalStrings.leaveBody}</Text>
+        <Button label={journalStrings.stay} onPress={() => setLeave(null)} />
+        <Button
+          label={journalStrings.leave}
+          variant="secondary"
+          onPress={() => leave?.()}
+        />
+      </Dialog>
     </Screen>
   );
 }
