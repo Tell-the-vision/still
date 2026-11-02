@@ -1,5 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
+import type { NextFixture } from "next/experimental/testmode/playwright";
+
+// SPEC §2.8: server-side fetch stub. Answers Google's token endpoint with an unsigned id_token for `user`.
+export function stubGoogleToken(next: NextFixture, user: ReturnType<typeof newUser>) {
+  next.onFetch((request) => {
+    if (request.url !== "https://oauth2.googleapis.com/token") return undefined;
+    const claims = { iss: "https://accounts.google.com", aud: "test-google-web-id", sub: user.sub, email: user.email, name: user.name, exp: Math.floor(Date.now() / 1000) + 3600 };
+    const part = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+    const idToken = `${part({ alg: "none" })}.${part(claims)}.`;
+    return Response.json({ id_token: idToken, refresh_token: "test-refresh", access_token: "test-access", expires_in: 3600 });
+  });
+}
 
 export function newUser() {
   const sub = `g-${randomUUID()}`;
