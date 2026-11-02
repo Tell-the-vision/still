@@ -1,5 +1,6 @@
 import { codeSchema } from "@still/shared/code";
 import { storedDocument, type StoredDocument } from "@still/shared/document";
+import { extname } from "node:path";
 import type { ContentPackage } from "./content";
 
 type PackageExhibition = ContentPackage["exhibitions"][number];
@@ -8,6 +9,19 @@ const PLAYLIST_PREFIX = {
   SPOTIFY: "https://open.spotify.com/",
   APPLE_MUSIC: "https://music.apple.com/",
 };
+
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
+
+export function imageContentType(file: string) {
+  const type = IMAGE_CONTENT_TYPES[extname(file).slice(1).toLowerCase()];
+  if (!type) throw new Error(`Unsupported image file "${file}" (use jpg, jpeg, png or webp)`);
+  return type;
+}
 
 // Sentence ids referenced by a guide, in order (duplicates kept).
 export function sentenceRefs(guide: StoredDocument | null): string[] {
@@ -35,6 +49,7 @@ function validateExhibition(e: PackageExhibition) {
 
   const description = parseDocument(`${label} description`, e.description);
   const guide = parseDocument(`${label} guide`, e.guide);
+  for (const image of e.images ?? []) imageContentType(image.file);
   const imageIds = new Set((e.images ?? []).map((i) => i.id));
   if (e.cover != null && !e.images?.[e.cover]) throw new Error(`${label}: cover index out of range`);
   for (const doc of [description, guide]) {

@@ -8,6 +8,8 @@ test("AASA and assetlinks are served as JSON", async ({ request }) => {
   const links = await request.get("/.well-known/assetlinks.json");
   expect(links.status()).toBe(200);
   expect(links.headers()["content-type"]).toContain("application/json");
+  const [entry] = await links.json();
+  expect(entry.target.sha256_cert_fingerprints).toEqual(["AA:11", "BB:22"]);
 });
 
 test("a pasted full guide URL opens the guide", async ({ page, baseURL }) => {

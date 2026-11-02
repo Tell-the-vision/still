@@ -32,6 +32,7 @@ export default defineConfig({
       AUTH_GOOGLE_SECRET: "test-google-secret",
       GOOGLE_IOS_CLIENT_ID: "test-google-ios-id",
       GOOGLE_ANDROID_CLIENT_ID: "test-google-android-id",
+      ANDROID_SHA256_FINGERPRINTS: "AA:11, BB:22 ,,",
       GOOGLE_NATIVE_REDIRECT_URIS: "still:///oauthredirect",
       ACCESS_TOKEN_SECRET: "e2e-access-token-secret-0123456789abcdef",
       TOKEN_ENC_KEYS: `v1:${Buffer.alloc(32, 7).toString("base64")}`,

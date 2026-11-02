@@ -7,7 +7,7 @@ import { db } from "../client";
 import { putObject } from "../../media/r2";
 import { exhibitionPlaylists, exhibitions, guideSentences, images, institutions, venues } from "../schema";
 import type { ContentPackage } from "./content";
-import { sentenceRefs, validatePackage } from "./validate";
+import { imageContentType, sentenceRefs, validatePackage } from "./validate";
 
 // Idempotent operator import (SPEC §9): safe to rerun with the same or an edited package.
 // The whole package is one transaction, so a failed import leaves no partial rows.
@@ -45,10 +45,10 @@ export async function importPackage(pkg: ContentPackage) {
       const imageRows: { id: string }[] = [];
       for (const { file, ...image } of imageFiles) {
         const bytes = await readFile(file);
-        const ext = extname(file).slice(1);
+        const ext = extname(file).slice(1).toLowerCase();
         const objectKey = `exhibitions/${code}/${createHash("sha256").update(bytes).digest("hex")}.${ext}`;
         await tx.insert(images).values({ ...image, exhibitionId: exhibition.id, objectKey }).onConflictDoNothing({ target: images.objectKey });
-        await putObject(objectKey, bytes, `image/${ext}`);
+        await putObject(objectKey, bytes, imageContentType(file));
         const [row] = await tx.select({ id: images.id }).from(images).where(eq(images.objectKey, objectKey));
         imageRows.push(row);
       }

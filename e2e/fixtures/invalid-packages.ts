@@ -14,6 +14,10 @@ export const invalidPackages = {
   "duplicate-sentence": withExhibition({
     guide: { version: 1, blocks: [...baseGuide.blocks, baseGuide.blocks[1]] },
   }),
+  // cover.gif intentionally does not exist: the extension is rejected before the file is read.
+  "unsupported-image": withExhibition({
+    images: [{ id: "00000000-0000-4000-8000-000000000001", file: "e2e/fixtures/cover.gif", altText: "x", width: 1, height: 1 }],
+  }),
   "wrong-playlist-domain": withExhibition({
     playlist: { provider: "SPOTIFY", url: "https://music.apple.com/x", title: "t", description: null },
   }),
