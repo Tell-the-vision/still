@@ -16,7 +16,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useAudio, type AudioMode } from "@/components/audio/AudioProvider";
 import { AudioOptions, useAudioInfo } from "@/components/audio/AudioOptions";
-import { Button, Notice, SectionTitle } from "@/components/ui";
+import { Button, Notice } from "@/components/ui";
 import type { Exhibition, Journal } from "@/db/schema";
 import { track } from "@/lib/client/analytics";
 import { clearJournalDraft, loadJournalDraft, saveJournalDraft } from "@/lib/client/drafts";
@@ -179,14 +179,20 @@ export function JournalEditor({ exhibition }: { exhibition: Exhibition }) {
   const period = journal ? `마지막 수정 ${formatDateTime(journal.updatedAt)}` : "아직 Journal이 없습니다.";
 
   return (
-    <div className="px-5 pb-10">
-      <header className="pt-2 pb-4">
-        <h1 className="font-display text-xl">{exhibition.title}</h1>
-        <p className="text-muted text-xs mt-1">{loaded ? period : "Loading…"}</p>
+    <div className="px-6 pb-12">
+      {/* Figma 05 — "Your journal." */}
+      <header className="pt-6">
+        <h1 className="screen-title">Your journal.</h1>
+        <p className="label mt-1.5">{exhibition.title}</p>
       </header>
 
+      <div className="hairline mt-6 pt-6">
+        <p className="font-display text-[19px] leading-7">Your one journal for this exhibition.</p>
+        <p className="label mt-1">{loaded ? period : "Loading…"}</p>
+      </div>
+
       {restorable !== null && (
-        <div className="mb-4">
+        <div className="mt-4">
           <Notice
             action={
               <span className="flex gap-3 shrink-0">
@@ -225,16 +231,16 @@ export function JournalEditor({ exhibition }: { exhibition: Exhibition }) {
         value={content}
         onChange={(e) => onChange(e.target.value)}
         disabled={!loaded || saveState === "saving"}
-        placeholder="전시를 보며 떠오른 생각과 감정을 적어 보세요."
+        placeholder="전시를 보며 떠오른 생각과 감정을 적어 보세요. Journal은 전시마다 하나씩 저장되고, 언제든 다시 열어 고칠 수 있어요."
         rows={12}
-        className="w-full text-[15px] leading-7 resize-none border-b border-line py-2"
+        className="w-full min-h-[300px] mt-5 border border-ink px-4 py-4 text-[15px] leading-7 resize-none placeholder:text-muted placeholder:text-[13px] placeholder:leading-6 disabled:opacity-60"
         maxLength={JOURNAL_MAX}
       />
-      <div className="flex items-center justify-between text-xs text-muted mt-2">
+      <div className="flex items-center justify-between label mt-2">
         <span>
           {saveState === "saved" && "Saved"}
           {saveState === "saving" && "Saving…"}
-          {saveState === "idle" && dirty && "수정 중 (임시 저장됨)"}
+          {saveState === "idle" && dirty && "수정 중 · 임시 저장됨"}
         </span>
         <span>
           {content.length} / {JOURNAL_MAX}
@@ -249,7 +255,7 @@ export function JournalEditor({ exhibition }: { exhibition: Exhibition }) {
         </div>
       )}
 
-      <SectionTitle>Audio</SectionTitle>
+      <p className="label mt-8 mb-3">Listening</p>
       <AudioOptions
         info={audioInfo}
         compact
@@ -259,18 +265,19 @@ export function JournalEditor({ exhibition }: { exhibition: Exhibition }) {
           saveJournalDraft(exhibition.slug, { content, audioType: m });
         }}
       />
-      <p className="text-muted text-xs mt-1">
-        현재 선택: {audioType === "EXTERNAL_PLAYLIST" ? "External Playlist" : audioType === "AMBIENCE" ? "STILL Ambience" : "No Audio"}
+      <p className="text-muted text-[12px] mt-2">
+        이 Journal의 오디오: {audioType === "EXTERNAL_PLAYLIST" ? "External Playlist" : audioType === "AMBIENCE" ? "STILL Ambience" : "No Audio"}
         {audio.ambience === "on" ? " · 재생 중" : ""}
       </p>
 
       <div className="mt-8">
         <Button full onClick={() => void save()} loading={saveState === "saving"} disabled={!loaded}>
-          {isLoggedIn ? "Save Journal" : "Login & Save Journal"}
+          {isLoggedIn ? "Save Journal" : "Log in & Save Journal"}
         </Button>
-        <p className="text-center mt-4">
-          <Link href={`/e/${exhibition.slug}`} className="text-xs text-muted underline underline-offset-4">
-            전시 가이드로 돌아가기
+        <p className="mt-5">
+          <Link href={`/e/${exhibition.slug}`} className="inline-flex gap-2 text-[13px]">
+            <span>전시 가이드로 돌아가기</span>
+            <span aria-hidden>→</span>
           </Link>
         </p>
       </div>
