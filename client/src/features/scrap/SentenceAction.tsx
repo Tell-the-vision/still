@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ExpandedBlock } from "@still/shared/document";
+import { useRouter } from "expo-router";
 import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
 import { Text } from "../../ui/Text";
-import { TextLink } from "../../ui/TextLink";
+import { savePendingAction } from "../auth/pending-action";
 import { useMe } from "../auth/use-me";
 import { scrapStrings } from "./strings";
 import { useSavedSentences } from "./useSavedSentences";
@@ -15,6 +16,7 @@ type Props = { code: string; sentence: Extract<ExpandedBlock, { type: "sentence"
 export function SentenceAction({ code, sentence }: Props) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const me = useMe();
   const saved = useSavedSentences(code);
   const listKey = trpc.scrap.list.queryKey({ code });
@@ -38,7 +40,11 @@ export function SentenceAction({ code, sentence }: Props) {
     }),
   );
   const save = () => mutate({ code, sentenceId: sentence.sentenceId });
-  if (!me) return <TextLink href={{ pathname: "/login", params: { returnTo: `/e/${code}` } }} label={scrapStrings.loginRequired} variant="secondary" />;
+  const loginThenSave = async () => {
+    await savePendingAction({ kind: "SCRAP_SAVE", exhibitionCode: code, sentenceId: sentence.sentenceId });
+    router.push({ pathname: "/login", params: { returnTo: `/e/${code}` } });
+  };
+  if (!me) return <Button label={scrapStrings.loginRequired} variant="secondary" onPress={() => void loginThenSave()} />;
   if (saved.has(sentence.sentenceId)) return <Text variant="secondary">{scrapStrings.saved}</Text>;
   if (isError) return (
     <>

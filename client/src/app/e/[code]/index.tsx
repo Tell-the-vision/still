@@ -2,6 +2,7 @@ import { useQueries } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams } from "expo-router";
 import { useArchiveVisit } from "../../../features/archive/useArchiveVisit";
+import { usePendingActionRunner } from "../../../features/auth/usePendingActionRunner";
 import { AudioArea } from "../../../features/audio/AudioArea";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
@@ -24,6 +25,7 @@ export default function ExhibitionGuide() {
   });
 
   useArchiveVisit(code, !!exhibition.data);
+  usePendingActionRunner(code);
 
   if (exhibition.data && guide.data) {
     return (
