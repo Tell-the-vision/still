@@ -3,11 +3,12 @@ import { Modal, StyleSheet, View } from "react-native";
 import { colors, spacing } from "./theme";
 
 // Modal dialog. On web, RN's Modal traps focus and calls onClose on Escape.
-export function Dialog({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
+// `label` is the accessible name (there is no visible title).
+export function Dialog({ visible, onClose, label, children }: { visible: boolean; onClose: () => void; label: string; children: ReactNode }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View role="dialog" aria-modal style={styles.panel}>{children}</View>
+        <View role="dialog" aria-label={label} aria-modal style={styles.panel}>{children}</View>
       </View>
     </Modal>
   );

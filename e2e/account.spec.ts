@@ -11,7 +11,7 @@ test("signed in: ACCOUNT tab shows the email, Log out returns to guest Home and 
   await expect(page.getByText(user.email)).toBeVisible();
   await expect(page.getByText("Art stays with you.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "https://policy.test.invalid/terms");
-  await page.getByRole("button", { name: "Log out →" }).click();
+  await page.getByRole("button", { name: "Log out" }).click();
   await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
   expect((await page.context().cookies()).some((c) => c.name === "still_session")).toBe(false);
 });
@@ -32,7 +32,7 @@ test("guest: ACCOUNT redirects to Login and returns to /account after Google", a
 
 async function openDeleteDialog(page: Page) {
   await page.getByRole("link", { name: "ACCOUNT" }).click();
-  await page.getByRole("button", { name: "Delete account →" }).click();
+  await page.getByRole("button", { name: "Delete account", exact: true }).click();
   await expect(page.getByText(/permanently deleted/)).toBeVisible();
 }
 

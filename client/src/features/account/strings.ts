@@ -1,0 +1,17 @@
+export const accountStrings = {
+  signedInWith: (provider: string) => `SIGNED IN WITH ${provider}`,
+  preferences: "PREFERENCES",
+  about: "ABOUT STILL",
+  tagline: "Art stays with you.",
+  aboutBody: "A quiet place for what remains after the exhibition ends.",
+  account: "ACCOUNT",
+  logOut: "Log out",
+  deleteAccount: "Delete account",
+  deleteFailed: "Your account was not deleted.",
+  deleteDialogLabel: "Delete account",
+  deleteWarning: "Your account and all its data will be permanently deleted. This cannot be undone.",
+  cancel: "Cancel",
+  delete: "Delete",
+  terms: "Terms of Service",
+  privacy: "Privacy Policy",
+};

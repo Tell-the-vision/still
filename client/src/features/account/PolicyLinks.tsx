@@ -3,6 +3,7 @@ import { Link } from "expo-router";
 import { View } from "react-native";
 import { STALE_TIME, useTRPC } from "../../lib/trpc";
 import { Text } from "../../ui/Text";
+import { accountStrings } from "./strings";
 
 // Terms and Privacy links from the current policy (SPEC §2.2 Consent). Opens in a new tab on web.
 export function PolicyLinks() {
@@ -11,8 +12,8 @@ export function PolicyLinks() {
   if (!data) return null;
   return (
     <View>
-      <Link href={data.termsUrl as never} target="_blank"><Text variant="secondary">Terms of Service</Text></Link>
-      <Link href={data.privacyUrl as never} target="_blank"><Text variant="secondary">Privacy Policy</Text></Link>
+      <Link href={data.termsUrl as never} target="_blank"><Text variant="secondary">{accountStrings.terms}</Text></Link>
+      <Link href={data.privacyUrl as never} target="_blank"><Text variant="secondary">{accountStrings.privacy}</Text></Link>
     </View>
   );
 }
