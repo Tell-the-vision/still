@@ -9,7 +9,7 @@
  * an admin must approve before they can publish exhibitions.
  */
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button, Notice, cx } from "@/components/ui";
 import { track } from "@/lib/client/analytics";
@@ -32,12 +32,12 @@ function safeCallback(raw: string | null) {
 
 export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: boolean; devLoginEnabled: boolean }) {
   const params = useSearchParams();
-  const router = useRouter();
   const callbackUrl = safeCallback(params.get("callbackUrl"));
   const errorCode = params.get("error");
   const [intent, setIntent] = useState<SigninIntent>(params.get("as") === "artist" ? "artist" : "user");
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  // Neutral demo defaults (never a real person's data). Editable.
+  const [email, setEmail] = useState("gdg@gmail.com");
+  const [name, setName] = useState("홍길동");
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -53,18 +53,20 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
 
   const dev = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim()) {
+      setLocalError("이메일을 입력해 주세요.");
+      return;
+    }
     setBusy(true);
     setLocalError(null);
     saveSigninIntent(intent);
-    const res = await signIn("dev", { email, name, redirect: false });
-    if (res?.error) {
-      setLocalError(ERRORS.CredentialsSignin);
-      setBusy(false);
-      return;
-    }
-    track("login_success", { provider: "dev", intent });
-    router.replace(target);
-    router.refresh();
+    track("login_start", { source_action: "dev_login", intent });
+    // Full-page redirect (not redirect:false + router.replace): the server
+    // renders the target with the fresh cookie, so no client-side session
+    // refetch is needed — that refetch is what the Next dev server
+    // occasionally answers with an HTML error page while recompiling.
+    // On failure Auth.js sends us back to /login?error=CredentialsSignin.
+    await signIn("dev", { email: email.trim().toLowerCase(), name: name.trim(), redirectTo: target });
   };
 
   const option = (value: SigninIntent, label: string, desc: string) => (
@@ -118,7 +120,7 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full h-11 border-b border-ink mb-4"
-            placeholder="you@example.com"
+            placeholder="gdg@gmail.com"
           />
           <label className="block text-xs text-muted mb-1" htmlFor="dev-name">
             Name (optional)
@@ -129,7 +131,7 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full h-11 border-b border-ink mb-6"
-            placeholder="채정윤"
+            placeholder="홍길동"
           />
           {localError && (
             <div className="mb-4">
@@ -140,7 +142,7 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
             Dev Login
           </Button>
           <p className="text-muted text-xs mt-3">
-            비밀번호 없이 이메일만으로 로그인하는 개발용 계정입니다. <code>ADMIN_EMAILS</code>에 적힌 이메일은 관리자가 됩니다. 프로덕션에서는 자동으로 비활성화됩니다.
+            비밀번호 없이 이메일만으로 로그인하는 개발용 계정입니다. 같은 이메일로 다시 로그인하면 이름은 마지막에 입력한 값으로 바뀝니다 (비워 두면 이전 이름 유지). <code>ADMIN_EMAILS</code>에 적힌 이메일은 관리자가 됩니다. 프로덕션에서는 자동으로 비활성화됩니다.
           </p>
         </form>
       )}

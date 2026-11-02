@@ -6,7 +6,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useAudio } from "@/components/audio/AudioProvider";
 import { Button, Dialog, Notice, SectionTitle, cx } from "@/components/ui";
 import type { PublicUser } from "@/lib/api";
@@ -19,6 +19,7 @@ const ARTIST_LABEL = { NONE: "", PENDING: "인증 심사 중", APPROVED: "인증
 export function AccountPanel({ user }: { user: PublicUser }) {
   const approvedArtist = user.role === "ADMIN" || (user.role === "ARTIST" && user.artistStatus === "APPROVED");
   const audio = useAudio();
+  const { status: sessionStatus } = useSession();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +115,7 @@ export function AccountPanel({ user }: { user: PublicUser }) {
       {audio.ambience === "error" && audio.ambienceError && <Notice tone="error">{audio.ambienceError}</Notice>}
 
       <SectionTitle>Session</SectionTitle>
-      <Button variant="secondary" full onClick={() => void logout()}>
+      <Button variant="secondary" full onClick={() => void logout()} disabled={sessionStatus === "loading"}>
         Logout
       </Button>
 

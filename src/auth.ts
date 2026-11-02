@@ -48,11 +48,12 @@ async function upsertUser(input: {
     where: eq(users.googleId, input.googleId),
   });
   if (existing) {
+    // Same account again → the most recently entered (non-empty) name wins.
     const [updated] = await db
       .update(users)
       .set({
         email: input.email,
-        displayName: input.displayName || existing.displayName,
+        displayName: input.displayName.trim() || existing.displayName,
         image: input.image ?? existing.image,
         ...(promote && existing.role !== "ADMIN" ? { role: "ADMIN" as const } : {}),
       })
@@ -65,7 +66,7 @@ async function upsertUser(input: {
     .values({
       googleId: input.googleId,
       email: input.email,
-      displayName: input.displayName,
+      displayName: input.displayName.trim() || input.email.split("@")[0],
       image: input.image ?? null,
       role: promote ? "ADMIN" : "USER",
     })
@@ -97,7 +98,9 @@ if (devLoginEnabled) {
       async authorize(credentials) {
         const email = String(credentials?.email ?? "").trim().toLowerCase();
         if (!email || !email.includes("@")) return null;
-        const name = String(credentials?.name ?? "").trim() || email.split("@")[0];
+        // Empty name → keep whatever is stored (see upsertUser); new accounts
+        // fall back to the email's local part there.
+        const name = String(credentials?.name ?? "").trim();
         return { id: `dev:${email}`, email, name, image: null };
       },
     }),
