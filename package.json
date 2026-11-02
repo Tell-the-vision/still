@@ -2,6 +2,9 @@
   "name": "still",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "client"
+  ],
   "scripts": {
     "predev": "node scripts/ensure-db.mjs",
     "dev": "next dev",
@@ -13,7 +16,11 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "node scripts/reset-db.mjs",
     "db:studio": "drizzle-kit studio",
-    "setup": "npm run db:push && npm run db:seed"
+    "setup": "npm run db:push && npm run db:seed",
+    "client": "npm run start -w @still/client",
+    "client:ios": "npm run ios -w @still/client",
+    "client:android": "npm run android -w @still/client",
+    "client:typecheck": "npm run typecheck -w @still/client"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
@@ -23,8 +30,8 @@
     "next": "15.5.28",
     "next-auth": "^5.0.0-beta.32",
     "qrcode": "^1.5.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
