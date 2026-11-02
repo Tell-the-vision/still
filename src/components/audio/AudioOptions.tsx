@@ -86,74 +86,78 @@ export function AudioOptions({
     window.open(playlist.url, "_blank", "noopener,noreferrer");
   };
 
-  const row = "flex items-center justify-between gap-3 py-3";
+  // Figma 05 "Listening": bordered rows; the active choice is filled black.
+  const row = (active: boolean) =>
+    cx(
+      "w-full flex items-center justify-between gap-3 min-h-[46px] px-3.5 py-2.5 border border-ink text-left",
+      active ? "bg-ink text-paper" : "bg-paper text-ink",
+    );
+  const sub = (active: boolean) => cx("text-[11px] leading-4 mt-0.5", active ? "text-paper/70" : "text-muted");
 
   return (
-    <div className={cx("text-sm", !compact && "hairline pt-2")} aria-label="Audio options">
+    <div className={cx("space-y-2", !compact && "hairline pt-4")} aria-label="Audio options">
       {hasPlaylist && playlist && (
-        <div className={row}>
+        <div className={row(audio.mode === "EXTERNAL_PLAYLIST")}>
           <div className="min-w-0">
-            <p className="font-medium truncate">{playlist.title ?? "External Playlist"}</p>
-            <p className="text-muted text-xs">
-              {PROVIDER_LABEL[playlist.provider] ?? playlist.provider}
+            <p className="text-[12px] font-medium uppercase tracking-[0.04em] truncate">
+              External Playlist · {PROVIDER_LABEL[playlist.provider] ?? playlist.provider}
+            </p>
+            <p className={cx(sub(audio.mode === "EXTERNAL_PLAYLIST"), "truncate")}>
+              {playlist.title ?? "Playlist"}
               {playlist.description ? ` · ${playlist.description}` : ""}
             </p>
           </div>
-          <Button variant="secondary" className="h-9 px-4 text-xs shrink-0" onClick={openPlaylist}>
-            {PROVIDER_LABEL[playlist.provider] ?? "Open"}에서 듣기
-          </Button>
+          <button
+            type="button"
+            onClick={openPlaylist}
+            className="shrink-0 text-[12px] font-medium underline underline-offset-4"
+          >
+            {PROVIDER_LABEL[playlist.provider] ?? "Open"}에서 듣기 ↗
+          </button>
         </div>
       )}
 
       {/* Ambience is the fallback when there is no playlist; still reachable otherwise (TBD-05). */}
       {ambienceAvailable && (
-        <div className={row}>
-          <div>
-            <p className="font-medium">STILL Ambience</p>
-            <p className="text-muted text-xs">
-              {hasPlaylist ? "Pink Noise (대체 옵션)" : "Pink Noise — 기관 제공 플레이리스트가 없는 전시"}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={audio.ambience === "on"}
-            onClick={() => {
-              if (audio.ambience === "on") {
-                audio.ambienceOff(info.exhibitionId);
-                choose("NONE");
-              } else {
-                void audio.ambienceOn(info.exhibitionId).then(() => onModeChange?.("AMBIENCE"));
-              }
-            }}
-            className={cx(
-              "h-9 px-4 text-xs border border-ink shrink-0",
-              audio.ambience === "on" ? "bg-ink text-paper" : "bg-paper text-ink",
-            )}
-          >
-            {audio.ambience === "on" ? "On" : "Off"}
-          </button>
-        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={audio.ambience === "on"}
+          onClick={() => {
+            if (audio.ambience === "on") {
+              audio.ambienceOff(info.exhibitionId);
+              choose("NONE");
+            } else {
+              void audio.ambienceOn(info.exhibitionId).then(() => onModeChange?.("AMBIENCE"));
+            }
+          }}
+          className={row(audio.ambience === "on")}
+        >
+          <span className="min-w-0">
+            <span className="block text-[12px] font-medium uppercase tracking-[0.04em]">STILL Ambience · Pink Noise</span>
+            <span className={cx("block", sub(audio.ambience === "on"))}>
+              {hasPlaylist ? "대체 옵션" : "기관 제공 플레이리스트가 없는 전시"}
+            </span>
+          </span>
+          <span className="shrink-0 text-[12px] font-medium">{audio.ambience === "on" ? "ON" : "OFF"}</span>
+        </button>
       )}
 
       {!ambienceAvailable && !hasPlaylist && (
-        <p className="text-muted text-xs py-3">이 전시는 오디오 옵션을 제공하지 않습니다.</p>
+        <p className="text-muted text-[12px] py-2">이 전시는 오디오 옵션을 제공하지 않습니다.</p>
       )}
 
-      <div className={row}>
-        <p className="text-muted">No Audio</p>
-        <button
-          type="button"
-          onClick={() => choose("NONE")}
-          aria-pressed={audio.mode === "NONE"}
-          className={cx(
-            "h-9 px-4 text-xs border border-ink shrink-0",
-            audio.mode === "NONE" ? "bg-ink text-paper" : "bg-paper text-ink",
-          )}
-        >
-          {audio.mode === "NONE" ? "Selected" : "Select"}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => choose("NONE")}
+        aria-pressed={audio.mode === "NONE"}
+        className={row(audio.mode === "NONE")}
+      >
+        <span className="text-[12px] font-medium uppercase tracking-[0.04em]">No Audio</span>
+        <span className="shrink-0 text-[12px] font-medium">{audio.mode === "NONE" ? "Selected" : "Select"}</span>
+      </button>
+
+      {ambienceAvailable && <p className="label pt-1">Pink Noise is user-controlled. Default: Off.</p>}
 
       {audio.ambience === "error" && audio.ambienceError && (
         <Notice tone="error" action={<Button variant="text" onClick={() => void audio.ambienceOn(info.exhibitionId)}>Retry</Button>}>

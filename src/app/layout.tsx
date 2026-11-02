@@ -23,7 +23,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <head>
-        {/* Fonts are loaded at runtime (no build-time fetch). Montserrat stands in for Futura. */}
+        {/* Fonts are loaded at runtime (no build-time fetch). Montserrat stands in for Futura
+            (PRD §3.2); Noto Serif KR is used by the per-exhibition themes. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font -- app/layout applies to every route */}

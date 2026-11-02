@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ExhibitionGuide } from "@/components/exhibition/ExhibitionGuide";
-import { PageHeader, Wordmark } from "@/components/ui";
+import { BottomNav, PageHeader } from "@/components/ui";
 import { currentUser } from "@/lib/api";
 import { canManageExhibition } from "@/lib/artist";
 import { findExhibitionAny, getGuide, groupGuide, isPubliclyVisible } from "@/lib/exhibitions";
@@ -37,8 +37,12 @@ export default async function ExhibitionPage({ params }: Props) {
   const sentences = await getGuide(exhibition.id);
 
   return (
-    <main>
-      <PageHeader back={canManage && !visible ? `/artist/exhibitions/${exhibition.id}` : "/"} title={<Wordmark />} />
+    <main className="flex flex-col min-h-dvh">
+      {canManage && !visible ? (
+        <PageHeader back={`/artist/exhibitions/${exhibition.id}`} backLabel="Editor" title="Preview" />
+      ) : (
+        <PageHeader />
+      )}
       <Suspense>
         <ExhibitionGuide
           exhibition={exhibition}
@@ -47,6 +51,7 @@ export default async function ExhibitionPage({ params }: Props) {
           isOwner={Boolean(user && exhibition.ownerId === user.id)}
         />
       </Suspense>
+      <BottomNav />
     </main>
   );
 }

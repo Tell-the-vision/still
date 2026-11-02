@@ -13,7 +13,7 @@ import { useSession } from "next-auth/react";
 import { AudioOptions, useAudioInfo } from "@/components/audio/AudioOptions";
 import { LikeReportBar } from "@/components/exhibition/LikeReportBar";
 import { themeVars } from "@/components/KeepsakeCard";
-import { Button, LinkButton, Notice, SectionTitle, cx } from "@/components/ui";
+import { Artwork, Button, LinkButton, Notice, SectionTitle, cx } from "@/components/ui";
 import type { Exhibition, GuideSentence, Scrap } from "@/db/schema";
 import { track } from "@/lib/client/analytics";
 import { api, errorMessage } from "@/lib/client/fetcher";
@@ -143,24 +143,26 @@ export function ExhibitionGuide({
   };
 
   const period = periodLabel(exhibition.startDate, exhibition.endDate);
+  const year = (exhibition.startDate ?? "").slice(0, 4);
 
   return (
-    // Exhibition identity → CSS variables (--ex-*) for the UI pass; the title
-    // typeface and a small accent rule are applied here as a minimal default.
-    <article className="exhibition-themed px-5 pb-10" style={themeVars(themeOf(exhibition), "ex")}>
-      {/* Exhibition information (GUIDE-01) */}
-      <header className="text-center pt-2 pb-6">
-        <h1 className="ex-title text-2xl leading-snug">{exhibition.title}</h1>
+    // Exhibition identity → CSS variables (--ex-*). The title follows the
+    // exhibition typeface (PO decision); everything else is STILL monochrome.
+    <article className="exhibition-themed px-6 pb-12" style={themeVars(themeOf(exhibition), "ex")}>
+      {/* Exhibition information (GUIDE-01) — Figma 04 */}
+      <header className="pt-6">
+        <p className="label">Exhibition{year ? `  /  ${year}` : ""}</p>
+        <h1 className="ex-title text-[38px] leading-[1.18] mt-3 break-keep">{exhibition.title}</h1>
         <div className="ex-accent-rule" aria-hidden />
-        {exhibition.subtitle && <p className="text-muted text-sm mt-1">{exhibition.subtitle}</p>}
-        <p className="text-muted text-xs mt-4">
+        {exhibition.subtitle && <p className="text-muted text-[14px] leading-5 mt-3">{exhibition.subtitle}</p>}
+        <p className="label mt-3">
           {exhibition.venue}
-          {period && ` · ${period}`}
+          {period && `  ·  ${period}`}
         </p>
       </header>
 
       {preview && (
-        <div className="mb-4">
+        <div className="mt-6">
           <Notice>
             {exhibition.status === "DRAFT" && "비공개 초안 미리보기 — 공개하기 전까지 방문자에게 보이지 않습니다."}
             {exhibition.status === "HIDDEN" && "관리자가 숨긴 전시입니다. 방문자에게 보이지 않습니다."}
@@ -170,18 +172,20 @@ export function ExhibitionGuide({
         </div>
       )}
 
-      {exhibition.coverImageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={exhibition.coverImageUrl}
-          alt={`${exhibition.title} 대표 이미지`}
-          className="w-full aspect-[4/5] object-cover bg-line"
-          loading="eager"
-        />
-      )}
+      <Artwork
+        src={exhibition.coverImageUrl}
+        alt={`${exhibition.title} 대표 이미지`}
+        caption="Exhibition View"
+        className="mt-8"
+        ratio="4 / 5"
+        eager
+      />
 
       {exhibition.description && (
-        <p className="text-[15px] leading-7 mt-6 whitespace-pre-line">{exhibition.description}</p>
+        <section className="mt-8">
+          <h2 className="font-display text-[20px] leading-7">About the exhibition</h2>
+          <p className="text-muted text-[14px] leading-6 mt-2 whitespace-pre-line">{exhibition.description}</p>
+        </section>
       )}
 
       <LikeReportBar
@@ -198,48 +202,51 @@ export function ExhibitionGuide({
       )}
 
       {/* Commentary guide (GUIDE-02 / 03) */}
-      <SectionTitle>Commentary Guide</SectionTitle>
+      <SectionTitle>Commentary Guide / Collect a Line</SectionTitle>
       {!isLoggedIn && (
-        <p className="text-muted text-xs mb-3">
+        <p className="text-muted text-[12px] leading-5 -mt-1 mb-2">
           문장을 저장하려면 로그인이 필요합니다. 가이드는 로그인 없이 읽을 수 있습니다.
         </p>
       )}
       <div>
         {sections.map((sec, i) => (
           <section key={i} className="mb-6">
-            {sec.section && <h3 className="font-display text-sm mb-2">{sec.section}</h3>}
-            <ol className="space-y-1">
+            {sec.section && <h3 className="font-display text-[16px] leading-6 mt-4">{sec.section}</h3>}
+            <ol>
               {sec.sentences.map((s) => {
                 const saved = Boolean(scrapBySentence[s.id]);
                 const st = states[s.id] ?? (saved ? "saved" : "idle");
                 const label = preview
-                  ? "Save this sentence"
+                  ? "Save this guide sentence"
                   : !isLoggedIn
-                    ? "Login to save"
+                    ? "Log in to save"
                     : st === "saving"
                       ? "…"
                       : saved
                         ? "Saved"
-                        : "Save this sentence";
+                        : "Save this guide sentence";
                 return (
-                  <li key={s.id} id={`sentence-${s.id}`} className="py-2">
-                    <p className={cx("text-[15px] leading-7", saved && "underline underline-offset-4")}>{s.content}</p>
-                    <div className="flex items-center gap-3 mt-1">
+                  <li key={s.id} id={`sentence-${s.id}`} className="py-4">
+                    <p className={cx("text-[16px] leading-7 break-keep", saved && "underline decoration-1 underline-offset-[6px]")}>
+                      {s.content}
+                    </p>
+                    <div className="flex items-center gap-3 mt-2">
                       <button
                         type="button"
                         onClick={() => onScrap(s)}
                         disabled={preview || st === "saving" || (isLoggedIn && !archiveId)}
                         aria-pressed={saved}
                         className={cx(
-                          "text-xs tracking-wide",
-                          saved ? "text-ink font-medium" : "text-muted",
+                          "inline-flex items-center gap-2 text-[12px] font-medium",
+                          saved ? "text-ink" : "text-muted hover:text-ink",
                           "disabled:opacity-50",
                         )}
                       >
+                        <span aria-hidden className="text-[14px] leading-none">{saved ? "✓" : "＋"}</span>
                         {label}
                       </button>
                       {st === "failed" && errors[s.id] && (
-                        <span className="text-xs text-muted">
+                        <span className="text-[12px] text-muted">
                           {errors[s.id]}{" "}
                           <button type="button" className="underline" onClick={() => onScrap(s)}>
                             Retry
@@ -256,7 +263,7 @@ export function ExhibitionGuide({
       </div>
 
       {/* Audio (spec §6; exposure policy TBD-05 → shown here and on Journal) */}
-      <SectionTitle>Audio</SectionTitle>
+      <SectionTitle>Listening</SectionTitle>
       <AudioOptions info={audioInfo} compact />
 
       {/* Personal records */}
@@ -272,9 +279,10 @@ export function ExhibitionGuide({
             </LinkButton>
           </div>
           {isLoggedIn && archiveId && (
-            <p className="text-center mt-4">
-              <Link href={`/archive/${archiveId}`} className="text-xs text-muted underline underline-offset-4">
-                이 전시의 Archive 보기
+            <p className="mt-5">
+              <Link href={`/archive/${archiveId}`} className="inline-flex gap-2 text-[13px]">
+                <span>이 전시의 Archive 보기</span>
+                <span aria-hidden>→</span>
               </Link>
             </p>
           )}
@@ -282,6 +290,7 @@ export function ExhibitionGuide({
             <div className="mt-6">
               <Button
                 variant="text"
+                className="text-[13px]"
                 onClick={() => requireLogin({ type: "archive-register", exhibitionSlug: exhibition.slug })}
               >
                 로그인하고 이 전시를 Archive에 담기

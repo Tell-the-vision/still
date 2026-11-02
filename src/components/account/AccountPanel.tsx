@@ -8,7 +8,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useAudio } from "@/components/audio/AudioProvider";
-import { Button, Dialog, Notice, SectionTitle, cx } from "@/components/ui";
+import { Dialog, Notice, SectionTitle, cx } from "@/components/ui";
 import type { PublicUser } from "@/lib/api";
 import { api, errorMessage } from "@/lib/client/fetcher";
 import { formatDate } from "@/lib/format";
@@ -43,87 +43,115 @@ export function AccountPanel({ user }: { user: PublicUser }) {
     }
   };
 
+  const row = "flex items-center justify-between gap-3 py-3 text-[14px]";
+
   return (
-    <div className="px-5 pb-10">
-      <SectionTitle>User Information</SectionTitle>
-      <div className="flex items-center gap-4">
-        {user.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.image} alt="" className="w-12 h-12 rounded-full object-cover bg-line" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-line" aria-hidden />
-        )}
-        <div className="min-w-0">
-          <p className="font-medium truncate">{user.displayName || "—"}</p>
-          <p className="text-muted text-sm truncate">{user.email}</p>
-          <p className="text-muted text-xs mt-1">
-            가입 {formatDate(user.createdAt)} · {ROLE_LABEL[user.role]}
-            {user.status === "SUSPENDED" ? " · 정지됨" : ""}
-          </p>
-        </div>
-      </div>
-      {user.status === "SUSPENDED" && (
-        <div className="mt-3">
-          <Notice tone="error">계정이 정지되었습니다.{user.suspendedReason ? ` 사유: ${user.suspendedReason}` : ""}</Notice>
-        </div>
-      )}
+    <div className="px-6 pb-12">
+      {/* Figma 09 — Account */}
+      <header className="pt-6">
+        <h1 className="screen-title">Account</h1>
+      </header>
 
-      <SectionTitle>Artist</SectionTitle>
-      <div className="flex items-center justify-between py-2">
-        <div>
-          <p className="font-medium text-sm">{approvedArtist ? "Artist Studio" : "아티스트 인증"}</p>
-          <p className="text-muted text-xs">
-            {approvedArtist ? "내 전시 등록 · 수정 · QR" : ARTIST_LABEL[user.artistStatus] || "전시를 직접 등록하려면 인증이 필요합니다."}
-          </p>
-        </div>
-        <Link href={approvedArtist || user.artistStatus === "PENDING" ? "/artist" : "/artist/apply"} className="text-xs underline underline-offset-4">
-          {approvedArtist || user.artistStatus === "PENDING" ? "열기" : "신청"}
-        </Link>
-      </div>
-      {user.role === "ADMIN" && (
-        <div className="flex items-center justify-between py-2">
-          <div>
-            <p className="font-medium text-sm">Admin</p>
-            <p className="text-muted text-xs">사용자 · 전시 · 신고 관리</p>
+      <section className="mt-6">
+        <p className="label">Signed in as</p>
+        <div className="flex items-center gap-4 mt-3">
+          {user.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.image} alt="" className="w-12 h-12 rounded-full object-cover bg-placeholder" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-placeholder" aria-hidden />
+          )}
+          <div className="min-w-0">
+            <p className="text-[16px] font-medium truncate">{user.displayName || "—"}</p>
+            <p className="text-muted text-[12px] truncate">{user.email}</p>
           </div>
-          <Link href="/admin" className="text-xs underline underline-offset-4">
-            열기
-          </Link>
+        </div>
+        <p className="label !normal-case !tracking-normal mt-3">
+          가입 {formatDate(user.createdAt)} · {ROLE_LABEL[user.role]}
+          {user.status === "SUSPENDED" ? " · 정지됨" : ""}
+        </p>
+        {user.status === "SUSPENDED" && (
+          <div className="mt-3">
+            <Notice tone="error">계정이 정지되었습니다.{user.suspendedReason ? ` 사유: ${user.suspendedReason}` : ""}</Notice>
+          </div>
+        )}
+      </section>
+
+      {/* Preferences — audio */}
+      <SectionTitle>Preferences</SectionTitle>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={audio.ambience === "on"}
+        disabled={!audio.ambienceSupported}
+        onClick={() => void audio.toggleAmbience()}
+        className={cx(
+          "w-full flex items-center justify-between gap-3 min-h-[46px] px-3.5 py-2.5 border border-ink text-left disabled:opacity-40",
+          audio.ambience === "on" ? "bg-ink text-paper" : "bg-paper text-ink",
+        )}
+      >
+        <span className="min-w-0">
+          <span className="block text-[12px] font-medium uppercase tracking-[0.04em]">STILL Ambience · Pink Noise</span>
+          <span className={cx("block text-[11px] mt-0.5", audio.ambience === "on" ? "text-paper/70" : "text-muted")}>
+            기본값 Off · 화면을 이동해도 유지됩니다
+          </span>
+        </span>
+        <span className="shrink-0 text-[12px] font-medium">{audio.ambience === "on" ? "ON" : "OFF"}</span>
+      </button>
+      {audio.ambience === "error" && audio.ambienceError && (
+        <div className="mt-3">
+          <Notice tone="error">{audio.ambienceError}</Notice>
         </div>
       )}
 
-      <SectionTitle>Audio Settings</SectionTitle>
-      <div className="flex items-center justify-between py-2">
-        <div>
-          <p className="font-medium text-sm">STILL Ambience (Pink Noise)</p>
-          <p className="text-muted text-xs">기본값 Off · 화면을 이동해도 유지됩니다.</p>
-        </div>
+      {/* Studio — artist / admin entry points (not in Figma; same row style) */}
+      <SectionTitle>Studio</SectionTitle>
+      <Link href={approvedArtist || user.artistStatus === "PENDING" ? "/artist" : "/artist/apply"} className={row}>
+        <span className="min-w-0">
+          <span className="block">{approvedArtist ? "Artist Studio" : "아티스트 인증"}</span>
+          <span className="block text-muted text-[12px] mt-0.5">
+            {approvedArtist ? "내 전시 등록 · 수정 · QR" : ARTIST_LABEL[user.artistStatus] || "전시를 직접 등록하려면 인증이 필요합니다."}
+          </span>
+        </span>
+        <span aria-hidden>→</span>
+      </Link>
+      {user.role === "ADMIN" && (
+        <Link href="/admin" className={row}>
+          <span className="min-w-0">
+            <span className="block">Admin</span>
+            <span className="block text-muted text-[12px] mt-0.5">사용자 · 전시 · 신고 관리</span>
+          </span>
+          <span aria-hidden>→</span>
+        </Link>
+      )}
+
+      {/* About */}
+      <SectionTitle>About STILL</SectionTitle>
+      <p className="font-display text-[20px] leading-7">Art stays with you.</p>
+      <p className="text-muted text-[13px] leading-5 mt-1">A quiet place for what remains after the exhibition ends.</p>
+
+      {/* Account */}
+      <SectionTitle>Account</SectionTitle>
+      <div className="flex flex-col items-start gap-4">
         <button
           type="button"
-          role="switch"
-          aria-checked={audio.ambience === "on"}
-          disabled={!audio.ambienceSupported}
-          onClick={() => void audio.toggleAmbience()}
-          className={cx(
-            "h-9 px-4 text-xs border border-ink disabled:opacity-40",
-            audio.ambience === "on" ? "bg-ink text-paper" : "bg-paper text-ink",
-          )}
+          onClick={() => void logout()}
+          disabled={sessionStatus === "loading"}
+          className="inline-flex gap-2 text-[14px] disabled:opacity-50"
         >
-          {audio.ambience === "on" ? "On" : "Off"}
+          <span>Log out</span>
+          <span aria-hidden>→</span>
         </button>
+        <button
+          type="button"
+          onClick={() => setConfirm(true)}
+          className="inline-flex gap-2 text-[14px] text-muted hover:text-ink"
+        >
+          <span>Delete account</span>
+          <span aria-hidden>→</span>
+        </button>
+        <p className="text-muted text-[11px] -mt-2">계정과 모든 Archive, 저장한 문장, Journal, 웹카드가 영구 삭제됩니다.</p>
       </div>
-      {audio.ambience === "error" && audio.ambienceError && <Notice tone="error">{audio.ambienceError}</Notice>}
-
-      <SectionTitle>Session</SectionTitle>
-      <Button variant="secondary" full onClick={() => void logout()} disabled={sessionStatus === "loading"}>
-        Logout
-      </Button>
-
-      <SectionTitle>Account Deletion</SectionTitle>
-      <p className="text-muted text-xs mb-3">계정과 모든 Archive, 저장한 문장, Journal, 웹카드가 영구 삭제됩니다.</p>
-      <Button variant="text" className="text-muted" onClick={() => setConfirm(true)}>
-        계정 삭제
-      </Button>
       {error && (
         <div className="mt-3">
           <Notice tone="error">{error}</Notice>

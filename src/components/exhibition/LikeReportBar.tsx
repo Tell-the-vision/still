@@ -129,7 +129,7 @@ export function LikeReportBar({
   };
 
   return (
-    <div className="mt-6">
+    <div className="mt-8">
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -138,7 +138,7 @@ export function LikeReportBar({
           aria-pressed={liked}
           aria-label={liked ? "좋아요 취소" : "좋아요"}
           className={cx(
-            "h-10 px-4 border text-sm inline-flex items-center gap-2 disabled:opacity-40",
+            "h-10 px-4 border text-[13px] inline-flex items-center gap-2 disabled:opacity-40",
             liked ? "bg-ink text-paper border-ink" : "border-ink text-ink",
           )}
         >
@@ -151,13 +151,13 @@ export function LikeReportBar({
             type="button"
             onClick={openReport}
             disabled={disabled || reported}
-            className="text-xs text-muted underline underline-offset-4 disabled:no-underline disabled:opacity-60"
+            className="label underline underline-offset-4 hover:text-ink disabled:no-underline disabled:opacity-60"
           >
             {reported ? "신고 접수됨" : "신고하기"}
           </button>
         )}
       </div>
-      {!isLoggedIn && <p className="text-muted text-xs mt-2">좋아요와 신고는 로그인 후 이용할 수 있습니다.</p>}
+      {!isLoggedIn && <p className="text-muted text-[12px] mt-2">좋아요와 신고는 로그인 후 이용할 수 있습니다.</p>}
       {notice && (
         <div className="mt-3">
           <Notice tone="success">{notice}</Notice>

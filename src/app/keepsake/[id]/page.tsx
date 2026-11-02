@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
 import { digitalKeepsakes } from "@/db/schema";
 import { KeepsakeViewer } from "@/components/keepsake/KeepsakeViewer";
-import { PageHeader } from "@/components/ui";
+import { BottomNav, PageHeader } from "@/components/ui";
 import { currentUser } from "@/lib/api";
 import { loginUrl } from "@/lib/client/pending-action";
 import { parseKeepsakeContent } from "@/lib/keepsake-templates";
@@ -24,8 +24,8 @@ export default async function KeepsakePage({ params }: { params: Promise<{ id: s
   if (!row || row.archive.userId !== user.id) notFound();
 
   return (
-    <main>
-      <PageHeader back={`/archive/${row.archiveId}`} title="Keepsake" />
+    <main className="flex flex-col min-h-dvh">
+      <PageHeader back={`/archive/${row.archiveId}`} backLabel="Archive" title="Keepsake" />
       <KeepsakeViewer
         keepsake={{
           id: row.id,
@@ -36,6 +36,8 @@ export default async function KeepsakePage({ params }: { params: Promise<{ id: s
           updatedAt: row.updatedAt,
         }}
       />
+      <div className="flex-1" />
+      <BottomNav active="archive" />
     </main>
   );
 }

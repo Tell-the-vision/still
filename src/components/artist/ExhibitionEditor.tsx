@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ImageUpload } from "@/components/artist/ImageUpload";
+import { THEME_FONT_STACK } from "@/components/KeepsakeCard";
 import { Button, Dialog, Loading, Notice, SectionTitle, cx } from "@/components/ui";
 import { track } from "@/lib/client/analytics";
 import { api, errorMessage } from "@/lib/client/fetcher";
@@ -384,7 +385,7 @@ export function ExhibitionEditor({ exhibitionId, backHref = "/artist" }: { exhib
       </Field>
       <div
         className="border border-line p-4 text-sm mb-2"
-        style={{ background: theme.bg, color: theme.fg, fontFamily: theme.font === "serif" ? "var(--font-serif)" : theme.font === "display" ? "var(--font-display)" : "var(--font-body)" }}
+        style={{ background: theme.bg, color: theme.fg, fontFamily: THEME_FONT_STACK[theme.font as keyof typeof THEME_FONT_STACK] ?? THEME_FONT_STACK.sans }}
         aria-label="테마 미리보기"
       >
         <span style={{ color: theme.accent }} className="tracking-[0.3em] text-[10px]">STILL</span>

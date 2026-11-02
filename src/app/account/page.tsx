@@ -13,7 +13,7 @@ export default async function AccountPage() {
   if (!user) redirect(loginUrl("/account"));
   return (
     <main className="flex flex-col min-h-dvh">
-      <PageHeader back="/" title="Account" />
+      <PageHeader />
       <div className="flex-1">
         <AccountPanel user={publicUser(user)} />
       </div>

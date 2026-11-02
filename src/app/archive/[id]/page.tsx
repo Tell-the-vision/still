@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { ArchiveDetail } from "@/components/archive/ArchiveDetail";
-import { PageHeader } from "@/components/ui";
+import { BottomNav, PageHeader } from "@/components/ui";
 import { currentUser } from "@/lib/api";
 import { getArchiveDetail } from "@/lib/archives";
 import { loginUrl } from "@/lib/client/pending-action";
@@ -18,8 +18,8 @@ export default async function ArchiveDetailPage({ params }: { params: Promise<{ 
   if (!detail || detail.userId !== user.id) notFound();
 
   return (
-    <main>
-      <PageHeader back="/archive" title="Archive" />
+    <main className="flex flex-col min-h-dvh">
+      <PageHeader back="/archive" backLabel="My Archive" />
       <ArchiveDetail
         archive={{
           id: detail.id,
@@ -37,6 +37,8 @@ export default async function ArchiveDetailPage({ params }: { params: Promise<{ 
           })),
         }}
       />
+      <div className="flex-1" />
+      <BottomNav active="archive" />
     </main>
   );
 }

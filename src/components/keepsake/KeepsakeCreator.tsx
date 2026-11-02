@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { KeepsakeCard } from "@/components/KeepsakeCard";
-import { Button, Notice, SectionTitle, cx } from "@/components/ui";
+import { Button, Notice, cx } from "@/components/ui";
 import type { Exhibition, Journal, Scrap } from "@/db/schema";
 import { track } from "@/lib/client/analytics";
 import { clearKeepsakeDraft, loadKeepsakeDraft, saveKeepsakeDraft } from "@/lib/client/drafts";
@@ -150,23 +150,29 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
   // Fit the 360px card inside narrow viewports.
   const [scale, setScale] = useState(1);
   useEffect(() => {
-    const fit = () => setScale(Math.min(1, (window.innerWidth - 40) / 360));
+    const fit = () => setScale(Math.min(1, (Math.min(window.innerWidth, 390) - 82) / 360));
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
   }, []);
 
   return (
-    <div className="px-5 pb-10">
-      <SectionTitle>Preview</SectionTitle>
-      <div className="flex justify-center">
-        <div className="border border-line overflow-hidden" style={{ width: 360 * scale, height: 480 * scale }}>
-        <KeepsakeCard templateId={templateId} content={content} scale={scale} />
+    <div className="px-6 pb-12">
+      {/* Figma 06 - "Keep this moment." */}
+      <header className="pt-6">
+        <h1 className="screen-title">Keep this moment.</h1>
+        <p className="label mt-1.5">Digital Keepsake / Web Card</p>
+      </header>
+
+      {/* Preview inside a 1px black frame (Figma) */}
+      <div className="mt-6 border border-ink p-4 flex justify-center">
+        <div className="overflow-hidden" style={{ width: 360 * scale, height: 480 * scale }}>
+          <KeepsakeCard templateId={templateId} content={content} scale={scale} />
         </div>
       </div>
 
-      <SectionTitle>Template</SectionTitle>
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Template">
+      <p className="text-[13px] font-medium mt-6 mb-3">Choose a layout</p>
+      <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Template">
         {KEEPSAKE_TEMPLATES.map((t) => (
           <button
             key={t.id}
@@ -175,24 +181,24 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
             aria-checked={t.id === templateId}
             onClick={() => setTemplateId(t.id)}
             className={cx(
-              "border py-3 text-sm",
-              t.id === templateId ? "border-ink bg-ink text-paper" : "border-line text-ink",
+              "h-14 border border-ink text-[12px] font-medium tracking-[0.02em]",
+              t.id === templateId ? "bg-ink text-paper" : "bg-paper text-ink",
             )}
           >
             {t.name}
           </button>
         ))}
       </div>
-      <p className="text-muted text-xs mt-2">{template.description}</p>
+      <p className="text-muted text-[12px] mt-2">{template.description}</p>
 
       {template.uses.sentence && (
         <>
-          <SectionTitle>Sentence</SectionTitle>
+          <p className="label mt-8 mb-2">Sentence</p>
           {isLoggedIn && scraps.length > 0 ? (
             <select
               value={sentence}
               onChange={(e) => setSentence(e.target.value)}
-              className="w-full border-b border-line py-2 text-sm"
+              className="w-full h-12 border-b border-ink text-[14px]"
               aria-label="저장한 문장 선택"
             >
               <option value="">(문장 없음)</option>
@@ -203,9 +209,9 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
               ))}
             </select>
           ) : (
-            <p className="text-muted text-xs">
+            <p className="text-muted text-[13px] leading-5">
               {isLoggedIn ? "아직 저장한 문장이 없습니다. " : "로그인하면 저장한 문장을 카드에 넣을 수 있습니다. "}
-              <Link href={`/e/${exhibition.slug}`} className="underline">
+              <Link href={`/e/${exhibition.slug}`} className="underline underline-offset-4 text-ink">
                 가이드에서 문장 저장하기
               </Link>
             </p>
@@ -215,16 +221,16 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
 
       {template.uses.journalExcerpt && (
         <>
-          <SectionTitle>Journal Excerpt</SectionTitle>
+          <p className="label mt-8 mb-2">Journal Excerpt</p>
           <textarea
             value={journalExcerpt}
             onChange={(e) => setJournalExcerpt(e.target.value.slice(0, KEEPSAKE_LIMITS.journalExcerptMax))}
             rows={4}
             placeholder={journal ? "" : "Journal을 작성하면 자동으로 채워집니다. 직접 입력할 수도 있어요."}
-            className="w-full text-sm leading-6 border-b border-line py-2 resize-none"
+            className="w-full border border-ink px-4 py-3 text-[14px] leading-6 resize-none placeholder:text-muted placeholder:text-[13px]"
             aria-label="Journal 발췌"
           />
-          <p className="text-muted text-xs text-right">
+          <p className="label text-right mt-1">
             {journalExcerpt.length} / {KEEPSAKE_LIMITS.journalExcerptMax}
           </p>
         </>
@@ -242,7 +248,7 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
         <div className="mt-6">
           <Notice
             action={
-              <Link href={`/keepsake/${existing.id}`} className="text-xs underline underline-offset-4 shrink-0">
+              <Link href={`/keepsake/${existing.id}`} className="text-[12px] underline underline-offset-4 shrink-0">
                 기존 카드 보기
               </Link>
             }
@@ -254,9 +260,12 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
 
       <div className="mt-8">
         <Button full onClick={() => void save()} loading={saving} disabled={!loaded}>
-          {isLoggedIn ? (existing ? "Replace Web Card" : "Save Web Card") : "Login & Save Web Card"}
+          {isLoggedIn ? (existing ? "Replace Web Card" : "Save Web Card") : "Log in & Save Web Card"}
         </Button>
-        <p className="text-muted text-xs text-center mt-3">전시당 웹카드 1장 · 저장 후 PNG로 다운로드할 수 있습니다.</p>
+        <p className="text-[13px] mt-4 flex gap-2">
+          <span aria-hidden>↓</span>
+          <span>저장하면 PNG로 다운로드할 수 있어요 · 전시당 웹카드 1장</span>
+        </p>
       </div>
     </div>
   );

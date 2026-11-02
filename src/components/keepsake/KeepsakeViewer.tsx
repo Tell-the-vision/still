@@ -35,7 +35,7 @@ export function KeepsakeViewer({ keepsake }: { keepsake: KeepsakeDto }) {
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
-    const fit = () => setScale(Math.min(1, (window.innerWidth - 40) / 360));
+    const fit = () => setScale(Math.min(1, (Math.min(window.innerWidth, 390) - 82) / 360));
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
@@ -71,17 +71,20 @@ export function KeepsakeViewer({ keepsake }: { keepsake: KeepsakeDto }) {
   const template = getTemplate(keepsake.templateId);
 
   return (
-    <div className="px-5 pb-10">
-      <div className="flex justify-center">
-        <div className="border border-line overflow-hidden" style={{ width: 360 * scale, height: 480 * scale }}>
-        {/* The scaled node is what the user sees; export resets the transform. */}
-        <KeepsakeCard ref={cardRef} templateId={keepsake.templateId} content={keepsake.content} scale={scale} />
+    <div className="px-6 pb-12">
+      <header className="pt-6">
+        <h1 className="screen-title">Your keepsake.</h1>
+        <p className="label mt-1.5">
+          {template?.name ?? keepsake.templateId}  ·  저장 {formatDateTime(keepsake.createdAt)}
+        </p>
+      </header>
+
+      <div className="mt-6 border border-ink p-4 flex justify-center">
+        <div className="overflow-hidden" style={{ width: 360 * scale, height: 480 * scale }}>
+          {/* The scaled node is what the user sees; export resets the transform. */}
+          <KeepsakeCard ref={cardRef} templateId={keepsake.templateId} content={keepsake.content} scale={scale} />
         </div>
       </div>
-
-      <p className="text-muted text-xs text-center mt-4">
-        {template?.name ?? keepsake.templateId} · 저장 {formatDateTime(keepsake.createdAt)}
-      </p>
 
       {error && (
         <div className="mt-4">
@@ -91,16 +94,22 @@ export function KeepsakeViewer({ keepsake }: { keepsake: KeepsakeDto }) {
         </div>
       )}
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-6">
         <Button full onClick={() => void download()} loading={exportState === "exporting"}>
-          Download PNG
+          <span aria-hidden>↓</span> Download PNG
         </Button>
-        <p className={cx("text-xs text-center text-muted", exportState !== "exported" && "invisible")}>
-          PNG가 저장되었습니다.
-        </p>
-        <Button variant="text" className="w-full text-muted" onClick={() => setConfirmDelete(true)}>
-          이 웹카드 삭제
-        </Button>
+        <p className={cx("label mt-3", exportState !== "exported" && "invisible")}>PNG가 저장되었습니다.</p>
+      </div>
+
+      <div className="hairline mt-8 pt-5">
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          className="inline-flex gap-2 text-[13px] text-muted hover:text-ink"
+        >
+          <span>이 웹카드 삭제</span>
+          <span aria-hidden>→</span>
+        </button>
       </div>
 
       <Dialog

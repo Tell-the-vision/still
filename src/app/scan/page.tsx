@@ -1,14 +1,17 @@
 import { QrScanner } from "@/components/QrScanner";
-import { PageHeader } from "@/components/ui";
+import { BottomNav, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "QR Scan" };
 
-/** Screen 03 — QR Scanner. */
+/** Screen 03 — QR Scanner (Figma 03). */
 export default function ScanPage() {
   return (
-    <main>
-      <PageHeader back="/" title="QR Scan" />
-      <QrScanner />
+    <main className="flex flex-col min-h-dvh">
+      <PageHeader back="/" backLabel="Home" />
+      <div className="flex-1">
+        <QrScanner />
+      </div>
+      <BottomNav />
     </main>
   );
 }

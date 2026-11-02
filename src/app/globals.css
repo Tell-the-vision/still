@@ -2,24 +2,31 @@
 
 /* ---------------------------------------------------------------------------
    STILL design tokens  (PRD §3.2 — Minimal / Editorial / Monochrome)
+   Source: Figma "STILL — Exhibition Experience MVP" › 01 Design System
+           (see PRD/figma/specs.md for per-layer values)
 
    UI 담당자에게: 색/폰트/간격은 여기서만 바꾸면 전체에 반영됩니다.
-   - 배경은 순수 화이트, 주요 UI는 블랙/화이트, 그레이(#666)는 텍스트 전용.
-   - Display: Montserrat (Futura 대체), Body: DM Sans.
+   - 배경은 순수 화이트, 주요 UI·1px 구분선은 블랙, 그레이(#666)는 텍스트 전용.
+   - 이미지가 없을 때의 작품 자리 배경만 #EDEDED (Figma "Monochrome artwork").
+   - Display: Futura 계열 → PRD §3.2 지정 대체 서체 Montserrat. Futura 라이선스가
+     있으면 --font-display 맨 앞의 "Montserrat"만 "Futura PT" 등으로 바꾸면 됩니다.
+   - Body / UI label: DM Sans 400·500.
    Tailwind v4 `@theme` 로 선언했으므로 `text-muted`, `font-display`,
-   `bg-paper`, `text-ink` 같은 유틸리티 클래스로 바로 사용할 수 있습니다.
+   `bg-paper`, `text-ink`, `bg-placeholder` 같은 유틸리티 클래스로 바로 씁니다.
 --------------------------------------------------------------------------- */
 @theme {
   --color-paper: #ffffff; /* background */
-  --color-ink: #000000; /* primary text / buttons / icons */
+  --color-ink: #000000; /* primary text / buttons / icons / 1px rules */
   --color-muted: #666666; /* secondary text ONLY */
-  --color-line: #e5e5e5; /* hairline dividers */
+  --color-line: #e5e5e5; /* low-emphasis borders inside forms / lists */
+  --color-placeholder: #ededed; /* artwork placeholder when no image */
 
-  --font-display: "Montserrat", "Futura", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Montserrat", "Futura", "Futura PT", "Helvetica Neue", Arial, sans-serif;
   --font-body: "DM Sans", "Helvetica Neue", Arial, sans-serif;
   --font-serif: "Noto Serif KR", "Apple SD Gothic Neo", Georgia, serif;
 
   --spacing-screen: 390px; /* reference design width (390 × 844) */
+  --spacing-gutter: 24px; /* Figma side margin */
 }
 
 html {
@@ -39,6 +46,7 @@ h2,
 h3,
 .font-display {
   font-family: var(--font-display);
+  font-weight: 500;
 }
 
 /* Keep the mobile frame centred on wide screens (390px reference). */
@@ -49,21 +57,48 @@ h3,
   background: var(--color-paper);
 }
 
-/* Hairline (PRD: 얇은 구분선) */
+/* Hairline (Figma: 1px black rule, 342px wide inside 24px gutters) */
 .hairline {
-  border-top: 1px solid var(--color-line);
+  border-top: 1px solid var(--color-ink);
 }
 
-/* Native textarea / input reset — styling is left to the UI pass. */
+/* Small uppercase label — Figma "DM Sans 500 9px, #666" (sized up for legibility). */
+.label {
+  font-family: var(--font-body);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Screen title — Figma "Futura 500 31–32px" */
+.screen-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 32px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+/* Native textarea / input reset */
 textarea,
-input {
+input,
+select {
   font: inherit;
   color: inherit;
   background: transparent;
+  border-radius: 0;
 }
 textarea:focus,
-input:focus {
+input:focus,
+select:focus {
   outline: none;
+}
+:focus-visible {
+  outline: 1px solid var(--color-ink);
+  outline-offset: 2px;
 }
 
 /* Keepsake card: fixed geometry so PNG export matches the web card.
@@ -89,13 +124,14 @@ input:focus {
   opacity: 0.6;
 }
 
-/* Exhibition theme on the guide screen: the UI pass can use these variables
-   (--ex-bg / --ex-fg / --ex-accent / --ex-font) to echo the exhibition's identity. */
+/* Exhibition theme on the guide screen (PO: per-exhibition typography/colour).
+   The exhibition title follows the theme typeface; a short accent rule echoes
+   the theme accent colour. The rest of the UI stays STILL monochrome. */
 .exhibition-themed .ex-title {
   font-family: var(--ex-font, var(--font-display));
 }
 .exhibition-themed .ex-accent-rule {
   border-top: 2px solid var(--ex-accent, #000);
   width: 32px;
-  margin: 12px auto 0;
+  margin: 16px 0 0;
 }
