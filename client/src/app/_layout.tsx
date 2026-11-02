@@ -1,5 +1,10 @@
 import { Stack } from "expo-router";
+import { TRPCReactProvider } from "../lib/trpc";
 
 export default function RootLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <TRPCReactProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </TRPCReactProvider>
+  );
 }
