@@ -1,5 +1,9 @@
 /**
- * STILL — database schema (Drizzle ORM, SQLite / libsql)
+ * STILL — database schema (Drizzle ORM, PostgreSQL)
+ *
+ * Local dev runs the same schema on PGlite (embedded Postgres, ./data/pg);
+ * production points DATABASE_URL at any hosted Postgres (Neon / Supabase /
+ * Railway / RDS …).
  *
  * Mirrors "Developer Functional Specification §11 Data Model".
  * Key constraints:
@@ -10,13 +14,24 @@
  */
 import { relations, sql } from "drizzle-orm";
 import {
-  blob,
+  boolean,
+  customType,
   index,
   integer,
-  sqliteTable,
+  pgTable,
   text,
+  timestamp,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
+
+/** Raw bytes (Postgres `bytea`); read back as a Buffer. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+  toDriver: (value) => value,
+  fromDriver: (value) => (Buffer.isBuffer(value) ? value : Buffer.from(value as Uint8Array)),
+});
+
+const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
 const id = () =>
   text("id")
@@ -24,12 +39,12 @@ const id = () =>
     .$defaultFn(() => crypto.randomUUID());
 
 const createdAt = () =>
-  integer("created_at", { mode: "timestamp_ms" })
+  ts("created_at")
     .notNull()
     .$defaultFn(() => new Date());
 
 const updatedAt = () =>
-  integer("updated_at", { mode: "timestamp_ms" })
+  ts("updated_at")
     .notNull()
     .$defaultFn(() => new Date())
     .$onUpdateFn(() => new Date());
@@ -50,7 +65,7 @@ export type UserStatus = (typeof USER_STATUS)[number];
 export const ARTIST_STATUS = ["NONE", "PENDING", "APPROVED", "REJECTED"] as const;
 export type ArtistStatus = (typeof ARTIST_STATUS)[number];
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: id(),
   /** Google `sub`. Dev-login users use `dev:<email>`. */
   googleId: text("google_id").notNull().unique(),
@@ -63,8 +78,8 @@ export const users = sqliteTable("users", {
   artistName: text("artist_name"),
   artistBio: text("artist_bio"),
   artistPortfolioUrl: text("artist_portfolio_url"),
-  artistAppliedAt: integer("artist_applied_at", { mode: "timestamp_ms" }),
-  artistReviewedAt: integer("artist_reviewed_at", { mode: "timestamp_ms" }),
+  artistAppliedAt: ts("artist_applied_at"),
+  artistReviewedAt: ts("artist_reviewed_at"),
   /** Admin's note on approval / rejection (shown to the applicant). */
   artistReviewNote: text("artist_review_note"),
   suspendedReason: text("suspended_reason"),
@@ -85,7 +100,7 @@ export type ExhibitionStatus = (typeof EXHIBITION_STATUS)[number];
 export const THEME_FONT = ["sans", "serif", "display"] as const;
 export type ThemeFont = (typeof THEME_FONT)[number];
 
-export const exhibitions = sqliteTable("exhibitions", {
+export const exhibitions = pgTable("exhibitions", {
   id: id(),
   /** NULL = official / seeded content. Otherwise the artist who created it. */
   ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
@@ -101,7 +116,7 @@ export const exhibitions = sqliteTable("exhibitions", {
   coverImageUrl: text("cover_image_url"),
   qrCodeUrl: text("qr_code_url"),
   status: text("status", { enum: EXHIBITION_STATUS }).notNull().default("DRAFT"),
-  publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  publishedAt: ts("published_at"),
   /**
    * Per-exhibition visual identity (PO: "템플릿은 정해져 있고 전시에 따라서
    * 색상이나 타이포가 바뀌는 형식"). Applied to the keepsake templates and
@@ -116,7 +131,7 @@ export const exhibitions = sqliteTable("exhibitions", {
 });
 
 // ------------------------------------------------------ guide_sentences
-export const guideSentences = sqliteTable(
+export const guideSentences = pgTable(
   "guide_sentences",
   {
     id: id(),
@@ -139,7 +154,7 @@ export type AudioProvider = (typeof AUDIO_PROVIDER)[number];
 export const AMBIENCE_TYPE = ["PINK_NOISE"] as const;
 export type AmbienceType = (typeof AMBIENCE_TYPE)[number];
 
-export const audioConfigurations = sqliteTable("audio_configurations", {
+export const audioConfigurations = pgTable("audio_configurations", {
   id: id(),
   exhibitionId: text("exhibition_id")
     .notNull()
@@ -149,14 +164,14 @@ export const audioConfigurations = sqliteTable("audio_configurations", {
   playlistUrl: text("playlist_url"),
   playlistTitle: text("playlist_title"),
   playlistDescription: text("playlist_description"),
-  ambienceEnabled: integer("ambience_enabled", { mode: "boolean" }).notNull().default(true),
+  ambienceEnabled: boolean("ambience_enabled").notNull().default(true),
   ambienceType: text("ambience_type", { enum: AMBIENCE_TYPE }).notNull().default("PINK_NOISE"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
 
 // ------------------------------------------------------------- archives
-export const archives = sqliteTable(
+export const archives = pgTable(
   "archives",
   {
     id: id(),
@@ -166,10 +181,10 @@ export const archives = sqliteTable(
     exhibitionId: text("exhibition_id")
       .notNull()
       .references(() => exhibitions.id, { onDelete: "cascade" }),
-    firstVisitedAt: integer("first_visited_at", { mode: "timestamp_ms" })
+    firstVisitedAt: ts("first_visited_at")
       .notNull()
       .$defaultFn(() => new Date()),
-    lastVisitedAt: integer("last_visited_at", { mode: "timestamp_ms" })
+    lastVisitedAt: ts("last_visited_at")
       .notNull()
       .$defaultFn(() => new Date()),
     createdAt: createdAt(),
@@ -182,7 +197,7 @@ export const archives = sqliteTable(
 );
 
 // --------------------------------------------------------------- scraps
-export const scraps = sqliteTable(
+export const scraps = pgTable(
   "scraps",
   {
     id: id(),
@@ -207,7 +222,7 @@ export const scraps = sqliteTable(
 export const JOURNAL_AUDIO_TYPE = ["EXTERNAL_PLAYLIST", "AMBIENCE", "NONE"] as const;
 export type JournalAudioType = (typeof JOURNAL_AUDIO_TYPE)[number];
 
-export const journals = sqliteTable("journals", {
+export const journals = pgTable("journals", {
   id: id(),
   /** UNIQUE → exactly one journal per archive (CORE-04). */
   archiveId: text("archive_id")
@@ -222,7 +237,7 @@ export const journals = sqliteTable("journals", {
 
 // ---------------------------------------------------- digital_keepsakes
 /** One keepsake per archive (PO decision: "전시 1개당 1개"). Saving again replaces it. */
-export const digitalKeepsakes = sqliteTable(
+export const digitalKeepsakes = pgTable(
   "digital_keepsakes",
   {
     id: id(),
@@ -240,7 +255,7 @@ export const digitalKeepsakes = sqliteTable(
 );
 
 // ------------------------------------------------------ exhibition_likes
-export const exhibitionLikes = sqliteTable(
+export const exhibitionLikes = pgTable(
   "exhibition_likes",
   {
     id: id(),
@@ -267,7 +282,7 @@ export type ReportStatus = (typeof REPORT_STATUS)[number];
 export const REPORT_ACTION = ["NONE", "HIDE_EXHIBITION", "SUSPEND_ARTIST"] as const;
 export type ReportAction = (typeof REPORT_ACTION)[number];
 
-export const exhibitionReports = sqliteTable(
+export const exhibitionReports = pgTable(
   "exhibition_reports",
   {
     id: id(),
@@ -283,7 +298,7 @@ export const exhibitionReports = sqliteTable(
     action: text("action", { enum: REPORT_ACTION }),
     resolutionNote: text("resolution_note"),
     resolvedById: text("resolved_by_id").references(() => users.id, { onDelete: "set null" }),
-    resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+    resolvedAt: ts("resolved_at"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -294,11 +309,11 @@ export const exhibitionReports = sqliteTable(
 
 // --------------------------------------------------------------- images
 /** Uploaded cover images, stored in the DB so deploys without a disk still work. */
-export const images = sqliteTable("images", {
+export const images = pgTable("images", {
   id: id(),
   ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
   mimeType: text("mime_type").notNull(),
-  bytes: blob("bytes", { mode: "buffer" }).notNull(),
+  bytes: bytea("bytes").notNull(),
   size: integer("size").notNull(),
   width: integer("width"),
   height: integer("height"),

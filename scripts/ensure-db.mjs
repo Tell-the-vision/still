@@ -1,9 +1,15 @@
 /**
- * Runs before `npm run dev`: if the local SQLite file does not exist yet,
- * create the schema and seed sample exhibitions so a fresh clone works with
- * `npm install && npm run dev`. Does nothing for remote (libsql://) URLs.
+ * Runs before `next dev` (predev). Makes the first `npm run dev` just work:
+ *   1. creates .env from .env.example if missing
+ *   2. for the embedded local database (DATABASE_URL=file:./data/pg, PGlite)
+ *      creates the schema + seeds sample exhibitions on first run, and
+ *      re-applies the schema whenever src/db/schema.ts changed since
+ *      (Postgres can ALTER in place, so local data survives).
+ * For a remote Postgres (DATABASE_URL=postgres://…) it does nothing —
+ * run `npm run setup` yourself once against that database.
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -24,38 +30,31 @@ if (!existsSync(path.resolve(process.cwd(), ".env")) && existsSync(path.resolve(
   console.log("[still] Created .env from .env.example");
 }
 loadDotEnv();
-const url = process.env.DATABASE_URL || "file:./data/still.db";
+const url = process.env.DATABASE_URL || "file:./data/pg";
 if (!url.startsWith("file:")) process.exit(0);
 
-const file = path.resolve(process.cwd(), url.slice("file:".length));
-mkdirSync(path.dirname(file), { recursive: true });
+const dir = path.resolve(process.cwd(), url.slice("file:".length));
+mkdirSync(dir, { recursive: true });
+const hashFile = path.join(dir, ".schema-hash");
+const schemaHash = createHash("sha1")
+  .update(readFileSync(path.resolve(process.cwd(), "src/db/schema.ts")))
+  .digest("hex");
+const initialized = existsSync(path.join(dir, "PG_VERSION"));
+const previousHash = existsSync(hashFile) ? readFileSync(hashFile, "utf8").trim() : "";
 
-if (existsSync(file)) {
-  // Schema drift check: columns added after the first release. SQLite cannot
-  // always ALTER in place, so ask for a reset instead of failing later.
-  try {
-    const { createClient } = await import("@libsql/client");
-    const client = createClient({ url });
-    const cols = await client.execute("PRAGMA table_info(exhibitions)");
-    const names = cols.rows.map((r) => String(r.name));
-    client.close();
-    if (names.length && (!names.includes("owner_id") || !names.includes("theme_bg"))) {
-      console.error(
-        "\n[still] Your local database predates the latest schema (roles / exhibition theme).\n" +
-          "        Run `npm run db:reset` once (this deletes local test data), then `npm run dev` again.\n",
-      );
-      process.exit(1);
-    }
-  } catch {
-    /* can't inspect — let the app report problems itself */
-  }
-  process.exit(0);
-}
+if (initialized && previousHash === schemaHash) process.exit(0);
 
-console.log(`[still] No database at ${file} — creating schema and seeding sample data…`);
 const run = (cmd, args) => {
   const r = spawnSync(cmd, args, { stdio: "inherit", shell: process.platform === "win32" });
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
-run("npx", ["drizzle-kit", "push", "--force"]);
-run("npx", ["tsx", "src/db/seed.ts"]);
+
+if (!initialized) {
+  console.log(`[still] No database at ${dir} — creating schema and seeding sample data…`);
+  run("npx", ["drizzle-kit", "push", "--force"]);
+  run("npx", ["tsx", "src/db/seed.ts"]);
+} else {
+  console.log("[still] src/db/schema.ts changed — applying schema changes to the local database…");
+  run("npx", ["drizzle-kit", "push", "--force"]);
+}
+writeFileSync(hashFile, schemaHash);

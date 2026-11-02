@@ -27,10 +27,10 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-그게 전부입니다. 첫 `npm run dev`에서 `.env`(`.env.example` 복사)와 로컬 SQLite 파일(`data/still.db`)을 만들고 샘플 전시 3개를 자동으로 넣습니다.
+그게 전부입니다. 첫 `npm run dev`에서 `.env`(`.env.example` 복사)와 로컬 DB(`data/pg`, 내장 Postgres인 PGlite)를 만들고 샘플 전시 3개를 자동으로 넣습니다. Postgres를 따로 설치할 필요가 없습니다.
 Google OAuth 설정 전에는 로그인 화면에 **Dev Login**(이메일만 입력)이 나오므로 바로 모든 기능을 써 볼 수 있습니다.
 
-> 이미 클론해 둔 분: 이번 업데이트로 DB 스키마가 바뀌었습니다. `git pull` 후 **`npm run db:reset`** 한 번 실행하세요 (로컬 테스트 데이터는 지워집니다).
+> 이미 클론해 둔 분: DB가 SQLite에서 **PostgreSQL**로 바뀌었습니다. `git pull` 후 **`npm install`** 한 번만 하면 됩니다 (다음 `npm run dev`가 새 로컬 DB를 만듭니다. 예전 `data/still.db`는 지워도 됩니다). `.env`에 `DATABASE_URL=file:./data/still.db`가 남아 있다면 `file:./data/pg`로 바꿔 주세요.
 
 | 주소 | 설명 |
 | --- | --- |
@@ -77,7 +77,7 @@ Google이 설정되면 Dev Login은 자동으로 숨겨집니다(개발 중 둘 
 | --- | --- | --- |
 | 프레임워크 | **Next.js 15** (App Router) + TypeScript | 레포 하나로 화면·API·DB. Vercel 배포 한 번에 끝 |
 | 스타일 | **Tailwind CSS v4** | UI 담당자가 클래스만 손보면 됨. 디자인 토큰은 `globals.css` 한 곳 |
-| DB / ORM | **SQLite(libsql) + Drizzle ORM** | 설치 0, 클론 후 바로 실행. 배포 시 환경변수만 바꿔 Turso(호스팅 SQLite)로 전환 |
+| DB / ORM | **PostgreSQL + Drizzle ORM** | 로컬은 내장 Postgres(PGlite, `data/pg`)라 설치 0. 배포는 `DATABASE_URL`만 바꿔 Neon/Supabase/Railway 등 아무 Postgres로 |
 | 인증 | **Auth.js v5** (Google OAuth, JWT 세션) | PRD 요구: Google 로그인만 지원. 역할(USER/ARTIST/ADMIN)은 DB에 두어 재로그인 없이 반영 |
 | QR | `BarcodeDetector` API → 폴백 `jsqr` | 카메라 권한 거부 시 URL 직접 입력 |
 | PNG | `html-to-image` (클라이언트) | 웹카드 DOM 그대로 3배 해상도(1080×1440) 래스터라이즈 → 웹카드 = PNG |
@@ -160,13 +160,14 @@ src/
 
 | 명령 | 설명 |
 | --- | --- |
-| `npm run dev` | 개발 서버 (DB 없으면 자동 생성 + 시드) |
+| `npm run dev` | 개발 서버 (로컬 DB 없으면 자동 생성 + 시드, 스키마가 바뀌면 자동 반영) |
 | `npm run build` / `npm start` | 프로덕션 빌드 / 실행 |
 | `npm run lint` / `npm run typecheck` | ESLint / `tsc --noEmit` |
-| `npm run db:push` | 스키마를 DB에 반영 (`drizzle-kit push`) |
+| `npm run db:push` | 스키마를 DB에 반영 (`drizzle-kit push`, Postgres라 컬럼 추가는 데이터 유지) |
 | `npm run db:seed` | 샘플 전시 넣기 (slug 기준 upsert, 사용자 기록은 유지) |
-| `npm run db:reset` | DB 삭제 후 재생성 + 시드 |
+| `npm run db:reset` | 로컬 DB(`data/pg`) 삭제 후 재생성 + 시드 (dev 서버는 먼저 끌 것) |
 | `npm run db:studio` | Drizzle Studio (브라우저에서 테이블 보기) |
+| `npm run setup` | 스키마 반영 + 시드 (원격 Postgres에 처음 붙일 때 한 번) |
 
 전시 콘텐츠를 바꾸려면 `src/db/seed.ts`를 수정하고 `npm run db:seed`. (MVP 범위상 CMS는 없습니다.)
 
@@ -203,30 +204,33 @@ src/
 
 ---
 
-## 8. 배포 (Vercel + Turso)
+## 8. 배포 (Vercel + Postgres)
 
-1. [Turso](https://turso.tech)에서 DB 생성 → URL(`libsql://…`)과 토큰 복사
-2. 로컬 `.env`의 **기존 `DATABASE_URL=file:./data/still.db` 줄을 고쳐서**(아래에 새 줄을 추가하지 말고) 원격 DB를 가리키게 한 뒤 스키마/시드:
+로컬은 내장 Postgres(PGlite)로 돌지만 Vercel에는 디스크가 없으므로 **호스팅 Postgres**가 필요합니다. [Neon](https://neon.tech)(무료, Vercel 통합 있음), [Supabase](https://supabase.com), Railway 등 어느 것이든 연결 문자열만 있으면 됩니다.
+
+1. Postgres 생성 → 연결 문자열 복사 (`postgres://USER:PASSWORD@HOST/DB?sslmode=require` 형태. Supabase는 **Transaction pooler**(6543) 주소를 쓰세요 — 코드는 pooler 호환으로 설정돼 있습니다)
+2. 로컬 `.env`의 **기존 `DATABASE_URL=file:./data/pg` 줄을 고쳐서**(아래에 새 줄을 추가하지 말고) 그 DB를 가리키게 한 뒤 스키마/시드:
    ```
-   DATABASE_URL=libsql://<db>.turso.io
-   DATABASE_AUTH_TOKEN=<token>
+   DATABASE_URL=postgres://…
    ```
    ```bash
    npm run setup        # drizzle-kit push + seed → 원격 DB에 테이블·샘플 전시 3개
    ```
-   (Windows에서 한 줄 명령 대신 이렇게 `.env`를 쓰는 편이 안전합니다. 로컬 파일 DB로 돌아가려면 두 줄을 원래대로.)
-3. Vercel에 레포 연결, 환경변수 입력: `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `AUTH_SECRET`(배포 환경 필수, 32자 이상 랜덤), `NEXT_PUBLIC_APP_URL=https://<도메인>`, `ADMIN_EMAILS=<관리자 이메일>`, 그리고 `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` 또는 데모용 `ENABLE_DEV_LOGIN=true`
+   끝나면 `DATABASE_URL`을 다시 `file:./data/pg`로 돌려 두세요 (로컬 개발은 각자 로컬 DB).
+3. Vercel에 레포 연결(Git 연동 — 아래 참고), 환경변수 입력: `DATABASE_URL`, `AUTH_SECRET`(배포 환경 필수, 32자 이상 랜덤), `NEXT_PUBLIC_APP_URL=https://<도메인>`, `ADMIN_EMAILS=<관리자 이메일>`, 그리고 `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` 또는 데모용 `ENABLE_DEV_LOGIN=true`
 4. (Google 로그인 시) Google Cloud 리디렉션 URI에 `https://<도메인>/api/auth/callback/google` 추가
 5. 환경변수를 바꿨으면 **Redeploy** (빌드 시점에 반영됨)
 
 프로덕션에서 Dev Login은 `ENABLE_DEV_LOGIN=true`를 명시하지 않는 한 꺼져 있습니다.
 
-**`/login?error=Configuration`이 뜰 때**: 로그인 과정에서 서버 오류가 난 것입니다. 대부분 (a) `AUTH_SECRET` 누락, (b) 원격 DB에 테이블이 없음(2번을 안 했거나 `.env`가 로컬 파일 DB를 가리킨 채 실행), (c) `DATABASE_AUTH_TOKEN` 오류. Vercel → Deployments → 해당 배포 → **Logs**에서 실제 오류 메시지를 확인하세요.
+**Vercel Git 연동** (https://vercel.com/docs/git): Vercel 프로젝트가 GitHub 저장소에 연결돼 있으면 `main`에 머지될 때마다 프로덕션 배포, 다른 브랜치/PR을 올리면 미리보기(Preview) 배포 주소가 PR 코멘트로 달립니다. Vercel → Settings → Git에서 Production Branch가 `main`인지 확인하세요. 저장소를 다른 조직으로 옮겼다면 같은 화면에서 Disconnect 후 새 저장소를 다시 연결합니다.
+
+**`/login?error=Configuration`이 뜰 때**: 로그인 과정에서 서버 오류가 난 것입니다. 대부분 (a) `AUTH_SECRET` 누락, (b) 원격 DB에 테이블이 없음(2번을 안 했거나 `.env`가 로컬 DB를 가리킨 채 실행), (c) `DATABASE_URL` 오류·SSL 문제(`DATABASE_SSL=require` 또는 `false`로 조정). Vercel → Deployments → 해당 배포 → **Logs**에서 실제 오류 메시지를 확인하세요.
 
 ---
 
 ## 9. 팀 작업 규칙 (제안)
 
 - `main`은 항상 실행 가능한 상태 유지. 기능/화면 단위로 브랜치(`feat/ui-home`, `feat/keepsake-templates`) → PR.
-- `.env`와 `data/*.db`는 커밋 금지(.gitignore 처리됨).
-- 스키마를 바꾸면 `npm run db:push` 후 PR 설명에 적어 주세요. 팀원은 `npm run db:reset`으로 맞출 수 있습니다.
+- `.env`와 `data/`는 커밋 금지(.gitignore 처리됨).
+- 스키마(`src/db/schema.ts`)를 바꾸면 PR 설명에 적어 주세요. 팀원의 로컬 DB는 다음 `npm run dev`가 자동으로 맞춥니다. 공유 Postgres에는 한 사람이 `npm run db:push`로 반영합니다.

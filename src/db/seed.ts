@@ -12,7 +12,7 @@
  */
 import "./load-env";
 import { eq } from "drizzle-orm";
-import { db } from "./index";
+import { closeDb, db } from "./index";
 import {
   audioConfigurations,
   exhibitions,
@@ -265,7 +265,10 @@ async function main() {
   console.log("Seed complete.");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => closeDb())
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

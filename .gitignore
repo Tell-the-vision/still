@@ -28,11 +28,8 @@ yarn-error.log*
 .env.*
 !.env.example
 
-# local SQLite database
-/data/*.db
-/data/*.db-journal
-/data/*.db-wal
-/data/*.db-shm
+# local embedded database (PGlite data directory) — never commit data
+/data/
 
 # drizzle migrations output (we use `drizzle-kit push`; keep repo light)
 /drizzle

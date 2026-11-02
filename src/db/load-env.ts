@@ -2,8 +2,8 @@
  * Minimal .env loader for CLI entry points (drizzle-kit, seed scripts).
  *
  * Next.js loads .env on its own, but `drizzle-kit push` and `tsx src/db/seed.ts`
- * do not — without this, `npm run setup` would silently ignore DATABASE_URL /
- * DATABASE_AUTH_TOKEN and set up the local file DB instead of Turso.
+ * do not — without this, `npm run setup` would silently ignore DATABASE_URL
+ * and set up the local embedded DB instead of the remote Postgres.
  * Variables already present in the environment win over the file.
  */
 import { existsSync, readFileSync } from "node:fs";

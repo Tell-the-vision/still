@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // @libsql/client ships a native binding; keep it out of the webpack bundle.
-  serverExternalPackages: ["@libsql/client"],
+  // PGlite ships a WASM bundle and postgres.js uses Node sockets; keep both
+  // out of the webpack bundle (loaded with plain require at runtime).
+  serverExternalPackages: ["@electric-sql/pglite", "postgres"],
   images: {
     // Cover images come from /public for the MVP. Add remote hosts here when
     // exhibition content moves to a CDN.
@@ -10,10 +11,10 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { dev }) => {
     if (dev) {
-      // The SQLite file (and its -journal / -wal siblings) lives inside the
-      // project. Without this, every DB write (e.g. a login) makes the dev
-      // server recompile, and requests racing that recompile get HTML error
-      // pages ("Unexpected end of JSON input", clientReferenceManifest…).
+      // The embedded database (PGlite, ./data/pg) lives inside the project.
+      // Without this, every DB write (e.g. a login) makes the dev server
+      // recompile, and requests racing that recompile get HTML error pages
+      // ("Unexpected end of JSON input", clientReferenceManifest…).
       // Next's default `ignored` is a RegExp (git / .next / node_modules);
       // webpack accepts either a RegExp or an array of globs, not a mix.
       const prev = config.watchOptions?.ignored;

@@ -107,7 +107,7 @@ PNG 내보내기는 서버 엔드포인트가 아니라 클라이언트(`src/lib
 | PUT | `/api/artist/exhibitions/{id}` | 부분 수정 (POST와 같은 body). `guide`를 보내면 전체 교체하되 문장 내용이 같으면 id 유지 → 방문자 Scrap 연결 보존 |
 | POST | `/api/artist/exhibitions/{id}/status` `{ status: ACTIVE\|DRAFT }` | 공개 / 비공개. 공개하려면 해설 문장 1개 이상. HIDDEN은 소유자가 못 풂 |
 | DELETE | `/api/artist/exhibitions/{id}` | 소프트 삭제 (`status=DELETED`) |
-| POST | `/api/images` (multipart `file`, jpeg/png/webp ≤ 3MB) | 이미지 업로드 → `{ id, url: /api/images/{id} }` (DB에 저장되므로 Vercel에서도 동작) |
+| POST | `/api/images` (multipart `file`, jpeg/png/webp ≤ 3MB) | 이미지 업로드 → `{ id, url: /api/images/{id} }` (Postgres `bytea`로 저장되므로 Vercel에서도 동작) |
 | GET | `/api/images/{id}` | 이미지 서빙 (공개, 캐시 1년) |
 
 ## Admin (ADMIN 전용, 아니면 403)
@@ -135,7 +135,7 @@ users ─1:N─ archives ─1:N─ scraps        (UNIQUE archive_id + guide_sent
       │                                                  ├─1:1─ audio_configurations
       │                                                  ├─1:N─ exhibition_likes   (UNIQUE exhibition_id + user_id)
       │                                                  └─1:N─ exhibition_reports (reporter_id, status, action)
-      └─1:N─ images (업로드 바이트를 BLOB으로 저장)
+      └─1:N─ images (업로드 바이트를 bytea로 저장)
 archives: UNIQUE (user_id, exhibition_id); 모든 자식 테이블은 ON DELETE CASCADE
 users.role / status / artist_status, exhibitions.status (DRAFT·ACTIVE·HIDDEN·DELETED)
 ```

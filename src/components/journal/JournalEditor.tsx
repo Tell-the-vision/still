@@ -146,6 +146,9 @@ export function JournalEditor({ exhibition }: { exhibition: Exhibition }) {
       return;
     }
     // Persist the draft first so nothing is lost if login is needed.
+    // (Cancel the debounced mirror so it cannot re-create the draft after
+    // a fast save has already cleared it.)
+    if (draftTimer.current) clearTimeout(draftTimer.current);
     saveJournalDraft(exhibition.slug, { content, audioType });
     if (!requireLogin({ type: "journal", exhibitionSlug: exhibition.slug })) return;
     if (!archiveId) return;
@@ -159,6 +162,7 @@ export function JournalEditor({ exhibition }: { exhibition: Exhibition }) {
       setJournal(j);
       setDirty(false);
       setSaveState("saved");
+      if (draftTimer.current) clearTimeout(draftTimer.current);
       clearJournalDraft(exhibition.slug);
       setRestorable(null);
       track(created ? "journal_create" : "journal_update", { archive_id: archiveId });

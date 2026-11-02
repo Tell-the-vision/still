@@ -8,7 +8,7 @@
 | TBD-01 | Scrap 저장 해제 | **허용.** 가이드에서 Saved를 다시 누르면 해제, Archive Detail에도 "저장 해제" 제공. API `DELETE /archives/{id}/scraps/{scrapId}` | 해제 UI만 숨기면 됨 (`ExhibitionGuide.tsx`의 `remove`, `ArchiveDetail.tsx`의 `removeScrap`) |
 | TBD-02 | Keepsake 개수 | **전시당 1장 (PO 확정: "전시 1개당 1개").** 다시 저장하면 기존 카드 교체 | `digital_keepsakes.archive_id` UNIQUE 해제 + `POST /archives/{id}/keepsakes`를 insert로 변경 |
 | TBD-03 | Keepsake 콘텐츠 | 템플릿별로 다름: Sentence = 저장한 문장 1개 선택, Reflection = Journal 발췌(자동 240자, 수정 가능), Cover = 대표 이미지 + 문장 1개. 저장 시 **스냅샷**으로 고정 | `lib/keepsake-templates.ts`의 `uses`, `KEEPSAKE_LIMITS` |
-| TBD-04 | 플레이리스트 등록 | 운영자가 `src/db/seed.ts`(또는 DB `audio_configurations`)에 직접 입력. CMS 없음 | — |
+| TBD-04 | 플레이리스트 등록 | 아티스트 스튜디오에서 전시별로 입력(2차 기능). 공식 전시는 `src/db/seed.ts` | — |
 | TBD-05 | Pink Noise 노출 범위 | **Exhibition Guide + Journal + Account** 모두에서 제어 | `AudioOptions` 컴포넌트 배치만 조정 |
 | TBD-06 | 재생 유지 | **화면 이동 시 유지**(앱 루트의 `AudioProvider`가 상태 보유). 로그아웃/전체 새로고침 시 중지 | `AudioProvider`를 페이지 레벨로 내리면 화면 단위로 끊김 |
 | TBD-07 | Journal 검증 | 공백만 있는 내용 저장 불가(422), **최대 2,000자** | `lib/archives.ts`의 `JOURNAL_MAX_LENGTH`, `JournalEditor.tsx`의 `JOURNAL_MAX` |
@@ -37,9 +37,16 @@
 | 삭제 정책 | 아티스트 삭제 = 소프트(방문자 Archive 유지). 관리자만 완전 삭제(연쇄 삭제) | `/api/admin/exhibitions/{id}` DELETE |
 | 정지(SUSPENDED) | 로그인은 되나 쓰기 API 전부 403, 아티스트의 전시는 공개 조회에서 제외(데이터는 그대로) | `requireUser()`, `isPubliclyVisible()` |
 | 가이드 수정과 Scrap | 문장 내용이 같으면 id 유지, 삭제된 문장의 Scrap은 `guide_sentence_id=NULL` + 스냅샷 유지 | `replaceGuide()` |
-| 이미지 저장 | DB BLOB (클라이언트에서 1600px JPEG로 축소 후 업로드, ≤3MB). Vercel/Turso에서도 동작. 트래픽 커지면 S3/Vercel Blob으로 교체 | `/api/images` |
+| 이미지 저장 | DB `bytea` (클라이언트에서 1600px JPEG로 축소 후 업로드, ≤3MB). Vercel + 호스팅 Postgres에서 동작. 트래픽 커지면 S3/Vercel Blob으로 교체 | `/api/images` |
 | slug | 제목에서 ASCII slug 생성(한글 제목은 `ex-xxxxxx`), 생성 후 불변(인쇄된 QR 보호) | `uniqueSlug()` |
 | 좋아요 | 사용자당 전시당 1개, 토글, 공개 카운트 | `exhibition_likes` |
 | 신고 | 사유 4종 + 상세(기타는 필수). 사용자당 전시당 미처리 신고 1개. 본인 전시 신고 불가 | `createReport()` |
 | 신고 처리 | 전시 숨김 / 숨김+아티스트 정지 / 조치 없음 / 기각. 같은 전시의 다른 OPEN 신고 동시 종료 | `adminResolveReport()` |
 | 계정 삭제 시 전시 | 사용자가 만든 전시는 남기고 `owner_id=NULL`(공식 콘텐츠처럼 취급) — 방문자 기록 보호 | `deleteUserCompletely()` |
+
+## DB: SQLite → PostgreSQL (팀 결정)
+
+- 로컬: **PGlite**(WASM 내장 Postgres, `data/pg`). 설치 없이 `npm run dev`만으로 실행된다는 장점을 유지하기 위해 선택. 프로세스당 하나만 열 수 있으므로 `db:reset`·`setup`은 dev 서버를 끄고 실행.
+- 배포: `DATABASE_URL=postgres://…`이면 `postgres`(postgres.js) 드라이버. `prepare: false`라 Supabase/PgBouncer transaction pooler 뒤에서도 동작. localhost가 아니면 TLS 기본.
+- 스키마는 `drizzle-orm/pg-core` 하나뿐이며 두 드라이버가 같은 Drizzle API를 쓰므로 앱 코드는 DB 종류를 모름(`src/db/index.ts`만 분기). 타임스탬프는 `timestamptz`, 불리언은 `boolean`, 이미지는 `bytea`.
+- DB 클라이언트는 **첫 쿼리 때 지연 생성**(Proxy). Next dev가 보조 워커 프로세스에서 서버 모듈을 import만 하는 경우가 있어, import 시점에 PGlite를 열면 같은 디렉터리를 두 프로세스가 열어 abort되기 때문.

@@ -13,15 +13,16 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "node scripts/reset-db.mjs",
     "db:studio": "drizzle-kit studio",
-    "setup": "npm run db:push && npm run db:seed"
+    "setup": "npm run db:push && npm run db:seed && node scripts/ensure-db.mjs"
   },
   "dependencies": {
-    "@libsql/client": "^0.18.0",
+    "@electric-sql/pglite": "^0.5.14",
     "drizzle-orm": "^0.45.4",
     "html-to-image": "^1.11.13",
     "jsqr": "^1.4.0",
     "next": "15.5.28",
     "next-auth": "^5.0.0-beta.32",
+    "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0"
