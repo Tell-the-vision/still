@@ -8,3 +8,14 @@ export const journalStrings = {
   conflict: "This journal was changed on another device.",
   retry: "Retry",
 };
+
+export const journalSectionStrings = {
+  present: "01 journal · editable",
+  absent: "00 journal",
+  edit: "Edit",
+  write: "Write a journal",
+  delete: "Delete journal",
+  cancel: "Cancel",
+  confirm: "Delete",
+  failed: "Couldn't delete the journal.",
+};

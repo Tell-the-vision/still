@@ -42,3 +42,12 @@ export async function upsertJournal(userId: string, input: z.infer<typeof journa
     return { journal: toJournal(row), created: revision === null };
   });
 }
+
+// Idempotent: no archive or no journal means nothing to delete.
+export async function deleteJournal(userId: string, code: string) {
+  const exhibition = await findExhibition(code);
+  const archive = await db.query.archives.findFirst({
+    where: (a, { and, eq }) => and(eq(a.userId, userId), eq(a.exhibitionId, exhibition.id)),
+  });
+  if (archive) await db.delete(journals).where(eq(journals.archiveId, archive.id));
+}
