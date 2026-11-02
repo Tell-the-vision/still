@@ -1,7 +1,11 @@
 import type { StoredDocument } from "@still/shared/document";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "../client";
-import { exhibitionPlaylists, exhibitions, guideSentences, institutions, venues } from "../schema";
+import { putObject } from "../../media/r2";
+import { exhibitionPlaylists, exhibitions, guideSentences, images, institutions, venues } from "../schema";
 import type { ContentPackage } from "./content";
 import { sentenceRefs, validatePackage } from "./validate";
 
@@ -26,7 +30,7 @@ export async function importPackage(pkg: ContentPackage) {
       venueIds.set(venue.code, row.id);
     }
 
-    for (const { venueCode, playlist, sentences, code, ...fields } of pkg.exhibitions) {
+    for (const { venueCode, playlist, sentences, images: imageFiles = [], cover = null, code, ...fields } of pkg.exhibitions) {
       const venueId = venueIds.get(venueCode);
       if (!venueId) throw new Error(`Unknown venue "${venueCode}" in exhibition "${code}"`);
       const mutable = { ...fields, institutionId: institution.id, venueId };
@@ -36,6 +40,22 @@ export async function importPackage(pkg: ContentPackage) {
         .values({ code, ...mutable })
         .onConflictDoUpdate({ target: exhibitions.code, set: mutable })
         .returning();
+
+      // Rows first, then the upload, then the cover pointer (SPEC §10.3 insert order).
+      const imageRows: { id: string }[] = [];
+      for (const { file, ...image } of imageFiles) {
+        const bytes = await readFile(file);
+        const ext = extname(file).slice(1);
+        const objectKey = `exhibitions/${code}/${createHash("sha256").update(bytes).digest("hex")}.${ext}`;
+        await tx.insert(images).values({ ...image, exhibitionId: exhibition.id, objectKey }).onConflictDoNothing({ target: images.objectKey });
+        await putObject(objectKey, bytes, `image/${ext}`);
+        const [row] = await tx.select({ id: images.id }).from(images).where(eq(images.objectKey, objectKey));
+        imageRows.push(row);
+      }
+      await tx
+        .update(exhibitions)
+        .set({ coverImageId: cover === null ? null : imageRows[cover].id })
+        .where(eq(exhibitions.id, exhibition.id));
 
       for (const s of sentences) {
         await tx

@@ -16,6 +16,9 @@ export type ContentPackage = {
     playlist: { provider: "APPLE_MUSIC" | "SPOTIFY"; url: string; title: string; description: string | null } | null;
     // Sentences the guide references; any other stored sentence is soft-deleted.
     sentences: { id: string; content: string }[];
+    // Images are uploaded to R2; image blocks reference them by id. `cover` indexes into `images`.
+    images?: { id: string; file: string; altText: string | null; width: number; height: number }[];
+    cover?: number | null;
   }[];
 };
 

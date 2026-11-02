@@ -27,3 +27,18 @@ test("guide shows the description and the guide document, publicly cacheable", a
   await expect(page.getByText("Guide", { exact: true })).toBeVisible();
   await expect(page.getByText("A room can hold its breath.")).toBeVisible();
 });
+
+test("the cover image is requested from the media origin and shown", async ({ page }) => {
+  await page.route("https://media.test.invalid/**", (route) => route.fulfill({ path: "e2e/fixtures/cover.png" }));
+  const media = page.waitForRequest(/media\.test\.invalid/);
+  await openGuide(page, "with-cover");
+  await media;
+  await expect(page.getByRole("img", { name: "Test cover" }).first()).toBeVisible();
+});
+
+test("a cover that fails to load leaves the text without a broken image", async ({ page }) => {
+  await page.route("https://media.test.invalid/**", (route) => route.fulfill({ status: 404 }));
+  await openGuide(page, "with-cover");
+  await expect(page.getByText("With Cover", { exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Test cover" })).toHaveCount(0);
+});

@@ -35,9 +35,10 @@ function validateExhibition(e: PackageExhibition) {
 
   const description = parseDocument(`${label} description`, e.description);
   const guide = parseDocument(`${label} guide`, e.guide);
-  // The package declares no images, so an image block can never reference one of this exhibition.
+  const imageIds = new Set((e.images ?? []).map((i) => i.id));
+  if (e.cover != null && !e.images?.[e.cover]) throw new Error(`${label}: cover index out of range`);
   for (const doc of [description, guide]) {
-    if (doc?.blocks.some((b) => b.type === "image")) throw new Error(`${label}: image block references an unknown image`);
+    if (doc?.blocks.some((b) => b.type === "image" && !imageIds.has(b.imageId))) throw new Error(`${label}: image block references an unknown image`);
   }
   if (description?.blocks.some((b) => b.type === "sentence")) {
     throw new Error(`${label}: description must not contain sentence blocks`);
