@@ -6,6 +6,7 @@ export const authStrings = {
   cancelled: "Sign-in was cancelled.",
   sessionEnded: "Your session ended. Sign in again.",
   failed: "Sign-in failed. Try again.",
+  pendingExpired: "Your earlier action expired. Please try again.",
   link: {
     created: "Account linked.",
     exists: "That Google account is already linked.",

@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ExpandedBlock } from "@still/shared/document";
 import { useRouter } from "expo-router";
+import { useEffect, useRef, type RefObject } from "react";
+import { View, type HostInstance } from "react-native";
 import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
@@ -9,6 +11,9 @@ import { savePendingAction } from "../auth/pending-action";
 import { useMe } from "../auth/use-me";
 import { scrapStrings } from "./strings";
 import { useSavedSentences } from "./useSavedSentences";
+
+// Root views of the mounted sentences, so a restored one can be scrolled back into view.
+export const sentenceViews = new Map<string, RefObject<HostInstance | null>>();
 
 type Props = { code: string; sentence: Extract<ExpandedBlock, { type: "sentence" }> };
 
@@ -39,18 +44,26 @@ export function SentenceAction({ code, sentence }: Props) {
         ]),
     }),
   );
+  const viewRef = useRef<HostInstance>(null);
+  useEffect(() => {
+    sentenceViews.set(sentence.sentenceId, viewRef);
+    return () => void sentenceViews.delete(sentence.sentenceId);
+  }, [sentence.sentenceId]);
   const save = () => mutate({ code, sentenceId: sentence.sentenceId });
   const loginThenSave = async () => {
     await savePendingAction({ kind: "SCRAP_SAVE", exhibitionCode: code, sentenceId: sentence.sentenceId });
     router.push({ pathname: "/login", params: { returnTo: `/e/${code}` } });
   };
-  if (!me) return <Button label={scrapStrings.loginRequired} variant="secondary" onPress={() => void loginThenSave()} />;
-  if (saved.has(sentence.sentenceId)) return <Text variant="secondary">{scrapStrings.saved}</Text>;
-  if (isError) return (
-    <>
-      <Notice message={scrapStrings.saveFailed} error />
-      <Button label={scrapStrings.retry} variant="secondary" onPress={save} />
-    </>
-  );
-  return <Button label={scrapStrings.save} variant="secondary" disabled={isPending} onPress={save} />;
+  const renderControl = () => {
+    if (!me) return <Button label={scrapStrings.loginRequired} variant="secondary" onPress={() => void loginThenSave()} />;
+    if (saved.has(sentence.sentenceId)) return <Text variant="secondary">{scrapStrings.saved}</Text>;
+    if (isError) return (
+      <>
+        <Notice message={scrapStrings.saveFailed} error />
+        <Button label={scrapStrings.retry} variant="secondary" onPress={save} />
+      </>
+    );
+    return <Button label={scrapStrings.save} variant="secondary" disabled={isPending} onPress={save} />;
+  };
+  return <View ref={viewRef}>{renderControl()}</View>;
 }
