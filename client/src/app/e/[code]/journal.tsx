@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { useDraft } from "../../../features/journal/drafts";
+import { useEffect, useRef, useState } from "react";
+import { savePendingAction, takePendingAction } from "../../../features/auth/pending-action";
+import { takeGuestDraft, useDraft } from "../../../features/journal/drafts";
 import { useMe } from "../../../features/auth/use-me";
 import { journalStrings } from "../../../features/journal/strings";
 import { useTRPC } from "../../../lib/trpc";
@@ -45,8 +46,30 @@ export default function Journal() {
   const appCode = error?.data?.appCode;
   const isNetworkError = !!error && !error.data;
 
-  const submit = () => {
-    if (!me) return router.push({ pathname: "/login", params: { returnTo: `/e/${code}/journal` } });
+  // After login the guest's pending JOURNAL_SAVE saves the guest draft (SPEC §2.2 Sign in 8).
+  const consent = useQuery(trpc.consent.get.queryOptions(undefined, { enabled: !!me }));
+  const ran = useRef(false);
+  const ready = !!me && !!consent.data && !journal.isPending && drafts.restored !== undefined;
+  useEffect(() => {
+    if (!ready || ran.current) return;
+    ran.current = true;
+    void (async () => {
+      const action = await takePendingAction({ kind: "JOURNAL_SAVE", exhibitionCode: code });
+      const text = action && action !== "expired" ? await takeGuestDraft(code) : null;
+      if (text === null) return;
+      // Kept as the user's draft until the save succeeds.
+      setDraft(text);
+      drafts.save(text);
+      save.mutate({ code, content: text, audioType, revision });
+    })();
+  });
+
+  const submit = async () => {
+    if (!me) {
+      drafts.flush();
+      await savePendingAction({ kind: "JOURNAL_SAVE", exhibitionCode: code });
+      return router.push({ pathname: "/login", params: { returnTo: `/e/${code}/journal` } });
+    }
     setSaved(false);
     save.mutate({ code, content, audioType, revision });
   };

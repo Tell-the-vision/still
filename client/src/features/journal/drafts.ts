@@ -47,7 +47,15 @@ export function useDraft(code: string, userId: string | null) {
     setRestored(null);
     void store.removeItem(key);
   };
-  return { restored, save, discard };
+  return { restored, save, flush, discard };
+}
+
+// After login the guest's draft is read once and removed; the caller keeps it as the user's draft (SPEC §5.3).
+export async function takeGuestDraft(code: string) {
+  const key = draftKey(code, null);
+  const text = await sessionStore.getItem(key);
+  await sessionStore.removeItem(key);
+  return text;
 }
 
 export async function discardUserDrafts(userId: string) {
