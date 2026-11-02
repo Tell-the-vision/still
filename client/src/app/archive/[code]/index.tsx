@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
+import { DeleteArchive } from "../../../features/archive/DeleteArchive";
 import { archiveStrings } from "../../../features/archive/strings";
 import { useRequireLogin } from "../../../features/auth/require-login";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
@@ -32,6 +33,7 @@ export default function ArchiveDetail() {
           {/* J2 JournalSection */}
           {/* K1a KeepsakeSection */}
           {/* R3 DeleteArchive */}
+          <DeleteArchive code={code} />
         </Stack>
       )}
     </Screen>

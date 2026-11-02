@@ -7,4 +7,9 @@ export const archiveStrings = {
   retry: "Retry",
   missing: "No archive for this exhibition.",
   lastVisited: (iso: string) => `Last visited ${iso.slice(0, 10)}`,
+  delete: "Delete this Archive",
+  deleteWarning: "Saved sentences, your journal and your web card for this exhibition will be deleted.",
+  cancel: "Cancel",
+  confirmDelete: "Delete",
+  deleteFailed: "The archive was not deleted.",
 };

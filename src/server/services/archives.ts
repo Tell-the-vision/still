@@ -7,7 +7,7 @@ import { archives, exhibitions } from "../db/schema";
 import { publicImageUrl } from "../media/public-url";
 
 // A transaction or the plain client: child writes pass `tx` so a rejected write rolls back its archive.
-type Executor = Pick<typeof db, "query" | "insert" | "update">;
+type Executor = Pick<typeof db, "query" | "insert" | "update" | "delete">;
 
 export const archiveWith = {
   exhibition: { with: { venue: true, coverImage: true } },
@@ -65,6 +65,14 @@ export async function getArchive(userId: string, code: string) {
   const exhibition = await findExhibition(code);
   const archive = await findArchive(userId, exhibition.id, db);
   return archive ? toArchive(archive) : null;
+}
+
+// Children (scraps, journal, keepsake) cascade; deleting a missing archive is a no-op (SPEC §8.2).
+export async function deleteArchive(userId: string, code: string) {
+  await db.transaction(async (tx) => {
+    const exhibition = await findExhibition(code, tx);
+    await tx.delete(archives).where(and(eq(archives.userId, userId), eq(archives.exhibitionId, exhibition.id)));
+  });
 }
 
 // Opening a guide: creates the archive, or refreshes its last visit.
