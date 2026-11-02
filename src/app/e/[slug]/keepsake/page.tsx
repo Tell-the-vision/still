@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { KeepsakeCreator } from "@/components/keepsake/KeepsakeCreator";
-import { PageHeader } from "@/components/ui";
+import { BottomNav, PageHeader } from "@/components/ui";
 import { findExhibition } from "@/lib/exhibitions";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,12 @@ export default async function KeepsakeCreatePage({ params }: { params: Promise<{
   const exhibition = await findExhibition(slug);
   if (!exhibition) notFound();
   return (
-    <main>
-      <PageHeader back={`/e/${exhibition.slug}`} title="Keepsake" />
+    <main className="flex flex-col min-h-dvh">
+      <PageHeader back={`/e/${exhibition.slug}`} backLabel="Exhibition" title="Keepsake" />
       <Suspense>
         <KeepsakeCreator exhibition={exhibition} />
       </Suspense>
+      <BottomNav />
     </main>
   );
 }
