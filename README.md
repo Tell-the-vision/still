@@ -149,7 +149,8 @@ src/
 
 - **디자인 토큰**: `src/app/globals.css`의 `@theme` 블록 — `--color-paper / --color-ink / --color-muted / --color-line`, `--font-display`(Montserrat) / `--font-body`(DM Sans). 유틸리티 클래스 `bg-paper`, `text-ink`, `text-muted`, `font-display`로 전체에서 사용 중.
 - **공통 컴포넌트**: `src/components/ui/index.tsx` — `Button`, `LinkButton`, `PageHeader`, `BottomNav`, `Dialog`, `Notice`, `EmptyState`, `SectionTitle`, `Wordmark`. 여기만 바꿔도 대부분의 화면이 바뀝니다.
-- **웹카드 템플릿**: `src/components/KeepsakeCard.tsx` — 카드는 360×480px 고정(3:4), PNG는 3배 해상도. 이 컴포넌트 하나가 미리보기/저장본/PNG에 모두 쓰이므로 여기만 수정하면 셋이 같이 바뀝니다. 외부 이미지는 `crossOrigin` 때문에 같은 도메인(`/public`)에 두세요.
+- **웹카드 템플릿**: `src/components/KeepsakeCard.tsx` — 카드는 360×480px 고정(3:4), PNG는 3배 해상도. 이 컴포넌트 하나가 미리보기/저장본/PNG에 모두 쓰이므로 여기만 수정하면 셋이 같이 바뀝니다. 외부 이미지는 `crossOrigin` 때문에 같은 도메인(`/public`)에 두세요. **전시별 색상·서체**는 `--ks-bg / --ks-fg / --ks-accent / --ks-font` 변수로 들어오므로 템플릿은 이 변수만 쓰면 됩니다.
+- **전시 아이덴티티**: 각 전시에 `theme`(배경·글자·포인트 색 + 서체)이 있고, 가이드 화면 `<article class="exhibition-themed">`에 `--ex-bg / --ex-fg / --ex-accent / --ex-font`로 노출됩니다. 기본값은 STILL 흑백이고, 샘플 전시 3개는 각각 다른 테마를 갖고 있습니다.
 - **화면별 마크업**: 각 화면 컴포넌트의 JSX는 상태 로직과 분리되어 있으니 className만 바꾸면 됩니다. `role`/`aria-*` 속성은 테스트가 의존하니 유지해 주세요.
 - 폰트는 `src/app/layout.tsx`의 Google Fonts `<link>`로 로드합니다. Futura를 쓸 수 있으면 `--font-display`만 교체.
 
@@ -196,7 +197,7 @@ src/
 | CORE-04 Archive당 Journal 1개 | `journals.archive_id` UNIQUE + `PUT /archives/{id}/journal` upsert |
 | CORE-05 가이드 문장만 Scrap | `scraps.guide_sentence_id` → 전시 소속 검증, `sentence_content_snapshot` 보존, UNIQUE(archive, sentence) |
 | CORE-06/07 플레이리스트 없으면 Pink Noise, 기본 Off | `GET /exhibitions/{id}/audio` 의 `mode`, `components/audio/*` |
-| CORE-08 웹카드 저장 + PNG | `KeepsakeCard` + `export-png.ts` (1080×1440 PNG) |
+| CORE-08 웹카드 저장 + PNG | `KeepsakeCard` + `export-png.ts` (1080×1440 PNG). 전시당 1장(다시 저장 = 교체), 전시 테마 적용 |
 | CORE-09 Archive 삭제 시 연쇄 삭제 | `deleteArchive()` 트랜잭션 + FK cascade |
 | 권한 | 모든 개인 데이터 API는 소유자 검증(403), 로그인 없으면 401 |
 

@@ -6,7 +6,7 @@
 | ID | 주제 | MVP 결정 | 바꾸려면 |
 | --- | --- | --- | --- |
 | TBD-01 | Scrap 저장 해제 | **허용.** 가이드에서 Saved를 다시 누르면 해제, Archive Detail에도 "저장 해제" 제공. API `DELETE /archives/{id}/scraps/{scrapId}` | 해제 UI만 숨기면 됨 (`ExhibitionGuide.tsx`의 `remove`, `ArchiveDetail.tsx`의 `removeScrap`) |
-| TBD-02 | Keepsake 개수 | **전시당 여러 장 허용 (1 : N).** Archive Detail에 가로 스크롤 목록 | `POST /archives/{id}/keepsakes`에서 기존 카드 수 검사 후 409 |
+| TBD-02 | Keepsake 개수 | **전시당 1장 (PO 확정: "전시 1개당 1개").** 다시 저장하면 기존 카드 교체 | `digital_keepsakes.archive_id` UNIQUE 해제 + `POST /archives/{id}/keepsakes`를 insert로 변경 |
 | TBD-03 | Keepsake 콘텐츠 | 템플릿별로 다름: Sentence = 저장한 문장 1개 선택, Reflection = Journal 발췌(자동 240자, 수정 가능), Cover = 대표 이미지 + 문장 1개. 저장 시 **스냅샷**으로 고정 | `lib/keepsake-templates.ts`의 `uses`, `KEEPSAKE_LIMITS` |
 | TBD-04 | 플레이리스트 등록 | 운영자가 `src/db/seed.ts`(또는 DB `audio_configurations`)에 직접 입력. CMS 없음 | — |
 | TBD-05 | Pink Noise 노출 범위 | **Exhibition Guide + Journal + Account** 모두에서 제어 | `AudioOptions` 컴포넌트 배치만 조정 |
@@ -14,6 +14,7 @@
 | TBD-07 | Journal 검증 | 공백만 있는 내용 저장 불가(422), **최대 2,000자** | `lib/archives.ts`의 `JOURNAL_MAX_LENGTH`, `JournalEditor.tsx`의 `JOURNAL_MAX` |
 | TBD-08 | 계정 삭제 | 사용자 + 모든 Archive/Scrap/Journal/Keepsake **즉시 영구 삭제**. 같은 Google 계정으로 재로그인 시 새 사용자 생성 | `deleteUserCompletely()` |
 | TBD-09 | PNG 해상도/비율 | **3 : 4, 360×480 CSS px → 3배 = 1080×1440 PNG** | `lib/keepsake-templates.ts`의 `KEEPSAKE_CARD`, `globals.css`의 `.keepsake-card` |
+| (PO) | 전시별 색상·타이포 | 템플릿은 공통, 전시의 `theme`(bg/fg/accent 색 + 서체 sans/serif/display)만 바뀜. 저장 시 카드에 고정. 가이드에는 `--ex-*` 변수로 노출 | `KeepsakeCard.tsx`(렌더), `artist.ts` `parseBase()`(검증), `ExhibitionEditor.tsx` `THEME_PRESETS` |
 | TBD-10 | 오프라인 임시 기록 | Journal 초안은 `localStorage`(전시별, 새로고침·로그인 왕복·짧은 오프라인에 보존), Keepsake 초안은 `sessionStorage`(로그인 왕복만) | `lib/client/drafts.ts` |
 
 ## 추가로 정한 것

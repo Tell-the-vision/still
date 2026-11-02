@@ -38,9 +38,9 @@ if (existsSync(file)) {
     const cols = await client.execute("PRAGMA table_info(exhibitions)");
     const names = cols.rows.map((r) => String(r.name));
     client.close();
-    if (names.length && !names.includes("owner_id")) {
+    if (names.length && (!names.includes("owner_id") || !names.includes("theme_bg"))) {
       console.error(
-        "\n[still] Your local database predates the roles/artist/admin update.\n" +
+        "\n[still] Your local database predates the latest schema (roles / exhibition theme).\n" +
           "        Run `npm run db:reset` once (this deletes local test data), then `npm run dev` again.\n",
       );
       process.exit(1);

@@ -34,7 +34,8 @@ export async function renderCardToPng(node: HTMLElement): Promise<string> {
     pixelRatio: KEEPSAKE_CARD.exportPixelRatio,
     width: KEEPSAKE_CARD.width,
     height: KEEPSAKE_CARD.height,
-    backgroundColor: "#ffffff",
+    // No `backgroundColor` option: html-to-image would paint it over the
+    // card's own (theme) background and dark themes would export white.
     cacheBust: true,
     // The node may be displayed scaled down; export at its intrinsic size.
     style: { transform: "none" },

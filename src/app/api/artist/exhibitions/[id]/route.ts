@@ -1,6 +1,7 @@
 import { handler, noContent, ok, readJson, requireUser, type Params } from "@/lib/api";
 import { getManagedExhibition, setExhibitionStatus, updateExhibition, type ExhibitionInput } from "@/lib/artist";
 import { getGuide, groupGuide } from "@/lib/exhibitions";
+import { themeOf } from "@/lib/keepsake-templates";
 import { likeSummary } from "@/lib/moderation";
 
 /** GET /api/artist/exhibitions/{id} — full editable payload (owner or admin). */
@@ -29,6 +30,7 @@ export const GET = handler(async (_req, { params }: Params<{ id: string }>) => {
       updatedAt: ex.updatedAt,
       likeCount: likes.count,
     },
+    theme: themeOf(ex),
     guide: groupGuide(sentences).map((g) => ({ section: g.section, sentences: g.sentences.map((s) => s.content) })),
     audio: ex.audioConfig
       ? {

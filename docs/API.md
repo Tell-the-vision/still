@@ -36,7 +36,7 @@
 | Method | Endpoint | 응답 |
 | --- | --- | --- |
 | GET | `/api/exhibitions` | `{ exhibitions: Exhibition[] }` (데모용) |
-| GET | `/api/exhibitions/{id}` | `{ exhibition }` — 404 if 없음/비활성 |
+| GET | `/api/exhibitions/{id}` | `{ exhibition }` — 404 if 없음/비활성. `themeBg/themeFg/themeAccent/themeFont` 포함(전시별 색상·서체) |
 | GET | `/api/exhibitions/{id}/guide` | `{ exhibitionId, sentences: GuideSentence[], sections: { section, sentences[] }[] }` |
 | GET | `/api/exhibitions/{id}/audio` | `{ mode: "EXTERNAL_PLAYLIST" \| "AMBIENCE", externalPlaylist: { provider, url, title, description } \| null, ambience: { enabled, type } }` — 우선순위 로직 적용됨 |
 | GET | `/api/exhibitions/{id}/qr` | SVG QR (`?format=png` → PNG). `/e/<slug>` 주소를 인코딩. 초안도 발급 가능 |
@@ -76,13 +76,14 @@
 | Method | Endpoint | 설명 |
 | --- | --- | --- |
 | GET | `/api/archives/{id}/keepsakes` | `{ keepsakes: Keepsake[] }` |
-| POST | `/api/archives/{id}/keepsakes` `{ templateId, content }` | 201. `templateId ∈ sentence \| reflection \| cover`, `content`는 아래 `KeepsakeContent` |
+| POST | `/api/archives/{id}/keepsakes` `{ templateId, content }` | **전시당 1장**: 없으면 201 생성, 있으면 200 교체(`replaced: true`). `templateId ∈ sentence \| reflection \| cover`, `content`는 아래 `KeepsakeContent`. `content.theme`은 서버가 정규화해 카드에 고정 |
 | GET | `/api/keepsakes/{id}` | `{ keepsake }` |
 | PUT | `/api/keepsakes/{id}` `{ templateId?, content? }` | 수정 |
 | DELETE | `/api/keepsakes/{id}` | 삭제 → 204 |
 
 ```ts
 type KeepsakeContent = {
+  theme?: { bg: "#RRGGBB"; fg: "#RRGGBB"; accent: "#RRGGBB"; font: "sans" | "serif" | "display" };
   exhibitionTitle: string;
   exhibitionSubtitle?: string | null;
   venue?: string | null;
@@ -101,8 +102,8 @@ PNG 내보내기는 서버 엔드포인트가 아니라 클라이언트(`src/lib
 | Method | Endpoint | 설명 |
 | --- | --- | --- |
 | GET | `/api/artist/exhibitions` | 내 전시 목록 (`likeCount`, `openReportCount`, `archiveCount` 포함) |
-| POST | `/api/artist/exhibitions` | 초안 생성. body: `{ title, subtitle?, venue?, startDate?, endDate?, description?, coverImageUrl?, guide?: [{ section, sentences: string[] }], audio?: { provider: NONE\|SPOTIFY\|APPLE_MUSIC, playlistUrl?, playlistTitle?, playlistDescription?, ambienceEnabled? } }` |
-| GET | `/api/artist/exhibitions/{id}` | 편집용 전체 데이터 `{ exhibition, guide, audio }` (소유자/관리자) |
+| POST | `/api/artist/exhibitions` | 초안 생성. body: `{ title, subtitle?, venue?, startDate?, endDate?, description?, coverImageUrl?, guide?: [{ section, sentences: string[] }], audio?: { provider: NONE\|SPOTIFY\|APPLE_MUSIC, playlistUrl?, playlistTitle?, playlistDescription?, ambienceEnabled? }, theme?: { bg, fg, accent: "#RRGGBB", font: sans\|serif\|display } }` |
+| GET | `/api/artist/exhibitions/{id}` | 편집용 전체 데이터 `{ exhibition, theme, guide, audio }` (소유자/관리자) |
 | PUT | `/api/artist/exhibitions/{id}` | 부분 수정 (POST와 같은 body). `guide`를 보내면 전체 교체하되 문장 내용이 같으면 id 유지 → 방문자 Scrap 연결 보존 |
 | POST | `/api/artist/exhibitions/{id}/status` `{ status: ACTIVE\|DRAFT }` | 공개 / 비공개. 공개하려면 해설 문장 1개 이상. HIDDEN은 소유자가 못 풂 |
 | DELETE | `/api/artist/exhibitions/{id}` | 소프트 삭제 (`status=DELETED`) |

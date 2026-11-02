@@ -142,11 +142,11 @@ export function ArchiveDetail({ archive: initial }: { archive: ArchiveDetailDto 
         />
       )}
 
-      {/* Digital Keepsake */}
+      {/* Digital Keepsake — one per exhibition (PO decision) */}
       <SectionTitle
         right={
           <Link href={`/e/${ex.slug}/keepsake`} className="text-xs underline underline-offset-4">
-            새 카드
+            {archive.keepsakes.length ? "다시 만들기" : "만들기"}
           </Link>
         }
       >
@@ -155,18 +155,23 @@ export function ArchiveDetail({ archive: initial }: { archive: ArchiveDetailDto 
       {archive.keepsakes.length === 0 ? (
         <EmptyState
           title="저장한 웹카드가 없습니다"
+          body="전시당 웹카드 1장을 보관할 수 있습니다."
           action={<LinkButton href={`/e/${ex.slug}/keepsake`} variant="secondary">Keepsake 만들기</LinkButton>}
         />
       ) : (
-        <ul className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-          {archive.keepsakes.map((k) => (
-            <li key={k.id} className="shrink-0">
-              <Link href={`/keepsake/${k.id}`} aria-label="웹카드 열기" className="block border border-line overflow-hidden" style={{ width: 180, height: 240 }}>
-                <KeepsakeCard templateId={k.templateId} content={k.content} scale={0.5} />
+        <div className="flex gap-4 items-start">
+          <Link href={`/keepsake/${archive.keepsakes[0].id}`} aria-label="웹카드 열기" className="block border border-line overflow-hidden shrink-0" style={{ width: 180, height: 240 }}>
+            <KeepsakeCard templateId={archive.keepsakes[0].templateId} content={archive.keepsakes[0].content} scale={0.5} />
+          </Link>
+          <div className="text-xs text-muted leading-5">
+            <p>저장 {formatDateTime(archive.keepsakes[0].createdAt)}</p>
+            <p className="mt-2">
+              <Link href={`/keepsake/${archive.keepsakes[0].id}`} className="underline underline-offset-4 text-ink">
+                열기 · PNG 다운로드
               </Link>
-            </li>
-          ))}
-        </ul>
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Archive management */}

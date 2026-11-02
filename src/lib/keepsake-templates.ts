@@ -49,8 +49,31 @@ export function isTemplateId(id: unknown): id is KeepsakeTemplateId {
   return typeof id === "string" && (KEEPSAKE_TEMPLATE_IDS as readonly string[]).includes(id);
 }
 
+/** Exhibition visual identity, frozen into the card at save time. */
+export type KeepsakeTheme = {
+  bg: string;
+  fg: string;
+  accent: string;
+  font: "sans" | "serif" | "display";
+};
+export const DEFAULT_THEME: KeepsakeTheme = { bg: "#FFFFFF", fg: "#000000", accent: "#000000", font: "sans" };
+export const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+export function normalizeTheme(t: Partial<KeepsakeTheme> | null | undefined): KeepsakeTheme {
+  const pick = (v: unknown, d: string) => (typeof v === "string" && HEX_COLOR.test(v) ? v.toUpperCase() : d);
+  const font = t?.font === "serif" || t?.font === "display" ? t.font : "sans";
+  return { bg: pick(t?.bg, DEFAULT_THEME.bg), fg: pick(t?.fg, DEFAULT_THEME.fg), accent: pick(t?.accent, DEFAULT_THEME.accent), font };
+}
+
+/** Theme of an exhibition row (fields are optional so older callers keep working). */
+export function themeOf(ex: { themeBg?: string | null; themeFg?: string | null; themeAccent?: string | null; themeFont?: string | null }): KeepsakeTheme {
+  return normalizeTheme({ bg: ex.themeBg ?? undefined, fg: ex.themeFg ?? undefined, accent: ex.themeAccent ?? undefined, font: ex.themeFont as KeepsakeTheme["font"] });
+}
+
 /** Frozen card content stored in digital_keepsakes.content_data (JSON). */
 export type KeepsakeContent = {
+  /** Visual identity at save time; missing on cards saved before themes existed. */
+  theme?: KeepsakeTheme | null;
   exhibitionTitle: string;
   exhibitionSubtitle?: string | null;
   venue?: string | null;
@@ -75,6 +98,7 @@ export function parseKeepsakeContent(raw: string): KeepsakeContent {
   try {
     const j = JSON.parse(raw) as Partial<KeepsakeContent>;
     return {
+      theme: j.theme ? normalizeTheme(j.theme) : null,
       exhibitionTitle: String(j.exhibitionTitle ?? ""),
       exhibitionSubtitle: j.exhibitionSubtitle ?? null,
       venue: j.venue ?? null,

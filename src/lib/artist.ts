@@ -9,12 +9,15 @@ import {
   audioConfigurations,
   exhibitions,
   guideSentences,
+  THEME_FONT,
   users,
   type AudioProvider,
   type Exhibition,
+  type ThemeFont,
   type User,
 } from "@/db/schema";
 import { HttpError, isAdmin, isArtist } from "./api";
+import { HEX_COLOR } from "./keepsake-templates";
 
 export const LIMITS = {
   title: 80,
@@ -123,6 +126,7 @@ export type ExhibitionInput = {
   coverImageUrl?: unknown;
   guide?: unknown; // { section: string; sentences: string[] }[]
   audio?: unknown; // { provider, playlistUrl, playlistTitle, playlistDescription, ambienceEnabled }
+  theme?: unknown; // { bg, fg, accent: "#RRGGBB", font: "sans" | "serif" | "display" }
 };
 
 type GuideSectionInput = { section: string | null; sentences: string[] };
@@ -217,6 +221,20 @@ function parseBase(input: ExhibitionInput, partial: boolean) {
   }
   if (out.startDate && out.endDate && out.startDate > out.endDate)
     throw new HttpError("VALIDATION_FAILED", "종료일은 시작일보다 빠를 수 없습니다.");
+  if (input.theme !== undefined) {
+    const t = (input.theme ?? {}) as Record<string, unknown>;
+    const color = (v: unknown, label: string) => {
+      const str = typeof v === "string" ? v.trim().toUpperCase() : "";
+      if (!HEX_COLOR.test(str)) throw new HttpError("VALIDATION_FAILED", `${label} 색상은 #RRGGBB 형식이어야 합니다.`);
+      return str;
+    };
+    if (!(THEME_FONT as readonly string[]).includes(String(t.font ?? "sans")))
+      throw new HttpError("VALIDATION_FAILED", "서체는 sans / serif / display 중 하나여야 합니다.");
+    out.themeBg = color(t.bg ?? "#FFFFFF", "배경");
+    out.themeFg = color(t.fg ?? "#000000", "글자");
+    out.themeAccent = color(t.accent ?? "#000000", "포인트");
+    out.themeFont = String(t.font ?? "sans") as ThemeFont;
+  }
   return out;
 }
 

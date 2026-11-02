@@ -81,6 +81,9 @@ export const users = sqliteTable("users", {
  */
 export const EXHIBITION_STATUS = ["DRAFT", "ACTIVE", "HIDDEN", "DELETED"] as const;
 export type ExhibitionStatus = (typeof EXHIBITION_STATUS)[number];
+/** sans = DM Sans · serif = Noto Serif KR · display = Montserrat (see globals.css) */
+export const THEME_FONT = ["sans", "serif", "display"] as const;
+export type ThemeFont = (typeof THEME_FONT)[number];
 
 export const exhibitions = sqliteTable("exhibitions", {
   id: id(),
@@ -99,6 +102,15 @@ export const exhibitions = sqliteTable("exhibitions", {
   qrCodeUrl: text("qr_code_url"),
   status: text("status", { enum: EXHIBITION_STATUS }).notNull().default("DRAFT"),
   publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  /**
+   * Per-exhibition visual identity (PO: "템플릿은 정해져 있고 전시에 따라서
+   * 색상이나 타이포가 바뀌는 형식"). Applied to the keepsake templates and
+   * exposed to the guide as CSS variables. Defaults = STILL monochrome.
+   */
+  themeBg: text("theme_bg").notNull().default("#FFFFFF"),
+  themeFg: text("theme_fg").notNull().default("#000000"),
+  themeAccent: text("theme_accent").notNull().default("#000000"),
+  themeFont: text("theme_font", { enum: THEME_FONT }).notNull().default("sans"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -209,12 +221,14 @@ export const journals = sqliteTable("journals", {
 });
 
 // ---------------------------------------------------- digital_keepsakes
+/** One keepsake per archive (PO decision: "전시 1개당 1개"). Saving again replaces it. */
 export const digitalKeepsakes = sqliteTable(
   "digital_keepsakes",
   {
     id: id(),
     archiveId: text("archive_id")
       .notNull()
+      .unique()
       .references(() => archives.id, { onDelete: "cascade" }),
     /** One of the ids in `src/lib/keepsake-templates.ts`. */
     templateId: text("template_id").notNull(),
@@ -223,7 +237,6 @@ export const digitalKeepsakes = sqliteTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("keepsakes_archive_idx").on(t.archiveId)],
 );
 
 // ------------------------------------------------------ exhibition_likes

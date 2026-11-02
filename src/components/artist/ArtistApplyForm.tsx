@@ -44,10 +44,10 @@ export function ArtistApplyForm({ me, next }: { me: PublicUser; next: string }) 
         </div>
       )}
       <p className="text-sm leading-6 text-muted mb-6">
-        아티스트로 승인되면 전시를 직접 등록하고, 해설 가이드를 작성하고, 전시장용 QR 코드를 받을 수 있습니다. 승인은 관리자가 검토한 뒤 이루어집니다.
+        아티스트·전시 기획자(기관 담당자)로 승인되면 전시를 직접 등록하고, 해설 가이드를 작성하고, 전시장용 QR 코드를 받을 수 있습니다. 승인은 관리자가 검토한 뒤 이루어집니다.
       </p>
       <label className="block mb-5">
-        <span className="block text-xs text-muted mb-1">아티스트 이름 *</span>
+        <span className="block text-xs text-muted mb-1">아티스트 · 기관/팀 이름 *</span>
         <input className="w-full h-11 border-b border-line text-[15px]" value={artistName} onChange={(e) => setArtistName(e.target.value)} maxLength={40} required />
       </label>
       <label className="block mb-5">

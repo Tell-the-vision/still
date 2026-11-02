@@ -17,6 +17,7 @@
 
   --font-display: "Montserrat", "Futura", "Helvetica Neue", Arial, sans-serif;
   --font-body: "DM Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Noto Serif KR", "Apple SD Gothic Neo", Georgia, serif;
 
   --spacing-screen: 390px; /* reference design width (390 × 844) */
 }
@@ -65,12 +66,36 @@ input:focus {
   outline: none;
 }
 
-/* Keepsake card: fixed geometry so PNG export matches the web card. */
+/* Keepsake card: fixed geometry so PNG export matches the web card.
+   Colors / typeface come from the exhibition theme via CSS variables
+   (--ks-bg / --ks-fg / --ks-accent / --ks-font) set on the card element. */
 .keepsake-card {
   width: 360px;
   height: 480px;
-  background: #ffffff;
-  color: #000000;
+  background: var(--ks-bg, #ffffff);
+  color: var(--ks-fg, #000000);
+  font-family: var(--ks-font, var(--font-body));
   overflow: hidden;
   position: relative;
+}
+.keepsake-card .ks-accent {
+  color: var(--ks-accent, currentColor);
+}
+.keepsake-card .ks-rule {
+  border-color: var(--ks-accent, currentColor);
+  opacity: 0.35;
+}
+.keepsake-card .ks-muted {
+  opacity: 0.6;
+}
+
+/* Exhibition theme on the guide screen: the UI pass can use these variables
+   (--ex-bg / --ex-fg / --ex-accent / --ex-font) to echo the exhibition's identity. */
+.exhibition-themed .ex-title {
+  font-family: var(--ex-font, var(--font-display));
+}
+.exhibition-themed .ex-accent-rule {
+  border-top: 2px solid var(--ex-accent, #000);
+  width: 32px;
+  margin: 12px auto 0;
 }

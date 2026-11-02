@@ -33,7 +33,9 @@ type Audio = {
   playlistDescription: string;
   ambienceEnabled: boolean;
 };
+type Theme = { bg: string; fg: string; accent: string; font: "sans" | "serif" | "display" };
 type Loaded = {
+  theme: Theme;
   exhibition: {
     id: string;
     slug: string;
@@ -56,6 +58,13 @@ type Loaded = {
 
 const EMPTY_FORM: Form = { title: "", subtitle: "", venue: "", startDate: "", endDate: "", description: "", coverImageUrl: "" };
 const EMPTY_AUDIO: Audio = { provider: "NONE", playlistUrl: "", playlistTitle: "", playlistDescription: "", ambienceEnabled: true };
+const DEFAULT_THEME_FORM: Theme = { bg: "#FFFFFF", fg: "#000000", accent: "#000000", font: "sans" };
+const THEME_PRESETS: { name: string; theme: Theme }[] = [
+  { name: "STILL 기본", theme: { bg: "#FFFFFF", fg: "#000000", accent: "#000000", font: "sans" } },
+  { name: "따뜻한 종이", theme: { bg: "#F4F1EA", fg: "#1F1D1A", accent: "#8A6A3D", font: "serif" } },
+  { name: "밤의 전시", theme: { bg: "#0E0E10", fg: "#F2F2F2", accent: "#E0B458", font: "sans" } },
+  { name: "에디토리얼", theme: { bg: "#FFFFFF", fg: "#111111", accent: "#C0392B", font: "display" } },
+];
 
 const STATUS_LABEL = { DRAFT: "비공개 초안", ACTIVE: "공개 중", HIDDEN: "관리자 숨김", DELETED: "삭제됨" } as const;
 
@@ -79,6 +88,7 @@ export function ExhibitionEditor({ exhibitionId, backHref = "/artist" }: { exhib
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [guide, setGuide] = useState<GuideSection[]>([{ section: "Introduction", text: "" }]);
   const [audio, setAudio] = useState<Audio>(EMPTY_AUDIO);
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME_FORM);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -113,6 +123,7 @@ export function ExhibitionEditor({ exhibitionId, backHref = "/artist" }: { exhib
         playlistDescription: d.audio.playlistDescription ?? "",
         ambienceEnabled: d.audio.ambienceEnabled,
       });
+      setTheme(d.theme ?? DEFAULT_THEME_FORM);
       setDirty(false);
     } catch (err) {
       setError(errorMessage(err, "전시를 불러오지 못했습니다."));
@@ -155,14 +166,19 @@ export function ExhibitionEditor({ exhibitionId, backHref = "/artist" }: { exhib
     setAudio((a) => ({ ...a, [k]: v }));
     setDirty(true);
   };
+  const setT = <K extends keyof Theme>(k: K, v: Theme[K]) => {
+    setTheme((t) => ({ ...t, [k]: v }));
+    setDirty(true);
+  };
 
   const payload = useMemo(
     () => ({
       ...form,
       guide: guide.map((g) => ({ section: g.section.trim() || null, sentences: g.text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) })),
       audio,
+      theme,
     }),
-    [form, guide, audio],
+    [form, guide, audio, theme],
   );
   const sentenceCount = payload.guide.reduce((n, g) => n + g.sentences.length, 0);
 
@@ -313,6 +329,68 @@ export function ExhibitionEditor({ exhibitionId, backHref = "/artist" }: { exhib
       <Button type="button" variant="secondary" className="h-10 text-xs" onClick={() => { setGuide((gs) => [...gs, { section: "", text: "" }]); setDirty(true); }}>
         + 섹션 추가
       </Button>
+
+      <SectionTitle>전시 아이덴티티 (웹카드 색상 · 서체)</SectionTitle>
+      <p className="text-muted text-xs mb-3">
+        Keepsake 템플릿은 공통이고, 색상과 서체만 전시마다 바뀝니다. 가이드 화면에서도 제목 서체와 포인트 컬러로 반영됩니다.
+      </p>
+      <div className="flex gap-2 flex-wrap mb-4">
+        {THEME_PRESETS.map((p) => (
+          <button
+            key={p.name}
+            type="button"
+            onClick={() => {
+              setTheme(p.theme);
+              setDirty(true);
+            }}
+            className="text-xs px-2 py-1 border border-line flex items-center gap-2"
+          >
+            <span className="inline-block w-3 h-3 border border-line" style={{ background: p.theme.bg }} aria-hidden />
+            <span className="inline-block w-3 h-3" style={{ background: p.theme.accent }} aria-hidden />
+            {p.name}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {(
+          [
+            ["bg", "배경"],
+            ["fg", "글자"],
+            ["accent", "포인트"],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key} className="block text-xs text-muted">
+            {label}
+            <span className="flex items-center gap-2 mt-1">
+              <input type="color" value={theme[key]} onChange={(e) => setT(key, e.target.value.toUpperCase())} aria-label={`${label} 색상`} className="w-9 h-9 border border-line p-0" />
+              <input
+                type="text"
+                value={theme[key]}
+                onChange={(e) => setT(key, e.target.value.toUpperCase())}
+                maxLength={7}
+                className="w-full h-9 border-b border-line text-xs font-mono text-ink"
+                aria-label={`${label} 색상 코드`}
+              />
+            </span>
+          </label>
+        ))}
+      </div>
+      <Field label="서체">
+        <select className={input} value={theme.font} onChange={(e) => setT("font", e.target.value as Theme["font"])}>
+          <option value="sans">Sans — DM Sans (기본)</option>
+          <option value="serif">Serif — Noto Serif KR</option>
+          <option value="display">Display — Montserrat</option>
+        </select>
+      </Field>
+      <div
+        className="border border-line p-4 text-sm mb-2"
+        style={{ background: theme.bg, color: theme.fg, fontFamily: theme.font === "serif" ? "var(--font-serif)" : theme.font === "display" ? "var(--font-display)" : "var(--font-body)" }}
+        aria-label="테마 미리보기"
+      >
+        <span style={{ color: theme.accent }} className="tracking-[0.3em] text-[10px]">STILL</span>
+        <p className="mt-2 text-base">{form.title || "전시명"}</p>
+        <p className="text-xs mt-1" style={{ opacity: 0.6 }}>{form.venue || "장소"}</p>
+      </div>
 
       <SectionTitle>오디오</SectionTitle>
       <Field label="기관 제공 플레이리스트">

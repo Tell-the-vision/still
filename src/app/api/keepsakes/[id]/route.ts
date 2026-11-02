@@ -13,6 +13,7 @@ import {
 import { getOwnedArchive } from "@/lib/archives";
 import {
   isTemplateId,
+  normalizeTheme,
   parseKeepsakeContent,
   validateKeepsakeContent,
   type KeepsakeContent,
@@ -53,7 +54,8 @@ export const PUT = handler(async (req, { params }: Params<{ id: string }>) => {
   const templateId = body.templateId === undefined ? row.templateId : body.templateId;
   if (!isTemplateId(templateId))
     throw new HttpError("VALIDATION_FAILED", "유효한 templateId가 필요합니다.");
-  const content = { ...parseKeepsakeContent(row.contentData), ...(body.content ?? {}) };
+  const merged = { ...parseKeepsakeContent(row.contentData), ...(body.content ?? {}) };
+  const content = { ...merged, theme: normalizeTheme(merged.theme) };
   const problem = validateKeepsakeContent(templateId, content);
   if (problem) throw new HttpError("VALIDATION_FAILED", problem);
   const [updated] = await db

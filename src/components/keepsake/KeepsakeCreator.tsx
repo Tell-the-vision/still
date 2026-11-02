@@ -25,12 +25,13 @@ import {
   KEEPSAKE_TEMPLATES,
   getTemplate,
   isTemplateId,
+  themeOf,
   type KeepsakeContent,
   type KeepsakeTemplateId,
 } from "@/lib/keepsake-templates";
 
 type Detail = {
-  archive: { id: string; scraps: Scrap[]; journal: Journal | null };
+  archive: { id: string; scraps: Scrap[]; journal: Journal | null; keepsakes: { id: string; templateId: string }[] };
 };
 
 export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
@@ -41,6 +42,7 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
   const [archiveId, setArchiveId] = useState<string | null>(null);
   const [scraps, setScraps] = useState<Scrap[]>([]);
   const [journal, setJournal] = useState<Journal | null>(null);
+  const [existing, setExisting] = useState<{ id: string; templateId: string } | null>(null);
   const [templateId, setTemplateId] = useState<KeepsakeTemplateId>("sentence");
   const [sentence, setSentence] = useState<string>("");
   const [journalExcerpt, setJournalExcerpt] = useState<string>("");
@@ -76,6 +78,7 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
         if (!alive) return;
         setScraps(detail.archive.scraps);
         setJournal(detail.archive.journal);
+        setExisting(detail.archive.keepsakes[0] ?? null);
 
         const draft = loadKeepsakeDraft(exhibition.slug);
         const pending = consumePendingAction("keepsake", exhibition.slug);
@@ -104,6 +107,7 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
 
   const content = useMemo<KeepsakeContent>(
     () => ({
+      theme: themeOf(exhibition),
       exhibitionTitle: exhibition.title,
       exhibitionSubtitle: exhibition.subtitle,
       venue: exhibition.venue,
@@ -234,11 +238,25 @@ export function KeepsakeCreator({ exhibition }: { exhibition: Exhibition }) {
         </div>
       )}
 
+      {existing && (
+        <div className="mt-6">
+          <Notice
+            action={
+              <Link href={`/keepsake/${existing.id}`} className="text-xs underline underline-offset-4 shrink-0">
+                기존 카드 보기
+              </Link>
+            }
+          >
+            이 전시의 웹카드는 1개만 보관됩니다. 저장하면 기존 카드를 대체합니다.
+          </Notice>
+        </div>
+      )}
+
       <div className="mt-8">
         <Button full onClick={() => void save()} loading={saving} disabled={!loaded}>
-          {isLoggedIn ? "Save Web Card" : "Login & Save Web Card"}
+          {isLoggedIn ? (existing ? "Replace Web Card" : "Save Web Card") : "Login & Save Web Card"}
         </Button>
-        <p className="text-muted text-xs text-center mt-3">저장 후 PNG로 다운로드할 수 있습니다.</p>
+        <p className="text-muted text-xs text-center mt-3">전시당 웹카드 1장 · 저장 후 PNG로 다운로드할 수 있습니다.</p>
       </div>
     </div>
   );

@@ -93,7 +93,7 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
       <p className="font-display text-xs tracking-[0.2em] uppercase text-muted mb-2">계정 유형</p>
       <div className="flex gap-2 mb-6" role="radiogroup" aria-label="계정 유형">
         {option("user", "일반 사용자", "전시를 기록하고 보관합니다. 바로 시작할 수 있어요.")}
-        {option("artist", "아티스트", "내 전시를 등록하고 QR을 받습니다. 관리자 승인이 필요해요.")}
+        {option("artist", "아티스트 · 전시 기획자", "내 전시를 등록하고 QR을 받습니다. 관리자 승인이 필요해요.")}
       </div>
 
       {googleEnabled ? (

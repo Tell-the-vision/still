@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { AudioOptions, useAudioInfo } from "@/components/audio/AudioOptions";
 import { LikeReportBar } from "@/components/exhibition/LikeReportBar";
+import { themeVars } from "@/components/KeepsakeCard";
 import { Button, LinkButton, Notice, SectionTitle, cx } from "@/components/ui";
 import type { Exhibition, GuideSentence, Scrap } from "@/db/schema";
 import { track } from "@/lib/client/analytics";
@@ -19,6 +20,7 @@ import { api, errorMessage } from "@/lib/client/fetcher";
 import { consumePendingAction } from "@/lib/client/pending-action";
 import { useRequireLogin } from "@/lib/client/use-require-login";
 import { periodLabel } from "@/lib/format";
+import { themeOf } from "@/lib/keepsake-templates";
 
 type Section = { section: string | null; sentences: GuideSentence[] };
 type ScrapState = "idle" | "saving" | "saved" | "failed";
@@ -143,10 +145,13 @@ export function ExhibitionGuide({
   const period = periodLabel(exhibition.startDate, exhibition.endDate);
 
   return (
-    <article className="px-5 pb-10">
+    // Exhibition identity → CSS variables (--ex-*) for the UI pass; the title
+    // typeface and a small accent rule are applied here as a minimal default.
+    <article className="exhibition-themed px-5 pb-10" style={themeVars(themeOf(exhibition), "ex")}>
       {/* Exhibition information (GUIDE-01) */}
       <header className="text-center pt-2 pb-6">
-        <h1 className="font-display text-2xl leading-snug">{exhibition.title}</h1>
+        <h1 className="ex-title text-2xl leading-snug">{exhibition.title}</h1>
+        <div className="ex-accent-rule" aria-hidden />
         {exhibition.subtitle && <p className="text-muted text-sm mt-1">{exhibition.subtitle}</p>}
         <p className="text-muted text-xs mt-4">
           {exhibition.venue}
