@@ -40,7 +40,7 @@ const BUTTON_BASE =
 const BUTTON_STYLES: Record<Variant, string> = {
   primary: "bg-ink text-paper",
   secondary: "border border-ink text-ink bg-paper",
-  text: "text-ink underline underline-offset-4 h-auto px-0 font-normal",
+  text: "text-ink underline underline-offset-4 !h-auto !px-0 font-normal",
 };
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

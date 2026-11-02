@@ -29,6 +29,9 @@
 | `src/app/scan/page.tsx`, `src/components/QrScanner.tsx` | **QR 스캔** (Figma 03). 카메라·QR 인식 로직은 그대로, 화면 배치만 변경 |
 | `src/components/home/UrlEntry.tsx` | URL 입력칸 스타일 정리 |
 | `src/components/artist/ExhibitionEditor.tsx` | (1줄) 테마 미리보기 서체가 실제 웹카드와 같은 폰트 목록을 쓰도록 수정 |
+| `src/components/exhibition/ExhibitionGuide.tsx`, `src/app/e/[slug]/page.tsx` | **전시 가이드** (Figma 04). 저장·복귀·좋아요 로직은 그대로 |
+| `src/components/audio/AudioOptions.tsx` | 오디오 선택을 Figma 05의 테두리 줄 형태로 (선택 시 검정 채움). 가이드·저널 공용. 재생 로직은 그대로 |
+| `src/components/exhibition/LikeReportBar.tsx` | 좋아요·신고 글씨 크기만 정리 |
 
 ## 화면별 진행 상황
 
@@ -37,8 +40,8 @@
 | 01 | Home / 로그인 전 | 01-home-logged-out | ✅ 완료 — 가운데 `STILL.`, ■ Log in(Google 설정 시 "Continue with Google"), ● Scan Exhibition QR |
 | 02 | Home / 로그인 후 | 02-home-logged-in | ✅ 완료 — Welcome back, 최근 전시 카드 + Open Exhibition Guide, 아카이브 개수, View all. (Figma에 없는 URL 입력·Artist/Admin 링크·로그아웃은 같은 스타일로 아래에 유지) |
 | 03 | QR Scanner | 03-qr-scanner | ✅ 완료 — Scan to enter., 모서리 표시 카메라 칸, Having trouble? + Enter Exhibition URL |
-| 04 | Exhibition Guide | 04-exhibition-guide | ⏳ 다음 작업 |
-| 05 | Journal | 05-journal | ⏳ 예정 |
+| 04 | Exhibition Guide | 04-exhibition-guide | ✅ 완료 — EXHIBITION / 연도 라벨, 왼쪽 정렬 큰 제목(전시 테마 서체 + 포인트 선), 회색 액자 이미지, About the exhibition, ＋ Save this guide sentence / ✓ Saved, LISTENING 오디오 줄, 하단 탭 |
+| 05 | Journal | 05-journal | ⏳ 다음 작업 (오디오 선택 줄은 04에서 함께 적용됨) |
 | 06 | Digital Keepsake | 06-digital-keepsake | ⏳ 예정 |
 | 07 | My Archive Grid | 07-my-archive-grid | ⏳ 예정 |
 | 08 | Archive Detail | 08-archive-detail | ⏳ 예정 |
