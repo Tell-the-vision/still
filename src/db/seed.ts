@@ -27,7 +27,7 @@ type SeedExhibition = {
   startDate: string;
   endDate: string;
   description: string;
-  coverImageUrl: string;
+  coverImageUrl: string | null;
   theme?: { bg: string; fg: string; accent: string; font: "sans" | "serif" | "display" };
   audio: {
     provider: AudioProvider;
@@ -49,7 +49,7 @@ const SEED: SeedExhibition[] = [
     endDate: "2026-12-28",
     description:
       "이 전시는 일상의 사물과 몸짓이 시간과 공간 속에서 어떻게 흘러가는지를 탐구한다. 작가는 지난 20년간 수집한 사물과 기록을 통해 '머무름'과 '흐름'이 서로를 밀어내는 것이 아니라 함께 존재한다는 것을 보여준다.",
-    coverImageUrl: "/images/flow-of-things.png",
+    coverImageUrl: null,
     theme: { bg: "#F4F1EA", fg: "#1F1D1A", accent: "#8A6A3D", font: "serif" },
     audio: {
       provider: "SPOTIFY",
@@ -102,7 +102,7 @@ const SEED: SeedExhibition[] = [
     endDate: "2027-01-31",
     description:
       "비어 있는 방을 찍은 사진과 소리를 흡수하는 설치 작업으로 구성된 전시. 관람객은 방에서 방으로 이동하며 침묵의 밀도가 어떻게 달라지는지 경험한다.",
-    coverImageUrl: "/images/quiet-rooms.png",
+    coverImageUrl: null,
     theme: { bg: "#FFFFFF", fg: "#000000", accent: "#000000", font: "display" },
     audio: {
       provider: "APPLE_MUSIC",
@@ -154,7 +154,7 @@ const SEED: SeedExhibition[] = [
     endDate: "2026-11-30",
     description:
       "빛이 남기는 흔적을 다루는 미디어 설치 전시. 이 전시에는 기관 제공 플레이리스트가 없으며, STILL Ambience(Pink Noise)를 대체 청취 옵션으로 제공한다.",
-    coverImageUrl: "/images/traces-of-light.png",
+    coverImageUrl: null,
     theme: { bg: "#0E0E10", fg: "#F2F2F2", accent: "#E0B458", font: "sans" },
     audio: {
       provider: "NONE",
