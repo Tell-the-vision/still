@@ -1,11 +1,14 @@
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import type { StoredDocument } from "@still/shared/document";
+import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "../client";
 import { exhibitionPlaylists, exhibitions, guideSentences, institutions, venues } from "../schema";
 import type { ContentPackage } from "./content";
+import { sentenceRefs, validatePackage } from "./validate";
 
 // Idempotent operator import (SPEC §9): safe to rerun with the same or an edited package.
 // The whole package is one transaction, so a failed import leaves no partial rows.
 export async function importPackage(pkg: ContentPackage) {
+  validatePackage(pkg);
   await db.transaction(async (tx) => {
     const [institution] = await tx
       .insert(institutions)
@@ -55,6 +58,16 @@ export async function importPackage(pkg: ContentPackage) {
           .onConflictDoUpdate({ target: exhibitionPlaylists.exhibitionId, set: playlist });
       } else {
         await tx.delete(exhibitionPlaylists).where(eq(exhibitionPlaylists.exhibitionId, exhibition.id));
+      }
+
+      // Before commit: live sentences must be exactly the ones the stored guide references.
+      const live = await tx
+        .select({ id: guideSentences.id })
+        .from(guideSentences)
+        .where(and(eq(guideSentences.exhibitionId, exhibition.id), isNull(guideSentences.deletedAt)));
+      const referenced = new Set(sentenceRefs(exhibition.guide as StoredDocument | null));
+      if (live.length !== referenced.size || live.some((r) => !referenced.has(r.id))) {
+        throw new Error(`Exhibition "${code}": stored guide and live sentences differ`);
       }
     }
   });
