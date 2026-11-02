@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Platform } from "react-native";
 import { authStrings } from "../features/auth/strings";
 import { isInAppBrowser } from "../features/auth/in-app-browser";
+import { peekPendingAction } from "../features/auth/pending-action";
+import { clearLoginStarted, markLoginStarted } from "../features/auth/useLoginSuccess";
+import { track } from "../lib/analytics";
 import { useGoogleAuthCode } from "../features/auth/use-google-auth";
 import { tokenStorage } from "../features/auth/token-storage";
 import { PUBLIC_PATHS, queryPath, useTRPCClient } from "../lib/trpc";
@@ -31,6 +34,8 @@ export default function Login() {
       if (!credentials) return;
       const session = await trpcClient.session.create.mutate(credentials);
       await tokenStorage.save(session);
+      await clearLoginStarted();
+      track("login_success", { provider: "GOOGLE" });
     } catch {
       setFailed(true);
       return;
@@ -42,7 +47,12 @@ export default function Login() {
     router.replace(returnTo as never);
   };
   const webUrl = `/api/auth/google?${new URLSearchParams({ intent: "sign_in", returnTo })}`;
-  const startGoogle = () => (isWeb ? window.location.assign(webUrl) : signInNative());
+  const startGoogle = async () => {
+    track("login_start", { source_action: (await peekPendingAction())?.kind ?? "login" });
+    await markLoginStarted();
+    if (isWeb) window.location.assign(webUrl);
+    else await signInNative();
+  };
   const inApp = isWeb && isInAppBrowser();
   return (
     <Screen>

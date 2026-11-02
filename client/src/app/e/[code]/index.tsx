@@ -1,12 +1,14 @@
 import { useQueries } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { useArchiveVisit } from "../../../features/archive/useArchiveVisit";
 import { PendingActionRunner } from "../../../features/auth/PendingActionRunner";
 import { AudioArea } from "../../../features/audio/AudioArea";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
 import { SentenceAction } from "../../../features/scrap/SentenceAction";
+import { track } from "../../../lib/analytics";
 import { STALE_TIME, useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
 import { DocumentView } from "../../../ui/DocumentView";
@@ -25,6 +27,10 @@ export default function ExhibitionGuide() {
   });
 
   useArchiveVisit(code, !!exhibition.data);
+  const loaded = !!exhibition.data;
+  useEffect(() => {
+    if (loaded) track("exhibition_view", { exhibition_code: code });
+  }, [loaded, code]);
 
   if (exhibition.data && guide.data) {
     return (

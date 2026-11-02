@@ -3,6 +3,8 @@ import { useIsFocused, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { parseExhibitionTarget } from "@still/shared/entry";
+import { useUserState } from "../features/auth/use-me";
+import { track } from "../lib/analytics";
 import { entryStrings } from "../features/entry/strings";
 import { Button } from "../ui/Button";
 import { Notice } from "../ui/Notice";
@@ -22,6 +24,11 @@ export default function Scan() {
   const [permission, requestPermission] = useCameraPermissions();
   const focused = useIsFocused();
   const handlingScan = useRef(false);
+  const userState = useUserState();
+
+  useEffect(() => {
+    if (userState) track("qr_scan_start", { user_state: userState });
+  }, [userState]);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) void requestPermission();

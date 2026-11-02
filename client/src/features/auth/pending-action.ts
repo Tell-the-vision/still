@@ -10,6 +10,11 @@ export async function savePendingAction(action: PendingAction) {
   await sessionStore.setItem(KEY, JSON.stringify({ ...action, createdAt: Date.now() }));
 }
 
+export async function peekPendingAction(): Promise<PendingAction | null> {
+  const raw = await sessionStore.getItem(KEY);
+  return raw ? (JSON.parse(raw) as PendingAction) : null;
+}
+
 // Returns the stored action when it matches, and removes it first so it runs at most once.
 export async function takePendingAction<K extends PendingAction["kind"]>(match: { kind: K; exhibitionCode: string }): Promise<Extract<PendingAction, { kind: K }> | "expired" | null> {
   const raw = await sessionStore.getItem(KEY);

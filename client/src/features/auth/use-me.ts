@@ -7,3 +7,11 @@ export function useMe() {
   const query = useQuery(trpc.me.get.queryOptions(undefined, { retry: false }));
   return query.data ?? null;
 }
+
+// "guest" or "signed_in" once the answer is known, null while it is loading.
+export function useUserState() {
+  const trpc = useTRPC();
+  const query = useQuery(trpc.me.get.queryOptions(undefined, { retry: false }));
+  if (query.isPending) return null;
+  return query.data ? "signed_in" : "guest";
+}
