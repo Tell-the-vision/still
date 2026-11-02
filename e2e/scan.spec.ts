@@ -22,3 +22,23 @@ test("a code opens the guide", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
 });
+
+test("without camera permission the notice and URL entry show", async ({ page }) => {
+  // The fake-ui launch flag auto-accepts prompts, so deny by rejecting getUserMedia.
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException("denied", "NotAllowedError"));
+  });
+  await page.goto("/");
+  await page.getByRole("link", { name: "QR Scan" }).click();
+  await expect(page.getByText("Camera access is off. Enter the exhibition URL instead.")).toBeVisible();
+  await expect(page.getByLabel("Exhibition URL or code")).toBeVisible();
+});
+
+test("with camera permission the viewfinder shows", async ({ browser }) => {
+  const context = await browser.newContext({ permissions: ["camera"] });
+  const page = await context.newPage();
+  await page.goto("/");
+  await page.getByRole("link", { name: "QR Scan" }).click();
+  await expect(page.locator("video")).toBeVisible();
+  await context.close();
+});

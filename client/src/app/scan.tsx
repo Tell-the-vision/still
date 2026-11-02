@@ -1,5 +1,6 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { useIsFocused, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { parseExhibitionTarget } from "@still/shared/entry";
 import { entryStrings } from "../features/entry/strings";
@@ -16,17 +17,42 @@ const stillOrigin =
 export default function Scan() {
   const router = useRouter();
   const [value, setValue] = useState("");
-  const [invalid, setInvalid] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+  const focused = useIsFocused();
+  const handlingScan = useRef(false);
 
-  function open() {
-    const target = parseExhibitionTarget(value, stillOrigin);
-    setInvalid(target === null);
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) void requestPermission();
+  }, [permission, requestPermission]);
+
+  function openTarget(input: string) {
+    const target = parseExhibitionTarget(input, stillOrigin);
+    setNotice(target ? null : entryStrings.notStill);
     if (target) router.push(`/e/${target.code}`);
   }
+
+  function onScanned(data: string) {
+    if (handlingScan.current) return;
+    handlingScan.current = true;
+    openTarget(data);
+    setTimeout(() => (handlingScan.current = false), 1500);
+  }
+
+  const cameraOn = permission?.granted === true && focused;
 
   return (
     <Screen tabs>
       <View style={styles.body}>
+        {cameraOn && (
+          <CameraView
+            style={styles.camera}
+            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+            onBarcodeScanned={({ data }) => onScanned(data)}
+            onMountError={() => setNotice(entryStrings.readFailed)}
+          />
+        )}
+        {permission && !permission.granted && <Notice message={entryStrings.cameraOff} />}
         <Text variant="label">{entryStrings.title}</Text>
         <TextInput
           accessibilityLabel={entryStrings.inputLabel}
@@ -37,8 +63,8 @@ export default function Scan() {
           autoCorrect={false}
           style={styles.input}
         />
-        <Button label={entryStrings.open} onPress={open} />
-        {invalid && <Notice message={entryStrings.notStill} error />}
+        <Button label={entryStrings.open} onPress={() => openTarget(value)} />
+        {notice && <Notice message={notice} error />}
       </View>
     </Screen>
   );
@@ -46,5 +72,6 @@ export default function Scan() {
 
 const styles = StyleSheet.create({
   body: { flex: 1, justifyContent: "center", gap: spacing.gap },
+  camera: { aspectRatio: 1, width: "100%" },
   input: { borderWidth: 1, borderColor: colors.black, padding: 12 },
 });
