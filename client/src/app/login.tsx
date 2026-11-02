@@ -34,7 +34,7 @@ export default function Login() {
     queryClient.removeQueries({ predicate: (q) => !PUBLIC_PATHS.includes(queryPath(q.queryKey)) });
     router.replace(returnTo as never);
   };
-  const webUrl = `/api/auth/google?intent=sign_in&returnTo=${encodeURIComponent(returnTo)}`;
+  const webUrl = `/api/auth/google?${new URLSearchParams({ intent: "sign_in", returnTo })}`;
   const startGoogle = () => (isWeb ? window.location.assign(webUrl) : signInNative());
   const inApp = isWeb && isInAppBrowser();
   return (

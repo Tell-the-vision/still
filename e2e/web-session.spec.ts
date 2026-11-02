@@ -42,7 +42,7 @@ test("a rejected token exchange shows the failed notice and sets no session", as
   expect(await hasSession(page)).toBe(false);
 });
 
-test("signed-in Home shows Welcome back with the tab bar, and cookie requests must match the origin", async ({ page, next, request, baseURL }) => {
+test("signed-in Home shows Welcome back with the tab bar, and cookie requests must match the origin", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
@@ -50,16 +50,11 @@ test("signed-in Home shows Welcome back with the tab bar, and cookie requests mu
   await expect(page.getByRole("navigation")).toBeVisible();
   await expect(page.getByRole("link", { name: "Login" })).toHaveCount(0);
 
-  const session = (await page.context().cookies()).find((c) => c.name === "still_session");
-  const call = (origin: string) =>
-    request.post("/api/trpc/me.get?batch=1", {
-      headers: { cookie: `still_session=${session?.value}`, origin, "content-type": "application/json" },
-      data: {},
-    });
+  const call = (origin: string) => page.request.post("/api/trpc/me.get?batch=1", { headers: { origin }, data: {} });
   const forged = await call("http://evil.example");
   expect(forged.status()).toBe(403);
   expect(JSON.stringify(await forged.json())).toContain("FORBIDDEN");
-  expect((await call(baseURL!)).status()).toBe(200);
+  expect((await call(new URL(page.url()).origin)).status()).toBe(200);
 });
 
 test("a lost session sends the user to the login screen with the session-ended notice", async ({ page, next }) => {

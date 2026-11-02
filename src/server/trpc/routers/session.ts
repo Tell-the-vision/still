@@ -33,6 +33,6 @@ export const sessionRouter = router({
   // Sign out (SPEC §2.2): drop this session's row and clear the web cookie.
   delete: protectedProcedure.mutation(async ({ ctx }) => {
     await db.delete(userSessions).where(eq(userSessions.tokenHash, ctx.session.tokenHash));
-    ctx.resHeaders.append("set-cookie", clearSessionCookie());
+    await clearSessionCookie();
   }),
 });

@@ -7,6 +7,6 @@ export const meRouter = router({
   // Permanent deletion (SPEC §2.2); sessions go with the user via cascade.
   delete: protectedProcedure.mutation(async ({ ctx }) => {
     await deleteMe(ctx.session.userId);
-    ctx.resHeaders.append("set-cookie", clearSessionCookie());
+    await clearSessionCookie();
   }),
 });

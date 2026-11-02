@@ -1,13 +1,15 @@
-import { createHash, randomBytes } from "node:crypto";
+import { hash, randomBytes } from "node:crypto";
 import { lt } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { db } from "../db/client";
 import { userSessions } from "../db/schema";
 
 export const SESSION_COOKIE = "still_session";
 const WEB_SESSION_SECONDS = 30 * 24 * 60 * 60;
 
-export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-const secure = () => (process.env.STILL_ORIGIN?.startsWith("https:") ? "; Secure" : "");
+export const hashToken = (token: string) => hash("sha256", token);
+export const cookieDefaults = () =>
+  ({ httpOnly: true, sameSite: "lax", secure: process.env.STILL_ORIGIN?.startsWith("https:") ?? false }) as const;
 
 // SPEC §2.3: opaque token in the cookie, only its sha256 in the database.
 export async function createWebSession(userId: string, userTokenId: string) {
@@ -23,7 +25,10 @@ export async function createWebSession(userId: string, userTokenId: string) {
   return token;
 }
 
-export const sessionCookie = (token: string) =>
-  `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${WEB_SESSION_SECONDS}${secure()}`;
+export async function setSessionCookie(token: string) {
+  (await cookies()).set(SESSION_COOKIE, token, { ...cookieDefaults(), path: "/", maxAge: WEB_SESSION_SECONDS });
+}
 
-export const clearSessionCookie = () => `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure()}`;
+export async function clearSessionCookie() {
+  (await cookies()).delete({ name: SESSION_COOKIE, ...cookieDefaults(), path: "/" });
+}

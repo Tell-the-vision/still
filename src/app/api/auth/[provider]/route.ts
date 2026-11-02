@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { authorizeUrl } from "../../../../server/auth/google";
 import { createOAuthState } from "../../../../server/auth/oauth-state";
 import { safeReturnTo } from "../../../../server/auth/return-to";
@@ -9,10 +10,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const url = new URL(req.url);
   if (url.searchParams.get("intent") !== "sign_in") return new Response(null, { status: 400 }); // link: A11
   const returnTo = safeReturnTo(url.searchParams.get("returnTo"));
-  const { state, codeChallenge, cookie } = createOAuthState({ returnTo, intent: "sign_in" });
+  const { state, codeChallenge } = await createOAuthState({ returnTo, intent: "sign_in" });
   const redirectUri = `${process.env.STILL_ORIGIN}/api/auth/google/callback`;
-  return new Response(null, {
+  return NextResponse.redirect(authorizeUrl({ state, codeChallenge, redirectUri }), {
     status: 302,
-    headers: { location: authorizeUrl({ state, codeChallenge, redirectUri }), "set-cookie": cookie, "cache-control": "no-store" },
+    headers: { "cache-control": "no-store" },
   });
 }

@@ -34,6 +34,7 @@ export async function signInWithIdentity(identity: Identity): Promise<{ userId: 
   } catch (error) {
     if (!(error instanceof DuplicateIdentity)) throw error;
     const winner = await findToken(identity.provider, identity.subject);
-    return { userId: winner!.userId, userTokenId: winner!.id };
+    if (!winner) throw error; // the conflicting row vanished
+    return { userId: winner.userId, userTokenId: winner.id };
   }
 }

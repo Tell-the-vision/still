@@ -14,7 +14,7 @@ export function useRequireLogin(returnTo: string) {
   if (query.data) wasSignedIn.current = true;
   const isGuest = query.isFetched && !query.data && !wasSignedIn.current;
   useEffect(() => {
-    if (isGuest) router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+    if (isGuest) router.replace({ pathname: "/login", params: { returnTo } });
   }, [isGuest, router, returnTo]);
   return query.data ?? null;
 }

@@ -15,7 +15,7 @@ async function handler(req: Request) {
     req,
     router: appRouter,
     allowMethodOverride: true,
-    createContext: ({ resHeaders }) => createContext(req, resHeaders),
+    createContext: () => createContext(req),
     responseMeta: ({ paths, type, errors }) => {
       // Only successful queries made up entirely of public procedures are cacheable (SPEC §11.1).
       const cacheable =

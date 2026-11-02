@@ -1,19 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, gt } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { verifyAccessToken } from "../auth/access-token";
 import { SESSION_COOKIE, hashToken } from "../auth/sessions";
 import { db } from "../db/client";
 import { userSessions } from "../db/schema";
 
-function readCookie(req: Request, name: string) {
-  const pair = req.headers.get("cookie")?.split(/;\s*/).find((part) => part.startsWith(`${name}=`));
-  return pair?.slice(name.length + 1);
-}
-
 export type Session = { userId: string; userTokenId: string | null; tokenHash: string };
 
 // Public procedures never call getSession, so they never read cookies (SPEC §11.1).
-export function createContext(req: Request, resHeaders: Headers) {
+export function createContext(req: Request) {
   let session: Promise<Session | null> | undefined;
 
   // SPEC §2.3: a Bearer token wins; cookies and Origin are ignored. The session row must still exist.
@@ -33,7 +29,7 @@ export function createContext(req: Request, resHeaders: Headers) {
   async function loadSession() {
     const bearer = req.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
     if (bearer) return loadBearerSession(bearer);
-    const token = readCookie(req, SESSION_COOKIE);
+    const token = (await cookies()).get(SESSION_COOKIE)?.value;
     if (!token) return null;
     // CSRF guard (SPEC §2.3): a cookie-authenticated request must come from our own origin.
     if (req.headers.get("origin") !== process.env.STILL_ORIGIN) throw new TRPCError({ code: "FORBIDDEN" });
@@ -44,7 +40,7 @@ export function createContext(req: Request, resHeaders: Headers) {
     return row ?? null;
   }
 
-  return { req, resHeaders, getSession: () => (session ??= loadSession()) };
+  return { req, getSession: () => (session ??= loadSession()) };
 }
 
 export type Context = ReturnType<typeof createContext>;

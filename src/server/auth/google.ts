@@ -1,6 +1,15 @@
 import { decodeJwt } from "jose";
+import { z } from "zod";
 
-const GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
+const GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"] as const;
+const idTokenClaims = z.object({
+  iss: z.enum(GOOGLE_ISSUERS),
+  aud: z.union([z.string(), z.array(z.string())]),
+  exp: z.number(),
+  sub: z.string().min(1),
+  email: z.string().optional(),
+  name: z.string().optional(),
+});
 
 export async function exchangeCode(input: { code: string; verifier: string; redirectUri: string; clientId: string; clientSecret?: string }) {
   const body = new URLSearchParams({
@@ -18,13 +27,13 @@ export async function exchangeCode(input: { code: string; verifier: string; redi
 
 // The id_token arrives straight from Google's token endpoint over TLS, so the signature is not re-verified (SPEC §2.2).
 export function readIdToken(idToken: string, allowedAud: string[]) {
-  const claims = decodeJwt(idToken);
-  const aud = [claims.aud ?? []].flat();
-  if (!claims.iss || !GOOGLE_ISSUERS.includes(claims.iss)) throw new Error("Bad id_token issuer");
+  const parsed = idTokenClaims.safeParse(decodeJwt(idToken));
+  if (!parsed.success) throw new Error("Bad id_token claims");
+  const claims = parsed.data;
+  const aud = [claims.aud].flat();
   if (!aud.some((a) => allowedAud.includes(a))) throw new Error("Bad id_token audience");
-  if (!claims.exp || claims.exp * 1000 < Date.now()) throw new Error("Expired id_token");
-  if (!claims.sub) throw new Error("Missing id_token subject");
-  return { subject: claims.sub, email: claims.email as string | undefined, displayName: claims.name as string | undefined };
+  if (claims.exp * 1000 < Date.now()) throw new Error("Expired id_token");
+  return { subject: claims.sub, email: claims.email, displayName: claims.name };
 }
 
 export function authorizeUrl(input: { state: string; codeChallenge: string; redirectUri: string }) {

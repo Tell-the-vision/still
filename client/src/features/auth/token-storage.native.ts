@@ -7,8 +7,9 @@ const options = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK };
 export const tokenStorage = {
   getAccessToken: () => SecureStore.getItemAsync(KEYS.accessToken, options),
   getRefreshToken: () => SecureStore.getItemAsync(KEYS.refreshToken, options),
-  save: async (tokens: { accessToken: string; refreshToken: string }) => {
-    for (const [name, key] of Object.entries(KEYS)) await SecureStore.setItemAsync(key, tokens[name as keyof typeof KEYS], options);
+  save: async ({ accessToken, refreshToken }: { accessToken: string; refreshToken: string }) => {
+    await SecureStore.setItemAsync(KEYS.accessToken, accessToken, options);
+    await SecureStore.setItemAsync(KEYS.refreshToken, refreshToken, options);
   },
   clear: async () => {
     for (const key of Object.values(KEYS)) await SecureStore.deleteItemAsync(key, options);

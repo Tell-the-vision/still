@@ -30,7 +30,7 @@ test("session.create returns tokens and a Bearer token authenticates without a c
   const { accessToken, refreshToken, expiresIn, user } = json.result.data;
   expect([status, typeof accessToken, typeof refreshToken, expiresIn]).toEqual([200, "string", "string", 900]);
 
-  const headers = { authorization: `Bearer ${accessToken}`, origin: "http://evil.example", "content-type": "application/json" };
+  const headers = { authorization: `Bearer ${accessToken}`, origin: "http://evil.example" };
   const me = await page.request.post("/api/trpc/me.get", { headers, data: {} });
   expect(me.status()).toBe(200);
   expect((await me.json()).result.data.id).toBe(user.id);

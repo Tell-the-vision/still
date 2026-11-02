@@ -46,16 +46,12 @@ export async function stubGoogle(page: Page, opts: { cancel?: boolean } = {}) {
   const stub = { callbackUrl: "" };
   await page.route(/\/api\/auth\/google(\?|$)/, async (route) => {
     const res = await route.fetch({ maxRedirects: 0 });
-    const origin = new URL(route.request().url()).origin;
     const state = new URL(res.headers()["location"]).searchParams.get("state") ?? "";
-    const cookie = (res.headers()["set-cookie"] ?? "").split(";")[0];
-    const [name, ...value] = cookie.split("=");
-    // Same Path as the real cookie, so the callback's clearing Set-Cookie removes it.
-    await page.context().addCookies([{ name, value: value.join("="), domain: new URL(origin).hostname, path: "/api/auth" }]);
-    const result = opts.cancel ? "error=access_denied" : "code=test";
-    const callback = `${origin}/api/auth/google/callback?${result}&state=${state}`;
-    stub.callbackUrl = callback;
-    await route.fulfill({ status: 200, contentType: "text/html", body: `<script>location.replace(${JSON.stringify(callback)})</script>` });
+    // route.fetch already stored the state cookie (with its real Path) in the context jar.
+    const callback = new URL("/api/auth/google/callback", route.request().url());
+    callback.search = new URLSearchParams(opts.cancel ? { error: "access_denied", state } : { code: "test", state }).toString();
+    stub.callbackUrl = callback.href;
+    await route.fulfill({ status: 200, contentType: "text/html", body: `<script>location.replace(${JSON.stringify(callback.href)})</script>` });
   });
   return stub;
 }

@@ -8,6 +8,6 @@ export const signAccessToken = ({ sub, sid }: { sub: string; sid: string }) =>
   new SignJWT({ sid }).setProtectedHeader({ alg: "HS256" }).setSubject(sub).setExpirationTime(`${ACCESS_TOKEN_SECONDS}s`).sign(secret());
 
 export async function verifyAccessToken(token: string) {
-  const { payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] });
-  return { sub: payload.sub as string, sid: payload.sid as string };
+  const { payload } = await jwtVerify<{ sub: string; sid: string }>(token, secret(), { algorithms: ["HS256"], requiredClaims: ["sub", "sid"] });
+  return { sub: payload.sub, sid: payload.sid };
 }
