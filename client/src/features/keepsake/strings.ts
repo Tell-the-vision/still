@@ -4,6 +4,10 @@ export const keepsakeStrings = {
   empty: "No web card yet.",
   create: "Create web card",
   edit: "Edit web card",
+  delete: "Delete web card",
+  confirm: "Delete",
+  cancel: "Cancel",
+  deleteFailed: "Couldn't delete the web card.",
   heading: "Your web card.",
   templates: [
     { id: "sentence", label: "Sentence" },

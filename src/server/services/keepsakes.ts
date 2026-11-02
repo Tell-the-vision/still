@@ -73,3 +73,12 @@ export async function upsertKeepsake(userId: string, { code, templateId, sentenc
   if (!keepsake) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   return { keepsake, created };
 }
+
+// Idempotent: deleting a card that does not exist succeeds.
+export async function deleteKeepsake(userId: string, code: string) {
+  const exhibition = await findExhibition(code);
+  const archive = await db.query.archives.findFirst({
+    where: and(eq(archives.userId, userId), eq(archives.exhibitionId, exhibition.id)),
+  });
+  if (archive) await db.delete(digitalKeepsakes).where(eq(digitalKeepsakes.archiveId, archive.id));
+}
