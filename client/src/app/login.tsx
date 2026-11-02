@@ -1,10 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
-import * as AuthSession from "expo-auth-session";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Platform } from "react-native";
 import { authStrings } from "../features/auth/strings";
 import { isInAppBrowser } from "../features/auth/in-app-browser";
+import { useGoogleAuthCode } from "../features/auth/use-google-auth";
 import { tokenStorage } from "../features/auth/token-storage";
 import { PUBLIC_PATHS, queryPath, useTRPCClient } from "../lib/trpc";
 import { Button } from "../ui/Button";
@@ -20,21 +20,16 @@ export default function Login() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const trpcClient = useTRPCClient();
-  const redirectUri = AuthSession.makeRedirectUri({ path: "oauthredirect" });
-  const clientId = (Platform.OS === "ios" ? process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID : process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID) ?? "";
-  const [request, , promptAsync] = AuthSession.useAuthRequest(
-    { clientId, scopes: ["openid", "email", "profile"], redirectUri },
-    AuthSession.useAutoDiscovery("https://accounts.google.com"),
-  );
+  const google = useGoogleAuthCode();
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   const signInNative = async () => {
     setPending(true);
     setFailed(false);
     try {
-      const result = await promptAsync();
-      if (result.type !== "success" || !request?.codeVerifier) return;
-      const session = await trpcClient.session.create.mutate({ provider: "GOOGLE", code: result.params.code, codeVerifier: request.codeVerifier, redirectUri });
+      const credentials = await google.start();
+      if (!credentials) return;
+      const session = await trpcClient.session.create.mutate(credentials);
       await tokenStorage.save(session);
     } catch {
       setFailed(true);
@@ -60,7 +55,7 @@ export default function Login() {
             <Button label={authStrings.copyLink} onPress={() => navigator.clipboard?.writeText(window.location.href).catch(() => undefined)} />
           </>
         ) : (
-          <Button label={authStrings.continueWithGoogle} onPress={startGoogle} disabled={pending || (!isWeb && !request)} />
+          <Button label={authStrings.continueWithGoogle} onPress={startGoogle} disabled={pending || (!isWeb && !google.ready)} />
         )}
       </Stack>
     </Screen>
