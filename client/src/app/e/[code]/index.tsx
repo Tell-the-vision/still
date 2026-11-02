@@ -1,6 +1,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams } from "expo-router";
+import { useArchiveVisit } from "../../../features/archive/useArchiveVisit";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
 import { STALE_TIME, useTRPC } from "../../../lib/trpc";
@@ -19,6 +20,8 @@ export default function ExhibitionGuide() {
       { ...trpc.guide.get.queryOptions({ code }), staleTime: STALE_TIME.public },
     ],
   });
+
+  useArchiveVisit(code, !!exhibition.data);
 
   if (exhibition.data && guide.data) {
     return (
