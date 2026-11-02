@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { Fragment, useState } from "react";
+import { Platform } from "react-native";
 import { STALE_TIME, useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
@@ -36,6 +37,7 @@ export function LinkedAccounts() {
       setError(last ? accountStrings.lastIdentity : accountStrings.unlinkFailed);
     }
   };
+  const startLink = () => window.location.assign("/api/auth/google?" + new URLSearchParams({ intent: "link", returnTo: "/account" }));
   return (
     <>
       {data?.map((identity) => (
@@ -44,6 +46,7 @@ export function LinkedAccounts() {
           <Button label={accountStrings.unlink} variant="secondary" onPress={() => setConfirmingId(identity.id)} />
         </Fragment>
       ))}
+      {Platform.OS === "web" ? <Button label={accountStrings.linkAnother} trailing="→" variant="secondary" onPress={startLink} /> : null}
       {error ? <Notice error message={error} /> : null}
       <Dialog label={accountStrings.unlinkDialogLabel} visible={confirmingId !== null} onClose={() => setConfirmingId(null)}>
         <Text>{accountStrings.unlinkWarning}</Text>

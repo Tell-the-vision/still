@@ -1,5 +1,5 @@
 import { hash, randomBytes } from "node:crypto";
-import { lt } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { db } from "../db/client";
 import { userSessions } from "../db/schema";
@@ -31,4 +31,18 @@ export async function setSessionCookie(token: string) {
 
 export async function clearSessionCookie() {
   (await cookies()).delete({ name: SESSION_COOKIE, ...cookieDefaults(), path: "/" });
+}
+
+// The unexpired WEB session for a cookie token (SPEC §2.3).
+export async function findWebSession(token: string) {
+  const [row] = await db
+    .select({ userId: userSessions.userId, userTokenId: userSessions.userTokenId, tokenHash: userSessions.tokenHash })
+    .from(userSessions)
+    .where(and(eq(userSessions.tokenHash, hashToken(token)), eq(userSessions.kind, "WEB"), gt(userSessions.expiresAt, new Date())));
+  return row ?? null;
+}
+
+export async function currentWebSession() {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return token ? findWebSession(token) : null;
 }

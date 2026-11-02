@@ -49,7 +49,7 @@ test("in-app browsers see a default-browser notice instead of the Google button"
   await context.close();
 });
 
-test("the start route rejects unknown providers and non sign_in intents", async ({ request }) => {
+test("the start route rejects unknown providers and intents other than sign_in and link", async ({ request }) => {
   expect((await request.get("/api/auth/github?intent=sign_in", { maxRedirects: 0 })).status()).toBe(404);
-  expect((await request.get("/api/auth/google?intent=link", { maxRedirects: 0 })).status()).toBe(400);
+  expect((await request.get("/api/auth/google?intent=merge", { maxRedirects: 0 })).status()).toBe(400);
 });

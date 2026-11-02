@@ -4,9 +4,10 @@ import { signInWithIdentity } from "../../../../../server/auth/identity";
 import { consumeOAuthState } from "../../../../../server/auth/oauth-state";
 import { createWebSession, setSessionCookie } from "../../../../../server/auth/sessions";
 
-const redirectTo = (path: string, auth?: "cancelled" | "failed") => {
+type Result = { auth: "cancelled" | "failed" } | { link: "failed" };
+const redirectTo = (path: string, result?: Result) => {
   const url = new URL(path, process.env.STILL_ORIGIN);
-  if (auth) url.searchParams.set("auth", auth);
+  if (result) for (const [key, value] of Object.entries(result)) url.searchParams.set(key, value);
   return NextResponse.redirect(url, { status: 302, headers: { "cache-control": "no-store" } });
 };
 
@@ -16,11 +17,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   if (provider !== "google") return new Response(null, { status: 404 });
   const query = new URL(req.url).searchParams;
   const stored = await consumeOAuthState(query.get("state"));
-  if (!stored) return redirectTo("/", "failed");
+  if (!stored) return redirectTo("/", { auth: "failed" });
+  const linking = stored.intent === "link";
+  const failed: Result = linking ? { link: "failed" } : { auth: "failed" };
   const error = query.get("error");
-  if (error === "access_denied") return redirectTo(stored.returnTo, "cancelled");
+  if (error === "access_denied") return redirectTo(stored.returnTo, linking ? failed : { auth: "cancelled" });
   const code = query.get("code");
-  if (error || !code) return redirectTo(stored.returnTo, "failed");
+  if (error || !code) return redirectTo(stored.returnTo, failed);
   try {
     const clientId = process.env.AUTH_GOOGLE_ID ?? "";
     const tokens = await exchangeCode({
@@ -31,11 +34,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
     });
     const profile = readIdToken(tokens.id_token, [clientId]);
+    if (linking) return redirectTo(stored.returnTo, failed); // resolved in A11b
     const { userId, userTokenId } = await signInWithIdentity({ provider: "GOOGLE", ...profile, refreshToken: tokens.refresh_token });
     await setSessionCookie(await createWebSession(userId, userTokenId));
     return redirectTo(stored.returnTo);
   } catch (cause) {
     console.error("Google sign-in failed", cause instanceof Error ? cause.message : "unknown");
-    return redirectTo(stored.returnTo, "failed");
+    return redirectTo(stored.returnTo, failed);
   }
 }

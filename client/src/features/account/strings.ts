@@ -2,6 +2,7 @@ export const accountStrings = {
   signedInWith: (provider: string) => `SIGNED IN WITH ${provider}`,
   linkedAccounts: "LINKED ACCOUNTS",
   identityRow: (provider: string, email: string | null) => `${provider} · ${email ?? ""}`,
+  linkAnother: "Link another Google account",
   unlink: "Unlink",
   unlinkDialogLabel: "Unlink account",
   unlinkWarning: "You will no longer be able to sign in with this account.",

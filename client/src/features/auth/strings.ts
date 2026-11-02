@@ -6,6 +6,12 @@ export const authStrings = {
   cancelled: "Sign-in was cancelled.",
   sessionEnded: "Your session ended. Sign in again.",
   failed: "Sign-in failed. Try again.",
+  link: {
+    created: "Account linked.",
+    exists: "That Google account is already linked.",
+    conflict: "That Google account belongs to another STILL account.",
+    failed: "Couldn't link the account. Try again.",
+  },
   consentTitle: "CONSENT",
   consentBody: "Please agree to the Terms of Service and Privacy Policy to continue.",
   agree: "Agree",

@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, eq, gt } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { verifyAccessToken } from "../auth/access-token";
-import { SESSION_COOKIE, hashToken } from "../auth/sessions";
+import { SESSION_COOKIE, findWebSession } from "../auth/sessions";
 import { db } from "../db/client";
 import { userSessions } from "../db/schema";
 
@@ -33,11 +33,7 @@ export function createContext(req: Request) {
     if (!token) return null;
     // CSRF guard (SPEC §2.3): a cookie-authenticated request must come from our own origin.
     if (req.headers.get("origin") !== process.env.STILL_ORIGIN) throw new TRPCError({ code: "FORBIDDEN" });
-    const [row] = await db
-      .select({ userId: userSessions.userId, userTokenId: userSessions.userTokenId, tokenHash: userSessions.tokenHash })
-      .from(userSessions)
-      .where(and(eq(userSessions.tokenHash, hashToken(token)), eq(userSessions.kind, "WEB"), gt(userSessions.expiresAt, new Date())));
-    return row ?? null;
+    return findWebSession(token);
   }
 
   return { req, getSession: () => (session ??= loadSession()) };

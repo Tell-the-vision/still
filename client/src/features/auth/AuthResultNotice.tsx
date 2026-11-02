@@ -1,21 +1,31 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { useTRPC } from "../../lib/trpc";
 import { Banner } from "../../ui/Banner";
 import { authStrings } from "./strings";
 
-type AuthResult = "cancelled" | "failed";
-const messages: Record<AuthResult, string> = { cancelled: authStrings.cancelled, failed: authStrings.failed };
+type Notice = { message: string; error: boolean };
+const authMessages: Record<string, string> = { cancelled: authStrings.cancelled, failed: authStrings.failed };
+const linkMessages: Record<string, string> = authStrings.link;
 
-// Shows the OAuth callback result (?auth=cancelled|failed), then strips the param from the URL.
+// Shows the OAuth callback result (?auth=cancelled|failed or ?link=created|exists|conflict|failed), then strips the params.
 export function AuthResultNotice() {
-  const { auth } = useGlobalSearchParams<{ auth?: string }>();
+  const { auth, link } = useGlobalSearchParams<{ auth?: string; link?: string }>();
   const router = useRouter();
   const pathname = usePathname();
-  const [result, setResult] = useState<AuthResult | null>(null);
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [notice, setNotice] = useState<Notice | null>(null);
   useEffect(() => {
-    if (!auth) return;
-    setResult(auth === "cancelled" || auth === "failed" ? auth : null);
-    router.replace({ pathname, params: { auth: undefined } }); // setParams in the layout would not reach the screen
-  }, [auth, pathname, router]);
-  return result ? <Banner message={messages[result]} error={result === "failed"} /> : null;
+    if (!auth && !link) return;
+    const message = (link && linkMessages[link]) || (auth && authMessages[auth]) || null;
+    setNotice(message ? { message, error: auth === "failed" || link === "failed" || link === "conflict" } : null);
+    if (link) {
+      void queryClient.invalidateQueries({ queryKey: trpc.identity.pathKey() });
+      void queryClient.invalidateQueries({ queryKey: trpc.me.pathKey() });
+    }
+    router.replace({ pathname, params: { auth: undefined, link: undefined } }); // setParams in the layout would not reach the screen
+  }, [auth, link, pathname, router, queryClient, trpc]);
+  return notice ? <Banner message={notice.message} error={notice.error} /> : null;
 }
