@@ -4,6 +4,7 @@ import { consentRouter } from "./routers/consent";
 import { exhibitionRouter } from "./routers/exhibition";
 import { guideRouter } from "./routers/guide";
 import { identityRouter } from "./routers/identity";
+import { journalRouter } from "./routers/journal";
 import { meRouter } from "./routers/me";
 import { policyRouter } from "./routers/policy";
 import { scrapRouter } from "./routers/scrap";
@@ -15,6 +16,7 @@ export const appRouter = router({
   exhibition: exhibitionRouter,
   guide: guideRouter,
   identity: identityRouter,
+  journal: journalRouter,
   me: meRouter,
   policy: policyRouter,
   scrap: scrapRouter,

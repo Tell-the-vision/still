@@ -30,6 +30,7 @@ export default function ExhibitionGuide() {
         <GuideHeader {...exhibition.data} />
         <DocumentView document={exhibition.data.description} />
         <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
+        <Button label={guideStrings.writeJournal} trailing="→" variant="secondary" href={`/e/${code}/journal`} />
       </Screen>
     );
   }
