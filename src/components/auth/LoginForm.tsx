@@ -75,22 +75,22 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
       role="radio"
       aria-checked={intent === value}
       onClick={() => setIntent(value)}
-      className={cx("flex-1 border p-3 text-left", intent === value ? "border-ink" : "border-line")}
+      className={cx("flex-1 border p-3 text-left", intent === value ? "border-ink bg-ink text-paper" : "border-ink bg-paper text-ink")}
     >
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-muted text-xs mt-1 leading-5">{desc}</p>
+      <p className="text-[13px] font-medium">{label}</p>
+      <p className={cx("text-[11px] mt-1 leading-4", intent === value ? "text-paper/70" : "text-muted")}>{desc}</p>
     </button>
   );
 
   return (
-    <div className="px-6 pb-10">
+    <div className="px-6 pb-12">
       {errorCode && (
         <div className="mb-6">
           <Notice tone="error">{ERRORS[errorCode] ?? ERRORS.Default}</Notice>
         </div>
       )}
 
-      <p className="font-display text-xs tracking-[0.2em] uppercase text-muted mb-2">계정 유형</p>
+      <p className="label mb-2">계정 유형</p>
       <div className="flex gap-2 mb-6" role="radiogroup" aria-label="계정 유형">
         {option("user", "일반 사용자", "전시를 기록하고 보관합니다. 바로 시작할 수 있어요.")}
         {option("artist", "아티스트 · 전시 기획자", "내 전시를 등록하고 QR을 받습니다. 관리자 승인이 필요해요.")}
@@ -101,15 +101,15 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
           Continue with Google
         </Button>
       ) : (
-        <p className="text-muted text-xs text-center">
+        <p className="text-muted text-[12px] leading-5">
           Google 로그인이 설정되지 않았습니다. <code>.env</code>에 <code>AUTH_GOOGLE_ID</code> / <code>AUTH_GOOGLE_SECRET</code>을 넣으면 활성화됩니다.
         </p>
       )}
 
       {devLoginEnabled && (
-        <form onSubmit={(e) => void dev(e)} className="mt-10">
-          <p className="font-display text-xs tracking-[0.2em] uppercase text-muted mb-3">Dev Login (local only)</p>
-          <label className="block text-xs text-muted mb-1" htmlFor="dev-email">
+        <form onSubmit={(e) => void dev(e)} className="hairline mt-10 pt-5">
+          <p className="label mb-4">Dev Login (local only)</p>
+          <label className="label block" htmlFor="dev-email">
             Email
           </label>
           <input
@@ -119,10 +119,10 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-11 border-b border-ink mb-4"
+            className="w-full h-11 border-b border-ink mb-5 text-[14px] placeholder:text-muted/60"
             placeholder="gdg@gmail.com"
           />
-          <label className="block text-xs text-muted mb-1" htmlFor="dev-name">
+          <label className="label block" htmlFor="dev-name">
             Name (optional)
           </label>
           <input
@@ -130,7 +130,7 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full h-11 border-b border-ink mb-6"
+            className="w-full h-11 border-b border-ink mb-6 text-[14px] placeholder:text-muted/60"
             placeholder="홍길동"
           />
           {localError && (
@@ -141,7 +141,7 @@ export function LoginForm({ googleEnabled, devLoginEnabled }: { googleEnabled: b
           <Button variant="secondary" full type="submit" loading={busy}>
             Dev Login
           </Button>
-          <p className="text-muted text-xs mt-3">
+          <p className="text-muted text-[11px] leading-4 mt-3">
             비밀번호 없이 이메일만으로 로그인하는 개발용 계정입니다. 같은 이메일로 다시 로그인하면 이름은 마지막에 입력한 값으로 바뀝니다 (비워 두면 이전 이름 유지). <code>ADMIN_EMAILS</code>에 적힌 이메일은 관리자가 됩니다. 프로덕션에서는 자동으로 비활성화됩니다.
           </p>
         </form>

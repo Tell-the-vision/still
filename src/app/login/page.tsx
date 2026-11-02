@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { devLoginEnabled, googleEnabled } from "@/auth";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { PageHeader, Wordmark } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { currentUser } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +21,11 @@ export default async function LoginPage({
     redirect(callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/");
   }
   return (
-    <main>
-      <PageHeader back="/" />
-      <div className="text-center pt-10 pb-12">
-        <h1>
-          <Wordmark className="text-3xl" />
-        </h1>
-        <p className="text-muted text-sm mt-6 px-8">
+    <main className="min-h-dvh">
+      <PageHeader back="/" backLabel="Home" />
+      <div className="px-6 pt-6 pb-8">
+        <h1 className="screen-title">Sign in.</h1>
+        <p className="text-muted text-[13px] leading-5 mt-2">
           개인 기록을 저장하려면 로그인이 필요합니다.
           <br />
           로그인 후 하던 작업으로 돌아갑니다.

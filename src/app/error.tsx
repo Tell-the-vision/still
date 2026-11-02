@@ -1,10 +1,14 @@
 "use client";
 
-import { Button, EmptyState } from "@/components/ui";
+import { Button, EmptyState, Wordmark } from "@/components/ui";
 
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main>
+    <main className="min-h-dvh px-6">
+      <div className="h-[66px] flex items-center text-[20px]">
+        <Wordmark />
+      </div>
+      <div className="hairline" />
       <EmptyState
         title="문제가 발생했습니다"
         body="잠시 후 다시 시도해 주세요."
