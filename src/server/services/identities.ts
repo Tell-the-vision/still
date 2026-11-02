@@ -1,6 +1,9 @@
-import { asc, eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "../db/client";
-import { userTokens } from "../db/schema";
+import { userTokens, users } from "../db/schema";
+import { AppError } from "../trpc/init";
+import { revokeGoogleToken } from "./me";
 
 // Same order as `getMe` (SPEC §2.2 Linked accounts).
 export async function listIdentities(userId: string) {
@@ -9,4 +12,18 @@ export async function listIdentities(userId: string) {
     .from(userTokens)
     .where(eq(userTokens.userId, userId))
     .orderBy(asc(userTokens.createdAt), asc(userTokens.id));
+}
+
+// Idempotent. Locks the user row so two concurrent unlinks cannot both pass the last-identity check (SPEC §2.2 Linked accounts).
+export async function removeIdentity(userId: string, identityId: string) {
+  const deleted = await db.transaction(async (tx) => {
+    await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+    const owned = await tx.$count(userTokens, and(eq(userTokens.id, identityId), eq(userTokens.userId, userId)));
+    if (owned === 0) return [];
+    if ((await tx.$count(userTokens, eq(userTokens.userId, userId))) < 2) {
+      throw new TRPCError({ code: "CONFLICT", cause: new AppError("LAST_IDENTITY") });
+    }
+    return tx.delete(userTokens).where(eq(userTokens.id, identityId)).returning({ ciphertext: userTokens.refreshTokenCiphertext });
+  });
+  for (const { ciphertext } of deleted) if (ciphertext) await revokeGoogleToken(ciphertext);
 }
