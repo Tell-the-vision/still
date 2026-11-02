@@ -33,7 +33,7 @@ export function UrlEntry() {
 
   return (
     <form onSubmit={(e) => void go(e)}>
-      <label htmlFor="home-url" className="block text-xs tracking-widest uppercase text-muted mb-2">
+      <label htmlFor="home-url" className="label block mb-2">
         전시 URL로 입장
       </label>
       <div className="flex gap-2">
@@ -46,9 +46,9 @@ export function UrlEntry() {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="https://…/e/flow-of-things"
-          className="flex-1 h-12 border-b border-ink"
+          className="flex-1 min-w-0 h-12 border-b border-ink text-[14px] placeholder:text-muted/60"
         />
-        <Button type="submit" variant="secondary" disabled={!value.trim()} loading={busy}>
+        <Button type="submit" variant="secondary" className="h-12 px-5" disabled={!value.trim()} loading={busy}>
           Go
         </Button>
       </div>

@@ -159,8 +159,14 @@ export function QrScanner() {
   const showCamera = phase === "starting" || phase === "scanning" || phase === "resolving";
 
   return (
-    <div className="px-4 pb-8">
-      <div className="relative aspect-square bg-ink overflow-hidden">
+    <div className="px-6 pb-10">
+      {/* Figma 03 — "Scan to enter." */}
+      <div className="pt-6">
+        <h1 className="screen-title">Scan to enter.</h1>
+        <p className="text-muted text-[13px] leading-5 mt-1">Point your camera at the exhibition QR code.</p>
+      </div>
+
+      <div className="relative aspect-square border border-ink bg-paper overflow-hidden mt-8">
         <video
           ref={videoRef}
           className={showCamera ? "w-full h-full object-cover" : "hidden"}
@@ -169,23 +175,34 @@ export function QrScanner() {
           aria-label="카메라 미리보기"
         />
         <canvas ref={canvasRef} className="hidden" />
-        {showCamera && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-56 h-56 border border-paper/80" aria-hidden />
-          </div>
-        )}
+        {/* Scan corners (Figma: 42 × 3px black, 30px inset) */}
+        <div className="absolute inset-[30px] pointer-events-none" aria-hidden>
+          {[
+            "top-0 left-0 border-t-[3px] border-l-[3px]",
+            "top-0 right-0 border-t-[3px] border-r-[3px]",
+            "bottom-0 left-0 border-b-[3px] border-l-[3px]",
+            "bottom-0 right-0 border-b-[3px] border-r-[3px]",
+          ].map((pos) => (
+            <span key={pos} className={`absolute w-[42px] h-[42px] ${showCamera ? "border-paper" : "border-ink"} ${pos}`} />
+          ))}
+        </div>
         {!showCamera && (
-          <div className="absolute inset-0 flex items-center justify-center text-paper text-sm px-6 text-center">
-            {phase === "denied" && "카메라 권한이 거부되었습니다. 아래에 전시 URL을 직접 입력해 주세요."}
-            {phase === "unsupported" && "이 기기에서는 카메라를 사용할 수 없습니다. 전시 URL을 직접 입력해 주세요."}
-            {phase === "error" && (message ?? "카메라 오류")}
-            {phase === "idle" && "카메라 준비 중…"}
+          <div className="absolute inset-0 flex items-center justify-center px-14 text-center">
+            {phase === "idle" ? (
+              <span className="label">Camera Preview</span>
+            ) : (
+              <span className="text-[13px] leading-5 text-muted">
+                {phase === "denied" && "카메라 권한이 거부되었습니다. 아래에서 전시 URL을 직접 입력해 주세요."}
+                {phase === "unsupported" && "이 기기에서는 카메라를 사용할 수 없습니다. 전시 URL을 직접 입력해 주세요."}
+                {phase === "error" && (message ?? "카메라 오류")}
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      <p className="text-muted text-xs text-center mt-3">
-        {phase === "scanning" && "전시장의 QR 코드를 사각형 안에 맞춰 주세요."}
+      <p className="label mt-3 min-h-[14px]">
+        {phase === "scanning" && "QR 코드를 사각형 안에 맞춰 주세요"}
         {phase === "resolving" && "전시 확인 중…"}
         {phase === "starting" && "카메라 권한을 확인하는 중…"}
       </p>
@@ -206,6 +223,7 @@ export function QrScanner() {
         </div>
       )}
 
+      {/* Figma: "Having trouble? You can also open an exhibition link directly." */}
       <form
         className="mt-8"
         onSubmit={(e) => {
@@ -213,8 +231,9 @@ export function QrScanner() {
           void resolveAndGo(manual);
         }}
       >
-        <label htmlFor="exhibition-url" className="block text-xs tracking-widest uppercase text-muted mb-2">
-          또는 전시 URL 직접 입력
+        <p className="text-[14px] font-medium">Having trouble?</p>
+        <label htmlFor="exhibition-url" className="block text-muted text-[13px] leading-5 mt-1">
+          You can also open an exhibition link directly.
         </label>
         <input
           id="exhibition-url"
@@ -225,10 +244,10 @@ export function QrScanner() {
           placeholder="https://…/e/flow-of-things"
           value={manual}
           onChange={(e) => setManual(e.target.value)}
-          className="w-full h-12 border-b border-ink px-0"
+          className="w-full h-12 border-b border-ink px-0 mt-3 text-[14px] placeholder:text-muted/60"
         />
-        <Button type="submit" full className="mt-4" disabled={!manual.trim() || phase === "resolving"}>
-          전시로 이동
+        <Button type="submit" full className="mt-5" disabled={!manual.trim() || phase === "resolving"}>
+          Enter Exhibition URL
         </Button>
       </form>
     </div>
