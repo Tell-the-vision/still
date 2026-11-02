@@ -6,8 +6,9 @@ import { createTRPCContext } from "@trpc/tanstack-react-query";
 import Constants from "expo-constants";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { AppState, Platform } from "react-native";
+import { tokenStorage } from "../features/auth/token-storage";
 
-export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
+export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 
 // Procedures served as cacheable GET without headers (SPEC §11.1).
 export const PUBLIC_PATHS = ["exhibition.get", "guide.get"];
@@ -77,10 +78,14 @@ function makeTRPCClient() {
         false: httpBatchLink({
           url,
           methodOverride: "POST",
-          headers: () => ({
-            "x-client": Platform.OS,
-            "x-client-version": Constants.expoConfig?.version ?? "unknown",
-          }),
+          headers: async () => {
+            const accessToken = await tokenStorage.getAccessToken(); // always null on web
+            return {
+              "x-client": Platform.OS,
+              "x-client-version": Constants.expoConfig?.version ?? "unknown",
+              ...(accessToken && { authorization: `Bearer ${accessToken}` }),
+            };
+          },
         }),
       }),
     ],

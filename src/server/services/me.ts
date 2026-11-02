@@ -6,7 +6,7 @@ import { userTokens, users } from "../db/schema";
 import type { Session } from "../trpc/context";
 
 // Profile comes from the identity the session signed in with, else the oldest one (SPEC §2.2).
-export async function getMe(session: Session) {
+export async function getMe(session: Pick<Session, "userId" | "userTokenId">) {
   const user = await db.query.users.findFirst({ where: eq(users.id, session.userId) });
   const identities = await db
     .select()

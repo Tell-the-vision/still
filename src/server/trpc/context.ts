@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, gt } from "drizzle-orm";
+import { verifyAccessToken } from "../auth/access-token";
 import { SESSION_COOKIE, hashToken } from "../auth/sessions";
 import { db } from "../db/client";
 import { userSessions } from "../db/schema";
@@ -15,7 +16,23 @@ export type Session = { userId: string; userTokenId: string | null; tokenHash: s
 export function createContext(req: Request, resHeaders: Headers) {
   let session: Promise<Session | null> | undefined;
 
+  // SPEC §2.3: a Bearer token wins; cookies and Origin are ignored. The session row must still exist.
+  async function loadBearerSession(token: string) {
+    try {
+      const { sid } = await verifyAccessToken(token);
+      const [row] = await db
+        .select({ userId: userSessions.userId, userTokenId: userSessions.userTokenId, tokenHash: userSessions.tokenHash })
+        .from(userSessions)
+        .where(and(eq(userSessions.id, sid), eq(userSessions.kind, "APP"), gt(userSessions.expiresAt, new Date())));
+      return row ?? null;
+    } catch {
+      return null; // bad signature, expired or malformed token
+    }
+  }
+
   async function loadSession() {
+    const bearer = req.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+    if (bearer) return loadBearerSession(bearer);
     const token = readCookie(req, SESSION_COOKIE);
     if (!token) return null;
     // CSRF guard (SPEC §2.3): a cookie-authenticated request must come from our own origin.
