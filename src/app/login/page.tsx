@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { auth, devLoginEnabled, googleEnabled } from "@/auth";
+import { devLoginEnabled, googleEnabled } from "@/auth";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { PageHeader, Wordmark } from "@/components/ui";
+import { currentUser } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Login" };
@@ -12,9 +13,11 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
-  const session = await auth();
+  // Only a session that resolves to a real user row counts as logged in;
+  // a stale cookie must be able to reach this screen (SessionGuard clears it).
+  const user = await currentUser();
   const { callbackUrl } = await searchParams;
-  if (session?.user?.id) {
+  if (user) {
     redirect(callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/");
   }
   return (
