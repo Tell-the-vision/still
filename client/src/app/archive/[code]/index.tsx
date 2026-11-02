@@ -6,6 +6,7 @@ import { useRequireLogin } from "../../../features/auth/require-login";
 import { ScrapSection } from "../../../features/scrap/ScrapSection";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { JournalSection } from "../../../features/journal/JournalSection";
+import { KeepsakeSection } from "../../../features/keepsake/KeepsakeSection";
 import { useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
 import { Notice } from "../../../ui/Notice";
@@ -33,8 +34,7 @@ export default function ArchiveDetail() {
           <Text variant="secondary">{archiveStrings.lastVisited(archive.lastVisitedAt)}</Text>
           <ScrapSection code={code} />
           <JournalSection code={code} />
-          {/* K1a KeepsakeSection */}
-          {/* R3 DeleteArchive */}
+          <KeepsakeSection code={code} />
           <DeleteArchive code={code} />
         </Stack>
       )}
