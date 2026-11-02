@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { BottomNav, PageHeader } from "@/components/ui";
-import { currentUser } from "@/lib/api";
+import { currentUser, publicUser } from "@/lib/api";
 import { loginUrl } from "@/lib/client/pending-action";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export default async function AccountPage() {
     <main className="flex flex-col min-h-dvh">
       <PageHeader back="/" title="Account" />
       <div className="flex-1">
-        <AccountPanel user={{ email: user.email, displayName: user.displayName, image: user.image, createdAt: user.createdAt }} />
+        <AccountPanel user={publicUser(user)} />
       </div>
       <BottomNav active="account" />
     </main>

@@ -116,15 +116,27 @@ export function JournalEditor({ exhibition }: { exhibition: Exhibition }) {
     draftTimer.current = setTimeout(() => saveJournalDraft(exhibition.slug, { content: next, audioType }), 300);
   };
 
-  // Unsaved-changes guard (JOURNAL-05).
+  // Unsaved-changes guard (JOURNAL-05): reload / close, and in-app link clicks.
+  // (The draft is also mirrored to localStorage, so nothing is lost either way.)
   useEffect(() => {
     if (!dirty) return;
-    const h = (e: BeforeUnloadEvent) => {
+    const before = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
-    window.addEventListener("beforeunload", h);
-    return () => window.removeEventListener("beforeunload", h);
+    const click = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a[href]");
+      if (a && !window.confirm("저장하지 않은 Journal이 있습니다. 이 페이지를 나갈까요? (임시 저장본은 유지됩니다)")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", before);
+    document.addEventListener("click", click, true);
+    return () => {
+      window.removeEventListener("beforeunload", before);
+      document.removeEventListener("click", click, true);
+    };
   }, [dirty]);
 
   const save = useCallback(async () => {

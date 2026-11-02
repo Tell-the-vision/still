@@ -60,11 +60,57 @@ export async function currentUser(): Promise<User | null> {
   return row ?? null;
 }
 
+/** Logged-in and not suspended. */
 export async function requireUser(): Promise<User> {
   const user = await currentUser();
   if (!user) throw new HttpError("UNAUTHORIZED", "로그인이 필요합니다.");
+  if (user.status === "SUSPENDED")
+    throw new HttpError("FORBIDDEN", "정지된 계정입니다. 관리자에게 문의해 주세요.");
   return user;
 }
+
+export function isAdmin(user: Pick<User, "role">) {
+  return user.role === "ADMIN";
+}
+
+/** Approved artist (or admin). */
+export function isArtist(user: Pick<User, "role" | "artistStatus">) {
+  return user.role === "ADMIN" || (user.role === "ARTIST" && user.artistStatus === "APPROVED");
+}
+
+export async function requireAdmin(): Promise<User> {
+  const user = await requireUser();
+  if (!isAdmin(user)) throw new HttpError("FORBIDDEN", "관리자만 접근할 수 있습니다.");
+  return user;
+}
+
+export async function requireArtist(): Promise<User> {
+  const user = await requireUser();
+  if (!isArtist(user)) throw new HttpError("FORBIDDEN", "승인된 아티스트만 접근할 수 있습니다.");
+  return user;
+}
+
+/** Public shape of the current user (never expose googleId). */
+export function publicUser(user: User) {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    image: user.image,
+    role: user.role,
+    status: user.status,
+    artistStatus: user.artistStatus,
+    artistName: user.artistName,
+    artistBio: user.artistBio,
+    artistPortfolioUrl: user.artistPortfolioUrl,
+    artistAppliedAt: user.artistAppliedAt,
+    artistReviewedAt: user.artistReviewedAt,
+    artistReviewNote: user.artistReviewNote,
+    suspendedReason: user.suspendedReason,
+    createdAt: user.createdAt,
+  };
+}
+export type PublicUser = ReturnType<typeof publicUser>;
 
 export async function readJson<T = Record<string, unknown>>(req: Request): Promise<T> {
   try {

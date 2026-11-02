@@ -11,7 +11,7 @@ export const metadata = { title: "Journal" };
 export default async function JournalPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const exhibition = await findExhibition(slug);
-  if (!exhibition || exhibition.status !== "ACTIVE") notFound();
+  if (!exhibition) notFound();
   return (
     <main>
       <PageHeader back={`/e/${exhibition.slug}`} title="Journal" />

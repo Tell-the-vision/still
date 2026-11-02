@@ -5,17 +5,19 @@
  * TBD-08 (decided): deleting the account removes every archive and record.
  */
 import { useState } from "react";
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useAudio } from "@/components/audio/AudioProvider";
 import { Button, Dialog, Notice, SectionTitle, cx } from "@/components/ui";
+import type { PublicUser } from "@/lib/api";
 import { api, errorMessage } from "@/lib/client/fetcher";
 import { formatDate } from "@/lib/format";
 
-export function AccountPanel({
-  user,
-}: {
-  user: { email: string; displayName: string; image: string | null; createdAt: string | Date };
-}) {
+const ROLE_LABEL = { USER: "일반 사용자", ARTIST: "아티스트", ADMIN: "관리자" } as const;
+const ARTIST_LABEL = { NONE: "", PENDING: "인증 심사 중", APPROVED: "인증 완료", REJECTED: "신청 반려" } as const;
+
+export function AccountPanel({ user }: { user: PublicUser }) {
+  const approvedArtist = user.role === "ADMIN" || (user.role === "ARTIST" && user.artistStatus === "APPROVED");
   const audio = useAudio();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -53,9 +55,41 @@ export function AccountPanel({
         <div className="min-w-0">
           <p className="font-medium truncate">{user.displayName || "—"}</p>
           <p className="text-muted text-sm truncate">{user.email}</p>
-          <p className="text-muted text-xs mt-1">가입 {formatDate(user.createdAt)}</p>
+          <p className="text-muted text-xs mt-1">
+            가입 {formatDate(user.createdAt)} · {ROLE_LABEL[user.role]}
+            {user.status === "SUSPENDED" ? " · 정지됨" : ""}
+          </p>
         </div>
       </div>
+      {user.status === "SUSPENDED" && (
+        <div className="mt-3">
+          <Notice tone="error">계정이 정지되었습니다.{user.suspendedReason ? ` 사유: ${user.suspendedReason}` : ""}</Notice>
+        </div>
+      )}
+
+      <SectionTitle>Artist</SectionTitle>
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <p className="font-medium text-sm">{approvedArtist ? "Artist Studio" : "아티스트 인증"}</p>
+          <p className="text-muted text-xs">
+            {approvedArtist ? "내 전시 등록 · 수정 · QR" : ARTIST_LABEL[user.artistStatus] || "전시를 직접 등록하려면 인증이 필요합니다."}
+          </p>
+        </div>
+        <Link href={approvedArtist || user.artistStatus === "PENDING" ? "/artist" : "/artist/apply"} className="text-xs underline underline-offset-4">
+          {approvedArtist || user.artistStatus === "PENDING" ? "열기" : "신청"}
+        </Link>
+      </div>
+      {user.role === "ADMIN" && (
+        <div className="flex items-center justify-between py-2">
+          <div>
+            <p className="font-medium text-sm">Admin</p>
+            <p className="text-muted text-xs">사용자 · 전시 · 신고 관리</p>
+          </div>
+          <Link href="/admin" className="text-xs underline underline-offset-4">
+            열기
+          </Link>
+        </div>
+      )}
 
       <SectionTitle>Audio Settings</SectionTitle>
       <div className="flex items-center justify-between py-2">

@@ -10,6 +10,7 @@
  */
 import { relations, sql } from "drizzle-orm";
 import {
+  blob,
   index,
   integer,
   sqliteTable,
@@ -34,6 +35,21 @@ const updatedAt = () =>
     .$onUpdateFn(() => new Date());
 
 // ---------------------------------------------------------------- users
+/**
+ * Roles (cumulative):
+ *   guest  (no row)  — can read exhibitions
+ *   USER             — + personal archive / scraps / journal / keepsake / like / report
+ *   ARTIST           — + create / edit / publish own exhibitions and get their QR
+ *   ADMIN            — + manage users, artist approvals, all exhibitions, reports
+ */
+export const USER_ROLE = ["USER", "ARTIST", "ADMIN"] as const;
+export type UserRole = (typeof USER_ROLE)[number];
+export const USER_STATUS = ["ACTIVE", "SUSPENDED"] as const;
+export type UserStatus = (typeof USER_STATUS)[number];
+/** Artist verification state. A user becomes ARTIST only when an admin approves. */
+export const ARTIST_STATUS = ["NONE", "PENDING", "APPROVED", "REJECTED"] as const;
+export type ArtistStatus = (typeof ARTIST_STATUS)[number];
+
 export const users = sqliteTable("users", {
   id: id(),
   /** Google `sub`. Dev-login users use `dev:<email>`. */
@@ -41,16 +57,35 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   displayName: text("display_name").notNull().default(""),
   image: text("image"),
+  role: text("role", { enum: USER_ROLE }).notNull().default("USER"),
+  status: text("status", { enum: USER_STATUS }).notNull().default("ACTIVE"),
+  artistStatus: text("artist_status", { enum: ARTIST_STATUS }).notNull().default("NONE"),
+  artistName: text("artist_name"),
+  artistBio: text("artist_bio"),
+  artistPortfolioUrl: text("artist_portfolio_url"),
+  artistAppliedAt: integer("artist_applied_at", { mode: "timestamp_ms" }),
+  artistReviewedAt: integer("artist_reviewed_at", { mode: "timestamp_ms" }),
+  /** Admin's note on approval / rejection (shown to the applicant). */
+  artistReviewNote: text("artist_review_note"),
+  suspendedReason: text("suspended_reason"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
 
 // ---------------------------------------------------------- exhibitions
-export const EXHIBITION_STATUS = ["ACTIVE", "INACTIVE"] as const;
+/**
+ * DRAFT   — artist is still editing; invisible to the public
+ * ACTIVE  — published (QR works)
+ * HIDDEN  — taken down by an admin (e.g. after a report); owner can still see it
+ * DELETED — soft-deleted by owner/admin; user archives keep the exhibition info
+ */
+export const EXHIBITION_STATUS = ["DRAFT", "ACTIVE", "HIDDEN", "DELETED"] as const;
 export type ExhibitionStatus = (typeof EXHIBITION_STATUS)[number];
 
 export const exhibitions = sqliteTable("exhibitions", {
   id: id(),
+  /** NULL = official / seeded content. Otherwise the artist who created it. */
+  ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
   /** URL-safe identifier used in QR codes: /e/<slug> */
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
@@ -62,7 +97,8 @@ export const exhibitions = sqliteTable("exhibitions", {
   description: text("description"),
   coverImageUrl: text("cover_image_url"),
   qrCodeUrl: text("qr_code_url"),
-  status: text("status", { enum: EXHIBITION_STATUS }).notNull().default("ACTIVE"),
+  status: text("status", { enum: EXHIBITION_STATUS }).notNull().default("DRAFT"),
+  publishedAt: integer("published_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -190,18 +226,115 @@ export const digitalKeepsakes = sqliteTable(
   (t) => [index("keepsakes_archive_idx").on(t.archiveId)],
 );
 
+// ------------------------------------------------------ exhibition_likes
+export const exhibitionLikes = sqliteTable(
+  "exhibition_likes",
+  {
+    id: id(),
+    exhibitionId: text("exhibition_id")
+      .notNull()
+      .references(() => exhibitions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("exhibition_likes_unique").on(t.exhibitionId, t.userId),
+    index("exhibition_likes_exhibition_idx").on(t.exhibitionId),
+  ],
+);
+
+// ---------------------------------------------------- exhibition_reports
+export const REPORT_REASON = ["INAPPROPRIATE", "COPYRIGHT", "SPAM", "OTHER"] as const;
+export type ReportReason = (typeof REPORT_REASON)[number];
+export const REPORT_STATUS = ["OPEN", "RESOLVED", "DISMISSED"] as const;
+export type ReportStatus = (typeof REPORT_STATUS)[number];
+/** What the admin did when closing a report. */
+export const REPORT_ACTION = ["NONE", "HIDE_EXHIBITION", "SUSPEND_ARTIST"] as const;
+export type ReportAction = (typeof REPORT_ACTION)[number];
+
+export const exhibitionReports = sqliteTable(
+  "exhibition_reports",
+  {
+    id: id(),
+    exhibitionId: text("exhibition_id")
+      .notNull()
+      .references(() => exhibitions.id, { onDelete: "cascade" }),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reason: text("reason", { enum: REPORT_REASON }).notNull(),
+    detail: text("detail"),
+    status: text("status", { enum: REPORT_STATUS }).notNull().default("OPEN"),
+    action: text("action", { enum: REPORT_ACTION }),
+    resolutionNote: text("resolution_note"),
+    resolvedById: text("resolved_by_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("exhibition_reports_exhibition_idx").on(t.exhibitionId, t.status),
+    index("exhibition_reports_status_idx").on(t.status, t.createdAt),
+  ],
+);
+
+// --------------------------------------------------------------- images
+/** Uploaded cover images, stored in the DB so deploys without a disk still work. */
+export const images = sqliteTable("images", {
+  id: id(),
+  ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
+  mimeType: text("mime_type").notNull(),
+  bytes: blob("bytes", { mode: "buffer" }).notNull(),
+  size: integer("size").notNull(),
+  width: integer("width"),
+  height: integer("height"),
+  createdAt: createdAt(),
+});
+
 // ------------------------------------------------------------ relations
 export const usersRelations = relations(users, ({ many }) => ({
   archives: many(archives),
+  exhibitions: many(exhibitions),
+  likes: many(exhibitionLikes),
+  reports: many(exhibitionReports, { relationName: "reporter" }),
 }));
 
 export const exhibitionsRelations = relations(exhibitions, ({ many, one }) => ({
+  owner: one(users, { fields: [exhibitions.ownerId], references: [users.id] }),
   guideSentences: many(guideSentences),
   audioConfig: one(audioConfigurations, {
     fields: [exhibitions.id],
     references: [audioConfigurations.exhibitionId],
   }),
   archives: many(archives),
+  likes: many(exhibitionLikes),
+  reports: many(exhibitionReports),
+}));
+
+export const exhibitionLikesRelations = relations(exhibitionLikes, ({ one }) => ({
+  exhibition: one(exhibitions, {
+    fields: [exhibitionLikes.exhibitionId],
+    references: [exhibitions.id],
+  }),
+  user: one(users, { fields: [exhibitionLikes.userId], references: [users.id] }),
+}));
+
+export const exhibitionReportsRelations = relations(exhibitionReports, ({ one }) => ({
+  exhibition: one(exhibitions, {
+    fields: [exhibitionReports.exhibitionId],
+    references: [exhibitions.id],
+  }),
+  reporter: one(users, {
+    fields: [exhibitionReports.reporterId],
+    references: [users.id],
+    relationName: "reporter",
+  }),
+  resolvedBy: one(users, {
+    fields: [exhibitionReports.resolvedById],
+    references: [users.id],
+    relationName: "resolver",
+  }),
 }));
 
 export const guideSentencesRelations = relations(guideSentences, ({ one }) => ({
@@ -257,6 +390,9 @@ export type Archive = typeof archives.$inferSelect;
 export type Scrap = typeof scraps.$inferSelect;
 export type Journal = typeof journals.$inferSelect;
 export type DigitalKeepsake = typeof digitalKeepsakes.$inferSelect;
+export type ExhibitionLike = typeof exhibitionLikes.$inferSelect;
+export type ExhibitionReport = typeof exhibitionReports.$inferSelect;
+export type ImageRow = typeof images.$inferSelect;
 
 /** Re-exported so callers can build raw expressions without importing drizzle-orm. */
 export { sql };

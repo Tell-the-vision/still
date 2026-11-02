@@ -25,3 +25,20 @@
 - **Scrap 스냅샷**: `guide_sentence_id`는 nullable + `ON DELETE SET NULL`. 기관이 문장을 삭제해도 사용자가 저장한 문장은 `sentence_content_snapshot`으로 남습니다.
 - **PNG 생성 위치**: 클라이언트(`html-to-image`). 서버 렌더링 대신 선택한 이유는 "웹카드와 PNG가 픽셀 단위로 동일"하다는 요구(KEEPSAKE-05) 충족이 가장 쉽기 때문. 서버 `GET /keepsakes/{id}/export`는 구현하지 않았습니다.
 - **Analytics**: `lib/client/analytics.ts`의 `track()`이 `window.dataLayer`에 push. GTM/GA를 붙이면 그대로 수집됩니다. 민감 정보(본문, 이메일)는 넣지 않습니다.
+
+## 2차 추가 기능(역할·아티스트·관리자·좋아요·신고)에서 정한 것
+
+| 주제 | 결정 | 바꾸려면 |
+| --- | --- | --- |
+| 계정 유형 선택 | 로그인 화면의 라디오. 아티스트를 고르면 로그인 후 `/artist/apply`로 이동해 신청서 제출 → `PENDING`. 승인 전까지는 일반 사용자와 동일 | `LoginForm.tsx`, `applyAsArtist()` |
+| 관리자 부여 | `ADMIN_EMAILS`(.env) 이메일은 로그인 시 자동 ADMIN. 개발 기본값 `admin@still.local`. 관리자는 Users 탭에서 역할 변경 가능(자기 강등 불가) | `auth.ts` `isBootstrapAdmin()` |
+| 전시 상태 | DRAFT → ACTIVE(공개) / HIDDEN(관리자) / DELETED(소프트). 공개 조건: 해설 문장 ≥ 1. HIDDEN은 소유자가 못 풂 | `setExhibitionStatus()` |
+| 삭제 정책 | 아티스트 삭제 = 소프트(방문자 Archive 유지). 관리자만 완전 삭제(연쇄 삭제) | `/api/admin/exhibitions/{id}` DELETE |
+| 정지(SUSPENDED) | 로그인은 되나 쓰기 API 전부 403, 아티스트의 전시는 공개 조회에서 제외(데이터는 그대로) | `requireUser()`, `isPubliclyVisible()` |
+| 가이드 수정과 Scrap | 문장 내용이 같으면 id 유지, 삭제된 문장의 Scrap은 `guide_sentence_id=NULL` + 스냅샷 유지 | `replaceGuide()` |
+| 이미지 저장 | DB BLOB (클라이언트에서 1600px JPEG로 축소 후 업로드, ≤3MB). Vercel/Turso에서도 동작. 트래픽 커지면 S3/Vercel Blob으로 교체 | `/api/images` |
+| slug | 제목에서 ASCII slug 생성(한글 제목은 `ex-xxxxxx`), 생성 후 불변(인쇄된 QR 보호) | `uniqueSlug()` |
+| 좋아요 | 사용자당 전시당 1개, 토글, 공개 카운트 | `exhibition_likes` |
+| 신고 | 사유 4종 + 상세(기타는 필수). 사용자당 전시당 미처리 신고 1개. 본인 전시 신고 불가 | `createReport()` |
+| 신고 처리 | 전시 숨김 / 숨김+아티스트 정지 / 조치 없음 / 기각. 같은 전시의 다른 OPEN 신고 동시 종료 | `adminResolveReport()` |
+| 계정 삭제 시 전시 | 사용자가 만든 전시는 남기고 `owner_id=NULL`(공식 콘텐츠처럼 취급) — 방문자 기록 보호 | `deleteUserCompletely()` |

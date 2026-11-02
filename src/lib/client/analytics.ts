@@ -18,7 +18,13 @@ export type AnalyticsEvent =
   | "ambience_off"
   | "keepsake_save"
   | "keepsake_png_download"
-  | "archive_delete";
+  | "archive_delete"
+  | "exhibition_like"
+  | "exhibition_unlike"
+  | "exhibition_report"
+  | "artist_apply"
+  | "artist_exhibition_create"
+  | "artist_exhibition_publish";
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 

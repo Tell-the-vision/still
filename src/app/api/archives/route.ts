@@ -31,8 +31,7 @@ export const POST = handler(async (req) => {
   const body = await readJson<{ exhibitionId?: string }>(req);
   if (!body.exhibitionId) throw new HttpError("VALIDATION_FAILED", "exhibitionId가 필요합니다.");
   const exhibition = await findExhibition(body.exhibitionId);
-  if (!exhibition || exhibition.status !== "ACTIVE")
-    throw new HttpError("RESOURCE_NOT_FOUND", "전시를 찾을 수 없습니다.");
+  if (!exhibition) throw new HttpError("RESOURCE_NOT_FOUND", "전시를 찾을 수 없습니다.");
   const { archive, created } = await getOrCreateArchive(user.id, exhibition.id);
   return ok({ archive, created }, created ? 201 : 200);
 });

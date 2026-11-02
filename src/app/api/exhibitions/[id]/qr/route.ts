@@ -1,15 +1,18 @@
 import QRCode from "qrcode";
 import { apiError, handler, type Params } from "@/lib/api";
-import { exhibitionUrl, findExhibition } from "@/lib/exhibitions";
+import { exhibitionUrl, findExhibitionAny } from "@/lib/exhibitions";
 
 /**
  * GET /api/exhibitions/{id|slug}/qr — SVG QR code pointing at /e/<slug>.
  * Print this for the venue. Query `?format=png` returns a PNG instead.
+ * Works for drafts too (artists print before publishing); the URL only
+ * opens to the public once the exhibition is ACTIVE.
  */
 export const GET = handler(async (req, { params }: Params<{ id: string }>) => {
   const { id } = await params;
-  const exhibition = await findExhibition(id);
-  if (!exhibition) return apiError("RESOURCE_NOT_FOUND", "전시를 찾을 수 없습니다.");
+  const exhibition = await findExhibitionAny(id);
+  if (!exhibition || exhibition.status === "DELETED")
+    return apiError("RESOURCE_NOT_FOUND", "전시를 찾을 수 없습니다.");
 
   const origin = new URL(req.url).origin;
   const target = exhibitionUrl(exhibition.slug, origin);

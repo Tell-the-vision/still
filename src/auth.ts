@@ -28,12 +28,22 @@ export const devLoginEnabled =
   process.env.ENABLE_DEV_LOGIN === "true" ||
   (process.env.NODE_ENV !== "production" && !googleEnabled);
 
+/** Emails listed in ADMIN_EMAILS (comma-separated) are promoted to ADMIN on sign-in. */
+export function isBootstrapAdmin(email: string) {
+  const list = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(email.toLowerCase());
+}
+
 async function upsertUser(input: {
   googleId: string;
   email: string;
   displayName: string;
   image?: string | null;
 }) {
+  const promote = isBootstrapAdmin(input.email);
   const existing = await db.query.users.findFirst({
     where: eq(users.googleId, input.googleId),
   });
@@ -44,6 +54,7 @@ async function upsertUser(input: {
         email: input.email,
         displayName: input.displayName || existing.displayName,
         image: input.image ?? existing.image,
+        ...(promote && existing.role !== "ADMIN" ? { role: "ADMIN" as const } : {}),
       })
       .where(eq(users.id, existing.id))
       .returning();
@@ -56,6 +67,7 @@ async function upsertUser(input: {
       email: input.email,
       displayName: input.displayName,
       image: input.image ?? null,
+      role: promote ? "ADMIN" : "USER",
     })
     .returning();
   return created;

@@ -206,6 +206,7 @@ async function upsertExhibition(item: SeedExhibition) {
     coverImageUrl: item.coverImageUrl,
     qrCodeUrl: `/api/exhibitions/${item.slug}/qr`,
     status: "ACTIVE" as const,
+    publishedAt: new Date(),
   };
 
   if (existing) {

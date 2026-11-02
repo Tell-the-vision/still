@@ -13,7 +13,31 @@ export type PendingAction =
   | { type: "scrap"; exhibitionSlug: string; guideSentenceId: string }
   | { type: "journal"; exhibitionSlug: string }
   | { type: "keepsake"; exhibitionSlug: string; templateId: string }
-  | { type: "archive-register"; exhibitionSlug: string };
+  | { type: "archive-register"; exhibitionSlug: string }
+  | { type: "like"; exhibitionSlug: string }
+  | { type: "report"; exhibitionSlug: string };
+
+/** "artist" when the person chose 아티스트 on the login screen (see LoginForm). */
+const INTENT_KEY = "still:signin-intent";
+export type SigninIntent = "user" | "artist";
+
+export function saveSigninIntent(intent: SigninIntent) {
+  try {
+    sessionStorage.setItem(INTENT_KEY, intent);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeSigninIntent(): SigninIntent | null {
+  try {
+    const v = sessionStorage.getItem(INTENT_KEY) as SigninIntent | null;
+    if (v) sessionStorage.removeItem(INTENT_KEY);
+    return v;
+  } catch {
+    return null;
+  }
+}
 
 const KEY = "still:pending-action";
 

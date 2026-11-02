@@ -4,9 +4,11 @@
  * My Archive (with count) and direct URL entry.
  */
 import { eq, count } from "drizzle-orm";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { archives } from "@/db/schema";
+import { currentUser, isAdmin, isArtist } from "@/lib/api";
 import { UrlEntry } from "@/components/home/UrlEntry";
 import { BottomNav, LinkButton, Wordmark } from "@/components/ui";
 
@@ -39,6 +41,14 @@ export default async function HomePage() {
 
   const [{ n }] = await db.select({ n: count() }).from(archives).where(eq(archives.userId, userId));
   const name = session.user.name?.trim();
+  const me = await currentUser();
+  const artistLabel = !me
+    ? null
+    : isArtist(me)
+      ? "Artist Studio"
+      : me.artistStatus === "PENDING"
+        ? "Artist Studio · 승인 대기"
+        : "아티스트 인증 신청";
 
   return (
     <main className="flex flex-col min-h-dvh">
@@ -64,6 +74,24 @@ export default async function HomePage() {
             <UrlEntry />
           </div>
         </section>
+
+        {me && (
+          <section className="mt-10 text-center text-xs space-x-4">
+            {artistLabel && (
+              <Link href={me.artistStatus === "NONE" && !isArtist(me) ? "/artist/apply" : "/artist"} className="underline underline-offset-4">
+                {artistLabel}
+              </Link>
+            )}
+            {isAdmin(me) && (
+              <Link href="/admin" className="underline underline-offset-4">
+                Admin
+              </Link>
+            )}
+          </section>
+        )}
+        {me?.status === "SUSPENDED" && (
+          <p className="mt-6 text-xs text-center text-muted">계정이 정지되어 기록 저장이 제한됩니다.{me.suspendedReason ? ` 사유: ${me.suspendedReason}` : ""}</p>
+        )}
       </div>
       <BottomNav active="home" />
     </main>

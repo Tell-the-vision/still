@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ExhibitionGuide } from "@/components/exhibition/ExhibitionGuide";
 import { PageHeader, Wordmark } from "@/components/ui";
-import { findExhibition, getGuide, groupGuide } from "@/lib/exhibitions";
+import { currentUser } from "@/lib/api";
+import { canManageExhibition } from "@/lib/artist";
+import { findExhibitionAny, getGuide, groupGuide, isPubliclyVisible } from "@/lib/exhibitions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,22 +13,39 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const ex = await findExhibition(slug);
+  const ex = await findExhibitionAny(slug);
   return { title: ex ? ex.title : "Exhibition" };
 }
 
-/** Screen 04 — Exhibition Guide (QR / URL target: /e/<slug>). Public. */
+/**
+ * Screen 04 — Exhibition Guide (QR / URL target: /e/<slug>). Public.
+ * Non-public exhibitions (draft / hidden / suspended artist) are shown only
+ * to their owner or an admin, in preview mode.
+ */
 export default async function ExhibitionPage({ params }: Props) {
   const { slug } = await params;
-  const exhibition = await findExhibition(slug);
-  if (!exhibition || exhibition.status !== "ACTIVE") notFound();
+  const row = await findExhibitionAny(slug);
+  if (!row) notFound();
+
+  const visible = isPubliclyVisible(row, row.owner);
+  const user = await currentUser();
+  const canManage = user ? canManageExhibition(user, row) : false;
+  if (!visible && !canManage) notFound();
+
+  const { owner: _owner, ...exhibition } = row;
+  void _owner;
   const sentences = await getGuide(exhibition.id);
 
   return (
     <main>
-      <PageHeader back="/" title={<Wordmark />} />
+      <PageHeader back={canManage && !visible ? `/artist/exhibitions/${exhibition.id}` : "/"} title={<Wordmark />} />
       <Suspense>
-        <ExhibitionGuide exhibition={exhibition} sections={groupGuide(sentences)} />
+        <ExhibitionGuide
+          exhibition={exhibition}
+          sections={groupGuide(sentences)}
+          preview={!visible}
+          isOwner={Boolean(user && exhibition.ownerId === user.id)}
+        />
       </Suspense>
     </main>
   );

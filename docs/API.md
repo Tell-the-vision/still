@@ -25,8 +25,11 @@
 | Method | Endpoint | 설명 |
 | --- | --- | --- |
 | GET/POST | `/api/auth/*` | Auth.js 핸들러 (`/api/auth/signin`, `/api/auth/callback/google`, `/api/auth/signout` …). 클라이언트에서는 `next-auth/react`의 `signIn('google', { redirectTo })` / `signOut()` 사용 |
-| GET | `/api/users/me` | `{ user: { id, email, displayName, image, createdAt } \| null }` |
+| GET | `/api/users/me` | `{ user: { id, email, displayName, image, role, status, artistStatus, artistName, …, createdAt } \| null }` |
 | DELETE | `/api/users/me` | 계정 + 모든 기록 삭제 → 204. 이후 클라이언트에서 `signOut()` 필요 |
+| POST | `/api/users/me/artist-application` `{ artistName, artistBio?, artistPortfolioUrl? }` | 아티스트 인증 신청 → `artistStatus=PENDING` (201) |
+
+`role ∈ USER \| ARTIST \| ADMIN`, `status ∈ ACTIVE \| SUSPENDED`, `artistStatus ∈ NONE \| PENDING \| APPROVED \| REJECTED`. 정지된 계정은 모든 쓰기 API에서 403.
 
 ## Exhibition (공개)
 
@@ -36,7 +39,13 @@
 | GET | `/api/exhibitions/{id}` | `{ exhibition }` — 404 if 없음/비활성 |
 | GET | `/api/exhibitions/{id}/guide` | `{ exhibitionId, sentences: GuideSentence[], sections: { section, sentences[] }[] }` |
 | GET | `/api/exhibitions/{id}/audio` | `{ mode: "EXTERNAL_PLAYLIST" \| "AMBIENCE", externalPlaylist: { provider, url, title, description } \| null, ambience: { enabled, type } }` — 우선순위 로직 적용됨 |
-| GET | `/api/exhibitions/{id}/qr` | SVG QR (`?format=png` → PNG). `/e/<slug>` 주소를 인코딩 |
+| GET | `/api/exhibitions/{id}/qr` | SVG QR (`?format=png` → PNG). `/e/<slug>` 주소를 인코딩. 초안도 발급 가능 |
+| GET | `/api/exhibitions/{id}/like` | `{ count, liked }` (게스트는 liked=false) |
+| POST / DELETE | `/api/exhibitions/{id}/like` | 좋아요 / 취소 (로그인, 멱등) |
+| GET | `/api/exhibitions/{id}/reports` | `{ reported }` — 내가 올린 미처리 신고가 있는지 |
+| POST | `/api/exhibitions/{id}/reports` `{ reason: INAPPROPRIATE\|COPYRIGHT\|SPAM\|OTHER, detail? }` | 신고 (201 / 이미 있으면 200). 본인 전시는 422 |
+
+공개 조회(`/api/exhibitions/*`, `/e/<slug>`)는 **ACTIVE이고 소유 아티스트가 정지되지 않은** 전시만 반환합니다. 초안/숨김 전시는 소유자·관리자에게만 `/e/<slug>` 미리보기로 열립니다.
 
 ## Archive (로그인 필요)
 
@@ -87,15 +96,47 @@ type KeepsakeContent = {
 
 PNG 내보내기는 서버 엔드포인트가 아니라 클라이언트(`src/lib/client/export-png.ts`)에서 수행합니다.
 
+## Artist Studio (승인된 아티스트 또는 관리자)
+
+| Method | Endpoint | 설명 |
+| --- | --- | --- |
+| GET | `/api/artist/exhibitions` | 내 전시 목록 (`likeCount`, `openReportCount`, `archiveCount` 포함) |
+| POST | `/api/artist/exhibitions` | 초안 생성. body: `{ title, subtitle?, venue?, startDate?, endDate?, description?, coverImageUrl?, guide?: [{ section, sentences: string[] }], audio?: { provider: NONE\|SPOTIFY\|APPLE_MUSIC, playlistUrl?, playlistTitle?, playlistDescription?, ambienceEnabled? } }` |
+| GET | `/api/artist/exhibitions/{id}` | 편집용 전체 데이터 `{ exhibition, guide, audio }` (소유자/관리자) |
+| PUT | `/api/artist/exhibitions/{id}` | 부분 수정 (POST와 같은 body). `guide`를 보내면 전체 교체하되 문장 내용이 같으면 id 유지 → 방문자 Scrap 연결 보존 |
+| POST | `/api/artist/exhibitions/{id}/status` `{ status: ACTIVE\|DRAFT }` | 공개 / 비공개. 공개하려면 해설 문장 1개 이상. HIDDEN은 소유자가 못 풂 |
+| DELETE | `/api/artist/exhibitions/{id}` | 소프트 삭제 (`status=DELETED`) |
+| POST | `/api/images` (multipart `file`, jpeg/png/webp ≤ 3MB) | 이미지 업로드 → `{ id, url: /api/images/{id} }` (DB에 저장되므로 Vercel에서도 동작) |
+| GET | `/api/images/{id}` | 이미지 서빙 (공개, 캐시 1년) |
+
+## Admin (ADMIN 전용, 아니면 403)
+
+| Method | Endpoint | 설명 |
+| --- | --- | --- |
+| GET | `/api/admin/stats` | `{ users, pendingArtists, exhibitions, activeExhibitions, openReports, suspendedUsers }` |
+| GET | `/api/admin/users?q=&filter=pending\|artists\|admins\|suspended` | 사용자 목록 |
+| GET | `/api/admin/users/{id}` | 사용자 + 그의 전시 |
+| PATCH | `/api/admin/users/{id}` | `{ artistDecision: APPROVE\|REJECT, note? }` / `{ role }` / `{ status: ACTIVE\|SUSPENDED, reason? }` (자기 자신 강등·정지 불가) |
+| DELETE | `/api/admin/users/{id}` | 계정 + 개인 기록 삭제 (그가 만든 전시는 소유자 없음으로 유지) |
+| GET | `/api/admin/exhibitions?q=&status=&reported=1` | 전체 전시 (소유자·좋아요·신고·방문자 수 포함) |
+| PATCH | `/api/admin/exhibitions/{id}` `{ status }` | DRAFT / ACTIVE / HIDDEN / DELETED |
+| DELETE | `/api/admin/exhibitions/{id}` | **완전 삭제** (방문자 Archive도 FK cascade로 삭제) |
+| GET | `/api/admin/reports?status=OPEN\|RESOLVED\|DISMISSED` | 신고 목록 |
+| PATCH | `/api/admin/reports/{id}` `{ status: RESOLVED\|DISMISSED, action?: NONE\|HIDE_EXHIBITION\|SUSPEND_ARTIST, note? }` | 처리. SUSPEND_ARTIST는 전시 숨김 + 소유자 정지. 같은 전시의 다른 OPEN 신고도 같이 종료 |
+
 ## 데이터 모델 요약
 
 ```
 users ─1:N─ archives ─1:N─ scraps        (UNIQUE archive_id + guide_sentence_id)
-                     ├─1:0..1─ journals  (UNIQUE archive_id)
-                     └─1:N─ digital_keepsakes
-exhibitions ─1:N─ guide_sentences
-            └─1:1─ audio_configurations
+      │              ├─1:0..1─ journals  (UNIQUE archive_id)
+      │              └─1:N─ digital_keepsakes
+      ├─1:N─ exhibitions (owner_id, NULL = 공식 콘텐츠) ─1:N─ guide_sentences
+      │                                                  ├─1:1─ audio_configurations
+      │                                                  ├─1:N─ exhibition_likes   (UNIQUE exhibition_id + user_id)
+      │                                                  └─1:N─ exhibition_reports (reporter_id, status, action)
+      └─1:N─ images (업로드 바이트를 BLOB으로 저장)
 archives: UNIQUE (user_id, exhibition_id); 모든 자식 테이블은 ON DELETE CASCADE
+users.role / status / artist_status, exhibitions.status (DRAFT·ACTIVE·HIDDEN·DELETED)
 ```
 
 전체 정의: `src/db/schema.ts`
