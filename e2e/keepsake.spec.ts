@@ -21,7 +21,16 @@ test("a web card shows on Archive Detail once saved", async ({ page, next }) => 
   expect(saved.json.result.data.created).toBe(true);
   await page.reload();
   await expect(page.getByText("01 web card")).toBeVisible();
-  await expect(page.getByText(saved.json.result.data.keepsake.card.sentences[0].content).first()).toBeVisible();
+  const webCard = page.getByLabel("Web card");
+  const text = saved.json.result.data.keepsake.card.sentences[0].content;
+  await expect(webCard).toContainText("STILL");
+  await expect(webCard).toContainText("Forms of Stillness");
+  await expect(webCard).toContainText(text);
+
+  await trpcCall(page, "keepsake.upsert", { code, templateId: "cover" });
+  await page.reload();
+  await expect(webCard).toContainText("Forms of Stillness");
+  await expect(webCard).not.toContainText(text);
 
   const unknown = await trpcCall(page, "keepsake.upsert", { code, templateId: "x" });
   expect(unknown.status).toBe(400);

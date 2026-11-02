@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "../../lib/trpc";
+import { KeepsakeCard } from "../../ui/KeepsakeCard";
 import { Section } from "../../ui/Section";
 import { Text } from "../../ui/Text";
 import { keepsakeStrings } from "./strings";
@@ -18,9 +19,7 @@ export function KeepsakeSection({ code }: { code: string }) {
   }
   return (
     <Section label={keepsakeStrings.present}>
-      {keepsake.card.sentences.map((sentence) => (
-        <Text key={sentence.sentenceId}>{sentence.content}</Text>
-      ))}
+      <KeepsakeCard card={keepsake.card} templateId={keepsake.templateId} />
     </Section>
   );
 }

@@ -18,3 +18,6 @@ export const fontFamily = {
   body: stack("DMSans_400Regular"),
   bodyMedium: stack("DMSans_500Medium"),
 };
+
+// Keepsake card: a 3:4 sheet, 360 wide by default.
+export const card = { width: 360, aspectRatio: 3 / 4, borderWidth: 1 };
