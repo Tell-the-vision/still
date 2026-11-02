@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { exchangeCode, readIdToken } from "../../../../../server/auth/google";
 import { signInWithIdentity } from "../../../../../server/auth/identity";
 import { consumeOAuthState } from "../../../../../server/auth/oauth-state";
-import { createWebSession, setSessionCookie } from "../../../../../server/auth/sessions";
+import { linkIdentity } from "../../../../../server/services/identities";
+import { createWebSession, currentWebSession, setSessionCookie } from "../../../../../server/auth/sessions";
 
-type Result = { auth: "cancelled" | "failed" } | { link: "failed" };
+type Result = { auth: "cancelled" | "failed" } | { link: "created" | "exists" | "conflict" | "failed" };
 const redirectTo = (path: string, result?: Result) => {
   const url = new URL(path, process.env.STILL_ORIGIN);
   if (result) for (const [key, value] of Object.entries(result)) url.searchParams.set(key, value);
@@ -34,7 +35,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
     });
     const profile = readIdToken(tokens.id_token, [clientId]);
-    if (linking) return redirectTo(stored.returnTo, failed); // resolved in A11b
+    if (linking) {
+      const session = await currentWebSession();
+      if (!session) return redirectTo(stored.returnTo, failed);
+      const { outcome } = await linkIdentity(session.userId, { provider: "GOOGLE", ...profile, refreshToken: tokens.refresh_token });
+      return redirectTo(stored.returnTo, { link: outcome });
+    }
     const { userId, userTokenId } = await signInWithIdentity({ provider: "GOOGLE", ...profile, refreshToken: tokens.refresh_token });
     await setSessionCookie(await createWebSession(userId, userTokenId));
     return redirectTo(stored.returnTo);

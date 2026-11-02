@@ -7,7 +7,7 @@ type Identity = { provider: "GOOGLE"; subject: string; email?: string; displayNa
 
 class DuplicateIdentity extends Error {}
 
-const findToken = (provider: string, subject: string) =>
+export const findToken = (provider: string, subject: string) =>
   db.query.userTokens.findFirst({ where: and(eq(userTokens.provider, provider), eq(userTokens.subject, subject)) });
 
 // SPEC §2.2 (Sign in 5): resolve by (provider, subject) only, never by email.
