@@ -4,14 +4,14 @@ import { Pressable, StyleSheet } from "react-native";
 import { Text } from "./Text";
 import { colors, focusRing } from "./theme";
 
-type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean; trailing?: string } & (
+type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean; trailing?: string; selected?: boolean } & (
   | { href: Href; onPress?: undefined }
   | { onPress: () => void; href?: undefined }
 );
 
 // Renders a link when given `href`, otherwise a button. Both show a focus ring on web.
 // `trailing` is a decorative suffix (e.g. an arrow) hidden from screen readers.
-export function Button({ label, variant = "primary", href, onPress, disabled = false, trailing }: Props) {
+export function Button({ label, variant = "primary", href, onPress, disabled = false, trailing, selected }: Props) {
   const primary = variant === "primary";
   const [focused, setFocused] = useState(false);
   // Tracked as state because a style function would break `Link asChild`.
@@ -20,6 +20,8 @@ export function Button({ label, variant = "primary", href, onPress, disabled = f
     <Pressable
       accessibilityRole={href === undefined ? "button" : "link"}
       accessibilityLabel={label}
+      accessibilityState={selected === undefined ? undefined : { selected }}
+      aria-pressed={selected}
       onPress={onPress}
       disabled={disabled}
       onPressIn={() => setPressed(true)}

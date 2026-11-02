@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { AudioSettings } from "../features/audio/AudioSettings";
 import { LinkedAccounts } from "../features/account/LinkedAccounts";
 import { PolicyLinks } from "../features/account/PolicyLinks";
 import { accountStrings } from "../features/account/strings";
@@ -52,7 +53,9 @@ export default function Account() {
         <Section label={accountStrings.linkedAccounts}>
           <LinkedAccounts />
         </Section>
-        <Section label={accountStrings.preferences} />
+        <Section label={accountStrings.preferences}>
+          <AudioSettings />
+        </Section>
         <Section label={accountStrings.about}>
           <Text>{accountStrings.tagline}</Text>
           <Text>{accountStrings.aboutBody}</Text>

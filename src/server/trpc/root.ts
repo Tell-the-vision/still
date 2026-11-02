@@ -9,6 +9,7 @@ import { meRouter } from "./routers/me";
 import { policyRouter } from "./routers/policy";
 import { scrapRouter } from "./routers/scrap";
 import { sessionRouter } from "./routers/session";
+import { settingsRouter } from "./routers/settings";
 
 export const appRouter = router({
   archive: archiveRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   policy: policyRouter,
   scrap: scrapRouter,
   session: sessionRouter,
+  settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;
