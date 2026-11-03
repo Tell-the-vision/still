@@ -1,0 +1,12 @@
+**/node_modules
+.next
+public
+client/.expo
+client/dist
+test-results
+playwright-report
+.claude
+.git
+.env
+.env.*
+*.tsbuildinfo

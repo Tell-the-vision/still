@@ -1,0 +1,67 @@
+import { Link, type Href } from "expo-router";
+import { useState, type ComponentProps } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Mark } from "./Mark";
+import { Text, type TextVariant } from "./Text";
+import { focusRing, spacing } from "./theme";
+
+type Props = {
+  label: string;
+  accessibilityLabel?: string;
+  variant?: Extract<TextVariant, "action" | "secondary" | "subhead" | "label">;
+  tone?: "primary" | "secondary";
+  mark?: ComponentProps<typeof Mark>["shape"];
+  leading?: string;
+  trailing?: string;
+  disabled?: boolean;
+  active?: boolean;
+  download?: boolean;
+  target?: "_blank";
+} & ({ href: Href; onPress?: () => void } | { onPress: () => void; href?: undefined });
+
+// A borderless text action: a link with `href`, otherwise a button. `leading` and `trailing` are decorative glyphs.
+export function TextAction({ label, accessibilityLabel, variant = "action", tone, mark, leading, trailing, href, onPress, disabled = false, active, download, target }: Props) {
+  const [focused, setFocused] = useState(false);
+  // Tracked as state because a style function would break `Link asChild`.
+  const [pressed, setPressed] = useState(false);
+  // A disabled action is always gray.
+  const color = disabled ? "secondary" : tone;
+  const glyph = (text: string) => (
+    <Text variant={variant} tone={color} aria-hidden>
+      {text}
+    </Text>
+  );
+  const pressable = (
+    <Pressable
+      {...((download || target) && { hrefAttrs: { ...(download && { download: "" }), ...(target && { target, rel: "noopener noreferrer" }) } })}
+      accessibilityRole={href === undefined ? "button" : "link"}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
+      aria-pressed={active}
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={12}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      // Flattened because `Link asChild` forwards the style prop untouched.
+      style={StyleSheet.flatten([focused && focusRing, pressed && styles.pressed])}
+    >
+      <View style={styles.row}>
+        {mark ? <Mark shape={mark} /> : null}
+        {leading ? glyph(`${leading} `) : null}
+        <Text variant={variant} tone={color}>
+          {label}
+        </Text>
+        {trailing ? glyph(` ${trailing}`) : null}
+      </View>
+    </Pressable>
+  );
+  return href === undefined ? pressable : <Link href={href} asChild>{pressable}</Link>;
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.inset },
+  pressed: { opacity: 0.6 },
+});
