@@ -16,8 +16,9 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   await expect(page).toHaveURL(/\/archive$/);
   await expect(page.getByText("My Archive", { exact: true })).toHaveCSS("font-size", "32px");
   const card = page.getByRole("link", { name: "Forms of Stillness", exact: true });
-  await expect(card).toHaveCSS("border-top-width", "1px");
-  await expect(card).toContainText(/· 2026/);
+  // The mini card is the whole tile: no outer outline and no repeated caption under it.
+  await expect(card).toHaveCSS("border-top-width", "0px");
+  await expect(card.getByText("Forms of Stillness", { exact: true })).toHaveCount(1);
   // The tile leads with the exhibition's keepsake card in miniature.
   await expect(card.getByLabel("Keepsake preview")).toContainText("Forms of Stillness");
   await expect(card.getByLabel("Keepsake preview")).toContainText("STILL");
