@@ -36,4 +36,11 @@ test("a playlist exhibition shows the Spotify link and no switch on the journal"
   await openJournal(page, "forms-of-stillness");
   await expect(page.getByRole("link", { name: "EXTERNAL PLAYLIST · SPOTIFY" })).toBeVisible();
   await expect(page.getByRole("switch")).toHaveCount(0);
+  await expect(page.getByText("Pink Noise is user-controlled", { exact: false })).toHaveCount(0);
+});
+
+test("the Pink Noise caption shows with the switch on an ambience journal", async ({ page }) => {
+  await openJournal(page, "quiet-rooms");
+  await expect(page.getByRole("switch", { name: /Pink Noise/i })).toBeVisible();
+  await expect(page.getByText("Pink Noise is user-controlled", { exact: false })).toBeVisible();
 });

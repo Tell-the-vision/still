@@ -41,3 +41,24 @@ test("archive.list pages by last visit with a cursor", async ({ page, next }) =>
   expect(second.nextCursor).toBeNull();
   expect((await trpcCall(page, "archive.list", { cursor: "bad" })).status).toBe(400);
 });
+
+test("an empty archive gets a designed start with a primary QR Scan", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "START HERE" })).toBeVisible();
+  const scan = page.getByRole("link", { name: "QR Scan" });
+  await expect(scan).toBeInViewport();
+  await expect(scan).toHaveCSS("background-color", "rgb(0, 0, 0)");
+});
+
+test("the archive row right-aligns View all", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await visit(page, "forms-of-stillness");
+  await page.goto("/");
+  const box = await page.getByRole("link", { name: /View all/ }).boundingBox();
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThanOrEqual(300);
+});

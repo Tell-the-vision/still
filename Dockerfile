@@ -15,7 +15,7 @@ COPY . .
 # EXPO_PUBLIC_* values are baked into the web bundle at build time.
 ARG EXPO_PUBLIC_STILL_ORIGIN
 ENV EXPO_PUBLIC_STILL_ORIGIN=$EXPO_PUBLIC_STILL_ORIGIN
-RUN npm run web:export && npm run build
+RUN npm run build
 
 ENV NODE_ENV=production
 EXPOSE 3000

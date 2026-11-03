@@ -87,8 +87,8 @@ export default function KeepsakeCreator() {
   return (
     <Screen tabs>
       <Stack>
-        <Text variant="eyebrow">{strings.eyebrow}</Text>
         <Text variant="headline">{strings.heading}</Text>
+        <Text variant="eyebrow">{strings.eyebrow}</Text>
         <KeepsakeCard card={card} templateId={templateId} style={style} width={Math.min(width - 2 * spacing.gutter, cardTokens.width)} />
         <Text variant="label">{strings.layoutLabel}</Text>
         <Stack direction="row">

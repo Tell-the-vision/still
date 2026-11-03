@@ -5,7 +5,6 @@ import { archiveStrings } from "../../features/archive/strings";
 import { useRequireLogin } from "../../features/auth/require-login";
 import { useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
-import { Frame } from "../../ui/Frame";
 import { Notice } from "../../ui/Notice";
 import { Screen } from "../../ui/Screen";
 import { Stack } from "../../ui/Stack";
@@ -33,9 +32,8 @@ export default function Archive() {
       {me && data && items.length === 0 && (
         <Stack>
           {header}
-          <Frame aspectRatio={3 / 4}>
-            <Text variant="secondary">{archiveStrings.empty}</Text>
-          </Frame>
+          <Text variant="subhead">{archiveStrings.emptyTitle}</Text>
+          <Text variant="secondary">{archiveStrings.empty}</Text>
           <Button label={archiveStrings.scan} href="/scan" />
         </Stack>
       )}

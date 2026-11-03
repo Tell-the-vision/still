@@ -68,6 +68,7 @@ export default function Scan() {
             />
           )}
         </Viewfinder>
+        {notice && <Notice message={notice} error />}
         {permission && !permission.granted && <Notice message={entryStrings.cameraOff} />}
         <Stack gap="tight">
           <Text variant="label">{entryStrings.trouble}</Text>
@@ -85,8 +86,7 @@ export default function Scan() {
               autoCorrect={false}
               keyboardType="url"
             />
-            <Button label={entryStrings.open} variant="secondary" onPress={() => openTarget(value)} />
-            {notice && <Notice message={notice} error />}
+            <Button label={entryStrings.open} onPress={() => openTarget(value)} />
           </Stack>
         ) : (
           <Button label={entryStrings.enterUrl} onPress={() => setEntering(true)} />

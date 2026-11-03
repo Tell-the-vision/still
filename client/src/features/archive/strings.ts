@@ -1,6 +1,7 @@
 export const archiveStrings = {
   heading: "My Archive",
   count: (total: number) => `${String(total).padStart(2, "0")} EXPERIENCES`,
+  emptyTitle: "Nothing kept yet.",
   empty: "Exhibitions you open appear here, with the lines you saved and your journal.",
   scan: "QR Scan",
   error: "Could not load your archive.",

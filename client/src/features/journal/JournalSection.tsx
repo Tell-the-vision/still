@@ -44,7 +44,7 @@ export function JournalSection({ code }: { code: string }) {
   return (
     <Section labelVariant="row" label={strings.present}>
       <Stack>
-        <Text numberOfLines={3}>{journal.content}</Text>
+        <Text variant="action" numberOfLines={3}>{journal.content}</Text>
         <TextAction label={strings.edit} trailing="→" href={href} />
         <TextAction label={strings.delete} tone="secondary" onPress={() => setConfirming(true)} />
         {remove.isError && <Notice error message={strings.failed} />}

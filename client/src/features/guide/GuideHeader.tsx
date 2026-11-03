@@ -15,7 +15,7 @@ type Props = {
 
 export function GuideHeader({ title, venue, startDate, endDate, coverImage }: Props) {
   return (
-    <View style={{ gap: spacing.tight }}>
+    <View style={{ gap: spacing.tight, marginBottom: spacing.gap }}>
       <Text variant="eyebrow">{guideStrings.eyebrow(year(startDate))}</Text>
       <Text variant="display">{title}</Text>
       <Text variant="eyebrow">{venue.name}</Text>

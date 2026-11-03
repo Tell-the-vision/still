@@ -50,16 +50,18 @@ type LayoutProps = { card: Card; personal: string[]; caption: string };
 
 const white = { color: colors.white };
 
-// The saved card: wordmark, cover, title, personal record, caption.
+// The saved card: wordmark, cover, title, personal record, and the caption pinned to the bottom (Figma 06).
 function Plain({ card, personal, caption }: LayoutProps) {
   return (
-    <Fill padding gap>
-      <Wordmark size="card" />
-      {card.image && <Artwork {...card.image} />}
-      <Text variant="title">{card.exhibition.title}</Text>
-      {personal.map((text) => (
-        <Text key={text} variant="secondary">{text}</Text>
-      ))}
+    <Fill padding justify="space-between">
+      <View style={{ gap: spacing.inset }}>
+        <Wordmark size="card" />
+        {card.image && <Artwork {...card.image} />}
+        <Text variant="title">{card.exhibition.title}</Text>
+        {personal.map((text) => (
+          <Text key={text} variant="secondary">{text}</Text>
+        ))}
+      </View>
       <Text variant="caption">{caption}</Text>
     </Fill>
   );

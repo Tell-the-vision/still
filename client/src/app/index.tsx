@@ -25,7 +25,6 @@ export default function Home() {
             <Text variant="secondary">{homeStrings.tagline}</Text>
           </Stack>
           <CurrentExhibition />
-          <TextAction label={homeStrings.scan} href="/scan" variant="secondary" tone="primary" />
         </Stack>
       </Screen>
     );
@@ -34,8 +33,10 @@ export default function Home() {
     <Screen header={false}>
       <Stack centered gap="section">
         <Wordmark size="hero" />
-        <TextAction label={homeStrings.login} href="/login?returnTo=/" variant="subhead" mark="square" />
-        <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="circle" />
+        <Stack gap="section" align="flex-start">
+          <TextAction label={homeStrings.login} href="/login?returnTo=/" variant="subhead" mark="square" />
+          <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="circle" />
+        </Stack>
       </Stack>
     </Screen>
   );

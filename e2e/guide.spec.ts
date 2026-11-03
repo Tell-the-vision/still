@@ -41,3 +41,10 @@ test("a cover that fails to load leaves the text without a broken image", async 
   await expect(page.getByText("With Cover", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "Test cover" })).toHaveCount(0);
 });
+
+test("the header leaves room before the description", async ({ page }) => {
+  await openGuide(page, "forms-of-stillness");
+  const date = await page.getByText(/ · /).first().boundingBox();
+  const about = await page.getByText("About the exhibition").first().boundingBox();
+  expect(about && date && about.y - (date.y + date.height)).toBeGreaterThanOrEqual(32);
+});
