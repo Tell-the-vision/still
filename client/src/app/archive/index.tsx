@@ -23,11 +23,9 @@ export default function Archive() {
     trpc.archive.list.infiniteQueryOptions({ limit: 20 }, { getNextPageParam: (page) => page.nextCursor }),
   );
   const items = data?.pages.flatMap((page) => page.items) ?? [];
-  const totalSize = data?.pages[0]?.totalSize ?? 0;
   const header = (
     <View style={{ gap: spacing.inset, marginBottom: spacing.gutter }}>
       <Text variant="headline">{archiveStrings.heading}</Text>
-      <Text variant="eyebrow">{archiveStrings.count(totalSize)}</Text>
     </View>
   );
   return (

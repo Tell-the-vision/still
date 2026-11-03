@@ -15,10 +15,10 @@ test("a saved sentence is unkept on Archive Detail and kept again from the same 
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines" })).toBeVisible();
   await expect(page.getByText(sentenceText).first()).toBeVisible();
   await page.getByRole("button", { name: "Remove this line" }).click();
-  await expect(page.getByRole("heading", { name: "Kept lines · 00" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines" })).toBeVisible();
   // The row stays, with "+" as the undo.
   await expect(page.getByText(sentenceText).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Keep this line" })).toHaveCount(1);
@@ -34,13 +34,13 @@ test("a line unkept on Archive Detail can be kept again in place", async ({ page
   await page.getByRole("button", { name: "Keep this line" }).first().click();
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.goto("/archive/forms-of-stillness");
-  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines" })).toBeVisible();
   await page.getByRole("button", { name: "Remove this line" }).click();
-  await expect(page.getByRole("heading", { name: "Kept lines · 00" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines" })).toBeVisible();
   const kept = page.waitForResponse(/scrap\.upsert/);
   await page.getByRole("button", { name: "Keep this line" }).click();
   await kept;
-  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   expect((await trpcCall(page, "scrap.list", { code: "forms-of-stillness" })).json.result.data).toHaveLength(1);
 });

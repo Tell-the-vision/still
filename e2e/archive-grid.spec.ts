@@ -15,7 +15,6 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await expect(page).toHaveURL(/\/archive$/);
   await expect(page.getByText("My Archive", { exact: true })).toHaveCSS("font-size", "32px");
-  await expect(page.getByText("01 EXPERIENCES")).toHaveCSS("color", "rgb(102, 102, 102)");
   const card = page.getByRole("link", { name: "Forms of Stillness", exact: true });
   await expect(card).toHaveCSS("border-top-width", "1px");
   await expect(card).toContainText(/· 2026/);
@@ -28,7 +27,6 @@ test("an empty archive points to QR Scan", async ({ page, next }) => {
   await signIn(page);
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await expect(page.getByText("00 EXPERIENCES")).toBeVisible();
   await expect(page.getByText("Nothing kept yet.")).toBeVisible();
   // The header link and the empty-state action both lead to the scanner; the action is the one under test.
   const scan = page.getByRole("link", { name: "QR Scan" }).last();
