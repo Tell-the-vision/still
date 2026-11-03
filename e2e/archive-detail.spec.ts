@@ -15,8 +15,7 @@ test("an archive card opens its detail", async ({ page, next }) => {
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   await expect(page.getByText("Forms of Stillness", { exact: true }).last()).toBeVisible();
-  await expect(page.getByText("LAST VISITED")).toBeVisible();
-  await expect(page.getByText(/^\d{1,2} [A-Z][a-z]+ \d{4}$/)).toBeVisible();
+  await expect(page.getByText(/^Last visited \d{1,2} [A-Z][a-z]+ \d{4}$/)).toBeVisible();
   const borderTop = await page.getByRole("button", { name: "Delete this Archive" }).evaluate((el) => getComputedStyle(el).borderTopWidth);
   expect(borderTop).toBe("0px");
   await page.getByRole("link", { name: "Back to My Archive" }).click();

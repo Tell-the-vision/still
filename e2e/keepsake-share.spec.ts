@@ -44,3 +44,11 @@ test("without file sharing, the image can be long-pressed to save", async ({ pag
   await expect(image).toBeVisible();
   await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
 });
+
+test("on desktop the PNG is not rendered in the page and there is no long-press hint", async ({ page, next }) => {
+  await reachDetail(page, next);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.getByRole("link", { name: "Download PNG" })).toBeVisible();
+  await expect(page.getByText("Press and hold the image to save it.")).toHaveCount(0);
+  await expect(page.locator("img[src*='/api/media/keepsake']")).toHaveCount(0);
+});

@@ -23,6 +23,9 @@ export default function Archive() {
     trpc.archive.list.infiniteQueryOptions({ limit: 20 }, { getNextPageParam: (page) => page.nextCursor }),
   );
   const items = data?.pages.flatMap((page) => page.items) ?? [];
+  const columns = wide ? 4 : 2;
+  // Pad the last row with blanks so a lone tile keeps the column width instead of stretching across the row.
+  const cells = [...items, ...Array.from({ length: (columns - (items.length % columns)) % columns }, () => null)];
   const header = (
     <View style={{ gap: spacing.inset, marginBottom: spacing.gutter }}>
       <Text variant="headline">{archiveStrings.heading}</Text>
@@ -41,13 +44,13 @@ export default function Archive() {
       )}
       {me && items.length > 0 && (
         <FlatList
-          data={items}
+          data={cells}
           key={wide ? "wide" : "narrow"}
-          numColumns={wide ? 4 : 2}
-          keyExtractor={(item) => item.exhibition.code}
+          numColumns={columns}
+          keyExtractor={(item, index) => item?.exhibition.code ?? `blank-${index}`}
           columnWrapperStyle={{ gap: spacing.gap }}
           contentContainerStyle={{ gap: spacing.section }}
-          renderItem={({ item }) => <ArchiveCard archive={item} />}
+          renderItem={({ item }) => (item ? <ArchiveCard archive={item} /> : <View style={{ flex: 1 }} />)}
           onEndReached={() => hasNextPage && fetchNextPage()}
           ListHeaderComponent={header}
         />

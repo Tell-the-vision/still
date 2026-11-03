@@ -19,6 +19,8 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   await expect(card).toHaveCSS("border-top-width", "1px");
   await expect(card).toContainText(/· 2026/);
   await expect(card.locator("> *").first()).toHaveCSS("background-color", "rgb(237, 237, 237)");
+  // A lone tile stays one column wide, not a full-width block.
+  expect((await card.boundingBox())!.width).toBeLessThan(250);
 });
 
 test("an empty archive points to QR Scan", async ({ page, next }) => {
@@ -50,7 +52,8 @@ test("on desktop the archive grid has uses the wide column", async ({ page, next
   await page.goto("/archive");
   const card = page.getByRole("link", { name: "Forms of Stillness" });
   const box = await card.boundingBox();
-  // The desktop archive uses the 1144px wide column (the phone grid is capped at 560px).
-  expect(box!.width).toBeGreaterThan(720);
+  // Four columns in the 1144px wide column; a lone tile keeps its column width instead of stretching.
+  expect(box!.width).toBeGreaterThan(200);
+  expect(box!.width).toBeLessThan(320);
   await page.screenshot({ path: "/tmp/still-shots/shell/desktop-archive.png" });
 });

@@ -35,7 +35,7 @@ export function KeepsakeSection({ code, exhibition }: { code: string; exhibition
       <Stack>
         <KeepsakePresence code={code} exhibition={exhibition} hasGuide where="archive" />
         {keepsake && (
-          <Stack direction="row" gap="section">
+          <Stack>
             <DownloadPng code={code} url={keepsake.png.url} />
             <TextAction label={keepsakeStrings.delete} tone="secondary" onPress={() => setConfirming(true)} />
           </Stack>
