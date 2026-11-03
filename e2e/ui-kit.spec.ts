@@ -18,7 +18,7 @@ test("the camera notice is a status", async ({ page }) => {
 test("a failed document image disappears entirely", async ({ page }) => {
   await page.route("https://media.test.invalid/**", (route) => route.fulfill({ status: 404 }));
   await openGuide(page, "with-cover");
-  await expect(page.getByText("With Cover", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "With Cover" })).toBeVisible();
   await expect(page.getByLabel("Test cover")).toHaveCount(0);
 });
 

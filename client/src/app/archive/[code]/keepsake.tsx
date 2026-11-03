@@ -21,8 +21,9 @@ import { card as cardTokens, spacing } from "../../../ui/theme";
 
 // Web card creator: pick a template, preview it live, save.
 export default function KeepsakeCreator() {
-  const { code } = useLocalSearchParams<{ code: string }>();
-  const me = useRequireLogin(`/archive/${code}/keepsake`);
+  const { code, from } = useLocalSearchParams<{ code: string; from?: string }>();
+  const fromGuide = from === "guide";
+  const me = useRequireLogin(fromGuide ? `/archive/${code}/keepsake?from=guide` : `/archive/${code}/keepsake`);
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -46,10 +47,10 @@ export default function KeepsakeCreator() {
   const save = useMutation(
     trpc.keepsake.upsert.mutationOptions({
       onSuccess: (r, variables) => {
-        track("keepsake_save", { exhibition_code: code, template_id: variables.templateId });
+        track("keepsake_save", { exhibition_code: code, template_id: variables.templateId, source: fromGuide ? "guide" : "archive" });
         queryClient.setQueryData(trpc.keepsake.get.queryKey({ code }), r.keepsake);
         if (r.created) void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
-        router.replace(`/archive/${code}`);
+        router.replace(fromGuide ? `/e/${code}` : `/archive/${code}`);
       },
     }),
   );

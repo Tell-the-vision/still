@@ -7,14 +7,14 @@ test("deleting the web card keeps the saved sentences and the journal", async ({
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   await page.getByRole("button", { name: "Save Journal" }).click();
   await expect(page.getByText("Saved", { exact: true }).last()).toBeVisible();
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await page.getByRole("link", { name: "Create web card" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);

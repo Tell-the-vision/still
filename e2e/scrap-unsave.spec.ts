@@ -8,20 +8,20 @@ test("a saved sentence is unsaved from Archive Detail and can be saved again", a
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  const saveButton = page.getByRole("button", { name: "＋ Save this guide sentence" }).first();
+  const saveButton = page.getByRole("button", { name: "Keep this line" }).first();
   const sentenceText = (await saveButton.locator("xpath=preceding::*[normalize-space(text())][1]").innerText()).replace(/[“”]/g, "").trim();
   await saveButton.click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await expect(page.getByRole("heading", { name: "01 saved guide sentence" })).toBeVisible();
   await expect(page.getByText(sentenceText)).toBeVisible();
   await expect(page.getByRole("button", { name: "Unsave" })).toHaveCSS("border-top-width", "0px");
   await page.getByRole("button", { name: "Unsave" }).click();
   await expect(page.getByRole("heading", { name: "00 saved guide sentences" })).toBeVisible();
   await openGuide(page, "forms-of-stillness");
-  await expect(page.getByRole("button", { name: "＋ Save this guide sentence" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Keep this line" }).first()).toBeVisible();
 });
 
 test("unsaving is idempotent", async ({ page, next }) => {

@@ -13,7 +13,7 @@ test("deleting an archive removes it and a new visit recreates it", async ({ pag
     await upserted;
     await page.goto("/");
     await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-    await page.getByRole("link", { name: "Forms of Stillness" }).click();
+    await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   };
   await visit();
   await page.getByRole("button", { name: "Delete this Archive" }).click();

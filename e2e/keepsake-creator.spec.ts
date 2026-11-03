@@ -11,19 +11,19 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   await page.getByRole("button", { name: "Save Journal" }).click();
   await expect(page.getByText("Saved", { exact: true }).last()).toBeVisible();
 
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await page.getByRole("link", { name: "Create web card" }).click();
   await expect(page.getByRole("radio", { name: "Sentence" })).toHaveAttribute("aria-checked", "true");
   const cardBox = await page.getByLabel("Web card", { exact: true }).boundingBox();
-  const captionBox = await page.getByText("SEOUL / 2026").boundingBox();
+  const captionBox = await page.getByLabel("Web card", { exact: true }).getByText("SEOUL / 2026").boundingBox();
   expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0) - ((captionBox?.y ?? 0) + (captionBox?.height ?? 0))).toBeLessThanOrEqual(24);
   const headingBox = await page.getByRole("heading", { name: "Keep this moment." }).boundingBox();
   const eyebrowBox = await page.getByText("DIGITAL KEEPSAKE / WEB CARD").boundingBox();

@@ -15,7 +15,7 @@ export function DocumentView({
   renderSentence,
 }: {
   document: ExpandedDocument | null;
-  renderSentence?: (block: SentenceBlock) => ReactNode;
+  renderSentence?: (block: SentenceBlock, quote: ReactNode) => ReactNode;
 }) {
   return (
     <View style={{ gap: spacing.gap }}>
@@ -29,13 +29,10 @@ export function DocumentView({
             return (
               <Artwork key={i} url={block.url} altText={block.altText} width={block.width} height={block.height} />
             );
-          case "sentence":
-            return (
-              <View key={i} style={{ gap: spacing.inset }}>
-                <Text variant="quote">{quoted(block.text)}</Text>
-                {renderSentence?.(block)}
-              </View>
-            );
+          case "sentence": {
+            const quote = <Text variant="quote">{quoted(block.text)}</Text>;
+            return <View key={i}>{renderSentence ? renderSentence(block, quote) : quote}</View>;
+          }
           default:
             return null;
         }

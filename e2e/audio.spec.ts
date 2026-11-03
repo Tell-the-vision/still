@@ -1,30 +1,22 @@
 import { expect, test } from "next/experimental/testmode/playwright";
 import { openGuide } from "./support/reach";
 
-test("a playlist row is black and NO AUDIO toggles it for this screen", async ({ page }) => {
+test("the guide offers only the playlist link, below the cover and above the keepsake", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
-  await expect(page.getByText("LISTENING")).toBeVisible();
-  const link = page.getByRole("link", { name: "EXTERNAL PLAYLIST · SPOTIFY" });
+  const link = page.getByRole("link", { name: "Playlist on Spotify" });
   await expect(link).toHaveAttribute("href", /^https:\/\/open\.spotify\.com\//);
   await expect(link).toHaveAttribute("target", "_blank");
-  await expect(link).toHaveCSS("background-color", "rgb(0, 0, 0)");
-  const noAudio = page.getByRole("button", { name: "NO AUDIO" });
-  await noAudio.click();
-  await expect(noAudio).toHaveAttribute("aria-pressed", "true");
-  await expect(link).toHaveCSS("background-color", "rgb(255, 255, 255)");
-  await expect(page.getByText("Music already playing in other apps won't stop.")).toBeVisible();
-  await noAudio.click();
-  await expect(noAudio).toHaveAttribute("aria-pressed", "false");
-  await expect(link).toHaveCSS("background-color", "rgb(0, 0, 0)");
+  await expect(page.getByText("LISTENING")).toHaveCount(0);
+  await expect(page.getByText("NO AUDIO")).toHaveCount(0);
+  const playlist = await link.boundingBox();
+  const keepsake = await page.getByText("Your keepsake", { exact: true }).boundingBox();
+  expect(playlist && keepsake && playlist.y < keepsake.y).toBe(true);
 });
 
-test("ambience is an option as tall as the playlist option and starts off", async ({ page }) => {
+test("an ambience exhibition shows no audio on the guide", async ({ page }) => {
   await openGuide(page, "quiet-rooms");
-  await expect(page.getByRole("link", { name: /^EXTERNAL PLAYLIST/ })).toHaveCount(0);
-  const ambience = page.getByRole("switch", { name: /Pink Noise/i });
-  await expect(ambience).toHaveAttribute("aria-checked", "false");
-  const ambienceBox = await ambience.boundingBox();
-  await openGuide(page, "forms-of-stillness");
-  const playlistBox = await page.getByRole("link", { name: /^EXTERNAL PLAYLIST/ }).boundingBox();
-  expect(ambienceBox?.height).toBe(playlistBox?.height);
+  await expect(page.getByRole("heading", { name: "Quiet Rooms" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Playlist on/ })).toHaveCount(0);
+  await expect(page.getByRole("switch", { name: /Pink Noise/i })).toHaveCount(0);
+  await expect(page.getByText("NO AUDIO")).toHaveCount(0);
 });

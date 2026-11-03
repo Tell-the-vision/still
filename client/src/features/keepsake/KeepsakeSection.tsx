@@ -13,16 +13,13 @@ import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { card as cardTokens, spacing } from "../../ui/theme";
 import { DownloadPng } from "./DownloadPng";
+import { keepsakeQueryOptions } from "./keepsakeQuery";
 import { keepsakeStrings } from "./strings";
 
 // The web card on Archive Detail: the saved card, or an empty note, plus the way to the creator.
 export function KeepsakeSection({ code }: { code: string }) {
   const trpc = useTRPC();
-  const { data: keepsake } = useQuery({
-    ...trpc.keepsake.get.queryOptions({ code }),
-    // SPEC §11.10: refetch a minute before the signed PNG URL expires.
-    refetchInterval: ({ state }) => (state.data ? Math.max(Date.parse(state.data.png.expiresAt) - 60_000 - Date.now(), 1000) : false),
-  });
+  const { data: keepsake } = useQuery(keepsakeQueryOptions(trpc, code));
   const queryClient = useQueryClient();
   const { width } = useWindowDimensions();
   const [confirming, setConfirming] = useState(false);

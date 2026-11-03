@@ -8,7 +8,7 @@ test("Account uses kit headings, hides the button arrow from screen readers, and
   await signIn(page);
   await page.getByRole("link", { name: "ACCOUNT" }).click();
   await expect(page.getByRole("button", { name: "Log out", exact: true })).toBeVisible();
-  await expect(page.getByText("Log out →")).toBeVisible();
+  await expect(page.getByText("Log out", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "PREFERENCES" })).toBeVisible();
   await page.getByRole("button", { name: "Delete account", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Delete account" })).toBeVisible();

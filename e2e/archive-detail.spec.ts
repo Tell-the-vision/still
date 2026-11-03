@@ -12,7 +12,7 @@ test("an archive card opens its detail", async ({ page, next }) => {
   await upserted;
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   await expect(page.getByText("Forms of Stillness", { exact: true }).last()).toBeVisible();
   await expect(page.getByText("LAST VISITED")).toBeVisible();
@@ -30,8 +30,8 @@ test("collection groups are separated and the journal excerpt is small", async (
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   const saved = page.waitForResponse(/journal\.upsert/);

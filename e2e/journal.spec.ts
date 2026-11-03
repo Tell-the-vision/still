@@ -8,7 +8,7 @@ test("a signed-in visitor writes a journal, then edits it", async ({ page, next 
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
   await page.getByRole("link", { name: "Write a journal" }).click();
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness\/journal$/);
+  await expect(page).toHaveURL(/\/e\/forms-of-stillness\/journal(\?|$)/);
   await expect(page.getByRole("heading", { name: "Your journal." })).toHaveCSS("font-size", "32px");
   await expect(page.getByText("Forms of Stillness", { exact: true }).last()).toBeVisible();
   await expect(page.getByText("Your one journal for this exhibition.")).toHaveCSS("font-size", "14px");
