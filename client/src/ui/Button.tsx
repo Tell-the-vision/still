@@ -2,7 +2,7 @@ import { Link, type Href } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Text } from "./Text";
-import { colors, focusRing } from "./theme";
+import { colors, control, focusRing, spacing } from "./theme";
 
 type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean; trailing?: string; selected?: boolean; download?: boolean } & (
   | { href: Href; onPress?: () => void }
@@ -12,7 +12,8 @@ type Props = { label: string; variant?: "primary" | "secondary"; disabled?: bool
 // Renders a link when given `href`, otherwise a button. Both show a focus ring on web.
 // `download` (web) saves the linked file. `trailing` is a decorative suffix (e.g. an arrow) hidden from screen readers.
 export function Button({ label, variant = "primary", href, onPress, disabled = false, trailing, selected, download }: Props) {
-  const primary = variant === "primary";
+  // A selected secondary button reads as filled, like a primary one.
+  const primary = variant === "primary" || selected === true;
   const [focused, setFocused] = useState(false);
   // Tracked as state because a style function would break `Link asChild`.
   const [pressed, setPressed] = useState(false);
@@ -42,7 +43,7 @@ export function Button({ label, variant = "primary", href, onPress, disabled = f
 }
 
 const styles = StyleSheet.create({
-  base: { minWidth: 240, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: colors.black },
+  base: { alignSelf: "stretch", minHeight: control.height, justifyContent: "center", paddingHorizontal: spacing.gap, alignItems: "center", borderWidth: 1, borderColor: colors.black },
   primary: { backgroundColor: colors.black },
   secondary: { backgroundColor: colors.white },
   disabled: { opacity: 0.4 },

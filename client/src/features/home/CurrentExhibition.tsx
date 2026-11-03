@@ -3,6 +3,7 @@ import { useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Section } from "../../ui/Section";
 import { Text } from "../../ui/Text";
+import { TextAction } from "../../ui/TextAction";
 import { homeStrings } from "./strings";
 
 // Home 02: the most recently visited exhibition, plus the archive size. Nothing for an empty archive.
@@ -20,7 +21,7 @@ export function CurrentExhibition() {
       </Section>
       <Section label={homeStrings.archive}>
         <Text>{homeStrings.saved(data.totalSize)}</Text>
-        <Button label={homeStrings.viewAll} trailing="→" variant="secondary" href="/archive" />
+        <TextAction label={homeStrings.viewAll} trailing="→" variant="secondary" tone="primary" href="/archive" />
       </Section>
     </>
   );
