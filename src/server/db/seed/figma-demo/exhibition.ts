@@ -13,6 +13,8 @@ type Board = {
   sentences: string[];
   coverAlt: string;
   detailAlt: string;
+  // The board's playlist card; its link is on the "Playlist link note" text.
+  playlist: { title: string; description: string; url: string };
   // First id in this exhibition's id block, e.g. 2100.
   idBase: number;
 };
@@ -42,8 +44,7 @@ export function exhibitionFromBoard(b: Board): ContentPackage["exhibitions"][num
     endDate: b.endDate,
     status: "PUBLISHED",
     ambienceEnabled: true,
-    // The boards name a playlist but have no link yet.
-    playlist: null,
+    playlist: { provider: "APPLE_MUSIC", ...b.playlist },
     sentences,
     images: [
       { id: coverId, file: `${images}/cover.webp`, altText: b.coverAlt, width: 1200, height: 1500 },

@@ -23,6 +23,11 @@ const pkg: ContentPackage = {
       ],
       coverAlt: "Pale translucent panels overlap like doorways on a soft gray ground, with a white circle of light at the upper right and a thin floor line below.",
       detailAlt: "A narrow white passage framed by layered pale panels, with a soft circle of light at the upper right.",
+      playlist: {
+        title: "Places & Memories",
+        description: "A playlist for spaces we carry with us.",
+        url: "https://music.apple.com/kr/playlist/places-and-memories/pl.u-BNA66GjC1Kkdvmz",
+      },
       idBase: 2100,
     }),
     exhibitionFromBoard({
@@ -41,6 +46,11 @@ const pkg: ContentPackage = {
       ],
       coverAlt: "Gray panels step from light to dark around a bright white opening, with a white circle at the upper right and a thin floor line below.",
       detailAlt: "A black slit inside nested gray frames on a black ground, with a bright white circle at the upper right.",
+      playlist: {
+        title: "After the End",
+        description: "A listening note on time, life and what remains.",
+        url: "https://music.apple.com/kr/playlist/after-the-end/pl.u-leyllV8HjyaK2kL",
+      },
       idBase: 2200,
     }),
   ],
