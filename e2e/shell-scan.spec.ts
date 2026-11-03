@@ -40,7 +40,7 @@ test.describe("desktop", () => {
     await signIn(page);
     await page.goto("/e/forms-of-stillness");
     await page.getByRole("button", { name: "Keep this line" }).first().click();
-    await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
     await page.goto("/archive/forms-of-stillness/keepsake");
     const card = await page.getByLabel("Web card", { exact: true }).boundingBox();
     expect(card!.x + card!.width / 2).toBeCloseTo(640, -1);
