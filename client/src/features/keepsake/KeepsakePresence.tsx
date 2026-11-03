@@ -67,12 +67,10 @@ export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }
       break;
   }
 
-  // On Archive Detail the card is the focal point: larger, centred, with its title and next step beneath.
+  // On Archive Detail the card already leads the page (KeepsakeHero): the panel is the status and the next step only.
   if (where === "archive") {
     return (
       <View style={{ alignItems: "center", gap: spacing.gap, alignSelf: "stretch" }}>
-        <KeepsakeThumb scale={0.8} card={k.card} templateId={k.templateId} placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined} entering={k.entering} onPress={open} />
-        <Text variant="subhead">{strings.band}</Text>
         <View accessibilityLiveRegion="polite" style={{ alignItems: "center" }}>{status}</View>
         {action}
       </View>

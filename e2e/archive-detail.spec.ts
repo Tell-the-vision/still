@@ -53,3 +53,23 @@ test("an unknown archive shows a quiet empty state", async ({ page, next }) => {
   await page.getByRole("link", { name: "My Archive", exact: true }).click();
   await expect(page).toHaveURL(/\/archive$/);
 });
+
+test("Archive Detail leads with the keepsake card, which opens the editor", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await openGuide(page, "forms-of-stillness");
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
+  await page.goto("/archive/forms-of-stillness");
+  const card = page.getByRole("button", { name: "Your keepsake card — edit" });
+  const kept = (await trpcCall(page, "scrap.list", { code: "forms-of-stillness" })).json.result.data[0].content;
+  await expect(card).toContainText("Forms of Stillness");
+  await expect(card).toContainText(kept);
+  // First visual: nothing but the title and meta sits above it.
+  const box = await card.boundingBox();
+  expect(box!.y).toBeLessThan(250);
+  await expect(page.getByRole("img")).toHaveCount(0);
+  await card.click();
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness\/keepsake\?from=archive/);
+});

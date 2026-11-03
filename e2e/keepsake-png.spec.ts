@@ -22,7 +22,7 @@ test("a saved web card downloads as a signed PNG", async ({ page, next }) => {
   await page.reload();
   await loaded;
 
-  const box = await page.getByLabel("Your keepsake card", { exact: true }).last().boundingBox();
+  const box = await page.getByRole("button", { name: "Your keepsake card — edit" }).boundingBox();
   expect((box?.x ?? 0) + (box?.width ?? Infinity)).toBeLessThanOrEqual((page.viewportSize()?.width ?? 0) - 24);
 
   const downloading = page.waitForEvent("download");

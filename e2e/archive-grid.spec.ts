@@ -18,7 +18,9 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   const card = page.getByRole("link", { name: "Forms of Stillness", exact: true });
   await expect(card).toHaveCSS("border-top-width", "1px");
   await expect(card).toContainText(/· 2026/);
-  await expect(card.locator("> *").first()).toHaveCSS("background-color", "rgb(237, 237, 237)");
+  // The tile leads with the exhibition's keepsake card in miniature.
+  await expect(card.getByLabel("Keepsake preview")).toContainText("Forms of Stillness");
+  await expect(card.getByLabel("Keepsake preview")).toContainText("STILL");
   // A lone tile stays one column wide, not a full-width block.
   expect((await card.boundingBox())!.width).toBeLessThan(250);
 });

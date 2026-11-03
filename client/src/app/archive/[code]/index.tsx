@@ -9,7 +9,7 @@ import { JournalSection } from "../../../features/journal/JournalSection";
 import { KeepsakeSection } from "../../../features/keepsake/KeepsakeSection";
 import { longDate, year } from "../../../lib/dates";
 import { useTRPC } from "../../../lib/trpc";
-import { Artwork } from "../../../ui/Artwork";
+import { KeepsakeHero } from "../../../features/keepsake/KeepsakeHero";
 import { Button } from "../../../ui/Button";
 import { Rule } from "../../../ui/Rule";
 import { Screen } from "../../../ui/Screen";
@@ -41,7 +41,7 @@ export default function ArchiveDetail() {
           <BackLink />
           <Text variant="headline">{archive.exhibition.title}</Text>
           <Text variant="caption">{`${archive.exhibition.venue.name.toUpperCase()} · ${year(archive.exhibition.startDate)}`}</Text>
-          {archive.exhibition.coverImage && <Artwork {...archive.exhibition.coverImage} />}
+          <KeepsakeHero code={code} exhibition={archive.exhibition} />
           <Rule />
           <Stack gap="section">
             <KeepsakeSection code={code} exhibition={archive.exhibition} />
