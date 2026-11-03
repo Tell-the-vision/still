@@ -40,7 +40,7 @@ test("cancelling sign-in keeps the pending action for the next login", async ({ 
   await expect(page.getByText("Sign-in was cancelled.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(0);
   await stubGoogle(page);
-  await page.getByRole("link", { name: "HOME" }).click();
+  await page.getByRole("link", { name: "HOME", exact: true }).click();
   await page.getByRole("link", { name: "Login" }).click();
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
