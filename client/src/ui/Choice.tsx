@@ -9,13 +9,15 @@ type Props = {
   selected: boolean;
   role: "radio" | "switch" | "checkbox" | "button";
   layout?: "row" | "tile";
+  /** A shorter tile, for a picker that sits under other content. */
+  compact?: boolean;
   disabled?: boolean;
   textVariant?: TextVariant;
   target?: "_blank";
 } & ({ href: Href; onPress?: () => void } | { onPress: () => void; href?: undefined });
 
 // A bordered choice: black fill with white text when selected. A link with `href`, otherwise a button of the given role.
-export function Choice({ label, selected, role, layout = "row", disabled = false, textVariant = "secondary", target, href, onPress }: Props) {
+export function Choice({ label, selected, role, layout = "row", compact = false, disabled = false, textVariant = "secondary", target, href, onPress }: Props) {
   const [focused, setFocused] = useState(false);
   const pressable = (
     <Pressable
@@ -30,7 +32,7 @@ export function Choice({ label, selected, role, layout = "row", disabled = false
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       // Flattened because `Link asChild` forwards the style prop untouched.
-      style={StyleSheet.flatten([styles.base, layout === "row" ? styles.row : styles.tile, selected && styles.selected, focused && focusRing])}
+      style={StyleSheet.flatten([styles.base, layout === "row" ? styles.row : styles.tile, compact && styles.compact, selected && styles.selected, focused && focusRing])}
     >
       <Text variant={textVariant} style={{ color: selected ? colors.white : disabled ? colors.gray : colors.black }}>{label}</Text>
     </Pressable>
@@ -42,5 +44,6 @@ const styles = StyleSheet.create({
   base: { borderWidth: 1, borderColor: colors.black, backgroundColor: colors.white, justifyContent: "center" },
   row: { alignSelf: "stretch", minHeight: control.row, paddingHorizontal: spacing.inset + 2 },
   tile: { flex: 1, minHeight: control.tile, alignItems: "center" },
+  compact: { minHeight: control.compact },
   selected: { backgroundColor: colors.black },
 });

@@ -78,6 +78,29 @@ test("a visitor picks sentences and an excerpt; the server checks the excerpt", 
 
 const getKeepsake = async (page: Page) => (await trpcCall(page, "keepsake.get", { code })).json.result.data;
 
+test("a style changes only the preview; the saved card keeps the basic style", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await openGuide(page, code);
+  await trpcCall(page, "scrap.upsert", { code, sentenceId: "00000000-0000-4000-8000-000000000001" });
+
+  await page.goto(`/archive/${code}/keepsake`);
+  await expect(page.getByTestId("keepsake-card-plain")).toBeVisible();
+  await expect(page.getByText("Preview only. The saved card and PNG keep the basic style.")).toBeVisible();
+  for (const [label, style] of [["Overlay", "overlay"], ["Frame", "frame"], ["Quote", "quote"]]) {
+    await page.getByRole("radio", { name: label, exact: true }).click();
+    await expect(page.getByRole("radio", { name: label, exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId(`keepsake-card-${style}`)).toBeVisible();
+  }
+
+  const upsert = page.waitForRequest((r) => r.url().includes("keepsake.upsert"));
+  await page.getByRole("button", { name: "Save Web Card" }).click();
+  expect((await upsert).postData()).not.toContain("quote");
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  await expect(page.getByTestId("keepsake-card-plain")).toBeVisible();
+});
+
 test("editing a web card starts from the saved picks", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);

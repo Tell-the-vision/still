@@ -4,7 +4,7 @@ import { colors } from "./tokens";
 
 export { card, colors, fontSize, spacing } from "./tokens";
 
-export const control = { height: 52, row: 42, tile: 56 };
+export const control = { height: 52, row: 42, tile: 56, compact: 40 };
 export const rule = 1;
 export const pageField = { minHeight: 300 };
 export const mark = { square: 20, circle: 22 };

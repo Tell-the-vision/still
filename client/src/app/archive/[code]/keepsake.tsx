@@ -10,7 +10,7 @@ import { useTRPC } from "../../../lib/trpc";
 import { DownloadPng } from "../../../features/keepsake/DownloadPng";
 import { Button } from "../../../ui/Button";
 import { Choice } from "../../../ui/Choice";
-import { KeepsakeCard } from "../../../ui/KeepsakeCard";
+import { KeepsakeCard, type KeepsakeStyle } from "../../../ui/KeepsakeCard";
 import { Notice } from "../../../ui/Notice";
 import { Screen } from "../../../ui/Screen";
 import { Section } from "../../../ui/Section";
@@ -42,6 +42,8 @@ export default function KeepsakeCreator() {
   const [sentenceIds, setSentenceIds] = useState<string[]>();
   const [excerpt, setExcerpt] = useState<string | null>();
   const changed = picked !== undefined || sentenceIds !== undefined || excerpt !== undefined;
+  // A preview-only experiment: not sent on save, so it never counts as a change.
+  const [style, setStyle] = useState<KeepsakeStyle>("plain");
   const templateId = picked ?? saved?.templateId ?? "sentence";
   const save = useMutation(
     trpc.keepsake.upsert.mutationOptions({
@@ -87,13 +89,20 @@ export default function KeepsakeCreator() {
       <Stack>
         <Text variant="eyebrow">{strings.eyebrow}</Text>
         <Text variant="headline">{strings.heading}</Text>
-        <KeepsakeCard card={card} templateId={templateId} width={Math.min(width - 2 * spacing.gutter, cardTokens.width)} />
+        <KeepsakeCard card={card} templateId={templateId} style={style} width={Math.min(width - 2 * spacing.gutter, cardTokens.width)} />
         <Text variant="label">{strings.layoutLabel}</Text>
         <Stack direction="row">
           {strings.templates.map((t) => (
-            <Choice key={t.id} layout="tile" role="radio" label={t.label} selected={t.id === templateId} onPress={() => setPicked(t.id)} />
+            <Choice key={t.id} layout="tile" compact role="radio" label={t.label} selected={t.id === templateId} onPress={() => setPicked(t.id)} />
           ))}
         </Stack>
+        <Text variant="label">{strings.styleLabel}</Text>
+        <Stack direction="row">
+          {strings.styles.map((s) => (
+            <Choice key={s.id} layout="tile" compact role="radio" label={s.label} selected={s.id === style} onPress={() => setStyle(s.id)} />
+          ))}
+        </Stack>
+        <Text variant="secondary">{strings.styleNote}</Text>
         {templateId !== "cover" && (
           <Section label={strings.onTheCard}>
             <Stack gap="inset">
