@@ -1,5 +1,6 @@
 import { track } from "../../lib/analytics";
 import { useQuery } from "@tanstack/react-query";
+import { useIsFocused } from "expo-router";
 import { useEffect, useState } from "react";
 import { STALE_TIME, useTRPC } from "../../lib/trpc";
 import { useMe } from "../auth/use-me";
@@ -21,6 +22,7 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
   // A guest has no saved settings and is AUTO.
   const settings = useQuery(trpc.settings.get.queryOptions(undefined, { enabled: me !== null, staleTime: STALE_TIME.personal }));
   const choice = settings.data?.audioMode ?? "AUTO";
+  const focused = useIsFocused();
   const [muted, setMuted] = useState(false);
   const base = displayMode(choice, audio);
   const mode = muted ? "NONE" : base;
@@ -43,8 +45,7 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
             }}
           />
         )}
-        {base === "AMBIENCE" && (screen === "journal" ? <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} /> : <Text>{audioStrings.ambience}</Text>)}
-        {base === "AMBIENCE" && screen === "guide" && <Text variant="secondary">{audioStrings.ambienceHint}</Text>}
+        {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} />}
         {base === "NONE" && <Text>{audioStrings.none}</Text>}
         {base !== "NONE" && <TextAction variant="secondary" label={audioStrings.none} active={muted} tone={muted ? "primary" : "secondary"} onPress={() => setMuted(!muted)} />}
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}

@@ -1,8 +1,6 @@
 export const audioStrings = {
   section: "LISTENING",
   listen: { SPOTIFY: "EXTERNAL PLAYLIST · SPOTIFY", APPLE_MUSIC: "EXTERNAL PLAYLIST · APPLE MUSIC" },
-  ambience: "STILL AMBIENCE · PINK NOISE",
-  ambienceHint: "Play it while writing your journal.",
   pinkNoise: "STILL AMBIENCE · PINK NOISE",
   playFailed: "Couldn't play Pink Noise.",
   settingsLink: "Audio settings",

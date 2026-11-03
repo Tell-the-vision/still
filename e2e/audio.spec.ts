@@ -18,9 +18,13 @@ test("a playlist row is black and NO AUDIO toggles it for this screen", async ({
   await expect(link).toHaveCSS("background-color", "rgb(0, 0, 0)");
 });
 
-test("ambience is shown without a toggle when there is no playlist", async ({ page }) => {
+test("ambience is an option as tall as the playlist option and starts off", async ({ page }) => {
   await openGuide(page, "quiet-rooms");
   await expect(page.getByRole("link", { name: /^EXTERNAL PLAYLIST/ })).toHaveCount(0);
-  await expect(page.getByText("STILL AMBIENCE · PINK NOISE")).toBeVisible();
-  await expect(page.getByRole("switch")).toHaveCount(0);
+  const ambience = page.getByRole("switch", { name: /Pink Noise/i });
+  await expect(ambience).toHaveAttribute("aria-checked", "false");
+  const ambienceBox = await ambience.boundingBox();
+  await openGuide(page, "forms-of-stillness");
+  const playlistBox = await page.getByRole("link", { name: /^EXTERNAL PLAYLIST/ }).boundingBox();
+  expect(ambienceBox?.height).toBe(playlistBox?.height);
 });
