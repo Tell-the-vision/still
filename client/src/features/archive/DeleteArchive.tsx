@@ -6,13 +6,13 @@ import { queryPath, useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Notice } from "../../ui/Notice";
-import { Text } from "../../ui/Text";
+import { TextAction } from "../../ui/TextAction";
 import { archiveStrings } from "./strings";
 
 // Cache entries of this exhibition that die with the archive. Matched by path so later procedures need no edit here.
 const AFTER_DELETE = { "archive.get": null, "journal.get": null, "keepsake.get": null, "scrap.list": [] };
 
-export function DeleteArchive({ code }: { code: string }) {
+export function DeleteArchive({ code, title }: { code: string; title: string }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -36,11 +36,11 @@ export function DeleteArchive({ code }: { code: string }) {
   };
   return (
     <>
-      <Button label={archiveStrings.delete} trailing="→" variant="secondary" disabled={remove.isPending} onPress={() => setConfirming(true)} />
+      <TextAction label={archiveStrings.delete} variant="secondary" trailing="→" disabled={remove.isPending} onPress={() => setConfirming(true)} />
       {failed ? <Notice error message={archiveStrings.deleteFailed} /> : null}
-      <Dialog label={archiveStrings.delete} body={archiveStrings.deleteWarning} visible={confirming} onClose={() => setConfirming(false)}>
-        <Button label={archiveStrings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
+      <Dialog label={archiveStrings.delete} body={archiveStrings.deleteWarning(title)} visible={confirming} onClose={() => setConfirming(false)}>
         <Button label={archiveStrings.confirmDelete} onPress={confirm} />
+        <Button label={archiveStrings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
       </Dialog>
     </>
   );
