@@ -4,7 +4,7 @@ import { appRouter } from "../../../../server/trpc/root";
 
 const MAX_BODY_BYTES = 100 * 1024;
 const PUBLIC_PATHS = ["exhibition.get", "exhibition.list", "guide.get"];
-const PUBLIC_CACHE = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400";
+const PUBLIC_CACHE = "public, max-age=60, s-maxage=300, stale-while-revalidate=300";
 // exhibition.list depends on today's date (Asia/Seoul), so it gets a short cache and no long stale window.
 const LIST_CACHE = "public, max-age=60, s-maxage=300";
 
