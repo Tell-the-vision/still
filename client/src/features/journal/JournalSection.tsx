@@ -11,7 +11,7 @@ import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { useDraft } from "./drafts";
-import { useSavedLabel } from "./last-saved";
+import { useSavedLabel } from "./saved-label";
 import { journalSectionStrings as strings } from "./strings";
 
 // Archive Detail section: the saved journal with Edit and Delete, or an invitation to write one.

@@ -9,7 +9,7 @@ import { useMe } from "../../../features/auth/use-me";
 import { KeepsakePresence } from "../../../features/keepsake/KeepsakePresence";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
-import { useSavedLabel } from "../../../features/journal/last-saved";
+import { useSavedLabel } from "../../../features/journal/saved-label";
 import { SentenceAction } from "../../../features/scrap/SentenceAction";
 import { track } from "../../../lib/analytics";
 import { STALE_TIME, useTRPC } from "../../../lib/trpc";
