@@ -1,3 +1,4 @@
+import { track } from "../../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -33,7 +34,8 @@ export default function KeepsakeCreator() {
   const templateId = picked ?? saved?.templateId ?? "sentence";
   const save = useMutation(
     trpc.keepsake.upsert.mutationOptions({
-      onSuccess: (r) => {
+      onSuccess: (r, variables) => {
+        track("keepsake_save", { exhibition_code: code, template_id: variables.templateId });
         queryClient.setQueryData(trpc.keepsake.get.queryKey({ code }), r.keepsake);
         if (r.created) void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
         router.replace(`/archive/${code}`);

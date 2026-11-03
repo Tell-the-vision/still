@@ -12,7 +12,7 @@ type Failure = "failed" | "photosDenied";
 const uriOf = (file: File) => (file as File & { uri: string }).uri;
 
 // The signed URL needs no auth header (SPEC §7.3), so the cache download is a plain GET.
-export function DownloadPng({ url }: { url: string }) {
+export function DownloadPng({ url }: { url: string; code: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [attempt, setAttempt] = useState(0);

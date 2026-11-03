@@ -1,3 +1,4 @@
+import { track } from "../lib/analytics";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -40,6 +41,7 @@ export default function Account() {
       setFailed(true);
       return;
     }
+    track("account_delete", {});
     await leave();
   };
   if (!me) return <Screen tabs headerRight>{null}</Screen>;

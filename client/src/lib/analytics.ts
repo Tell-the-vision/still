@@ -9,6 +9,19 @@ type Events = {
   exhibition_view: { exhibition_code: string };
   login_start: { source_action: string };
   login_success: { provider: "GOOGLE" };
+  scrap_save: { exhibition_code: string; sentence_id: string };
+  scrap_remove: { exhibition_code: string; sentence_id: string };
+  journal_create: { exhibition_code: string };
+  journal_update: { exhibition_code: string };
+  journal_delete: { exhibition_code: string };
+  audio_external_click: { provider: string; exhibition_code: string };
+  ambience_on: { exhibition_code: string };
+  ambience_off: { exhibition_code: string };
+  keepsake_save: { exhibition_code: string; template_id: string };
+  keepsake_delete: { exhibition_code: string; template_id: string };
+  keepsake_png_download: { exhibition_code: string };
+  archive_delete: { exhibition_code: string };
+  account_delete: Record<string, never>;
 };
 
 declare global {

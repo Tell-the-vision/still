@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
@@ -22,6 +23,7 @@ function SavedSentence({ code, scrap }: { code: string; scrap: { sentenceId: str
         queryClient.setQueryData(listKey, snapshot?.filter((scrap) => scrap.sentenceId !== sentenceId));
         return { snapshot };
       },
+      onSuccess: () => track("scrap_remove", { exhibition_code: code, sentence_id: scrap.sentenceId }),
       onError: (_error, _input, context) => queryClient.setQueryData(listKey, context?.snapshot),
       onSettled: () =>
         Promise.all([

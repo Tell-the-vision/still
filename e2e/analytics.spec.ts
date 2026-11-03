@@ -1,16 +1,14 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "next/experimental/testmode/playwright";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
+import { openGuide } from "./support/reach";
 
 type Entry = Record<string, unknown>;
 const dataLayer = (page: Page) => page.evaluate(() => (window as unknown as { dataLayer: Entry[] }).dataLayer);
 
-test("entry events reach the data layer, and login_success carries no email", async ({ page, next }) => {
-  const user = newUser();
-  stubGoogleToken(next, user);
-  await stubGoogle(page);
-  // The Google round trip reloads the page, so the data layer is mirrored into sessionStorage.
-  await page.addInitScript(() => {
+// The Google round trip reloads the page, so the data layer is mirrored into sessionStorage.
+const captureDataLayer = (page: Page) =>
+    page.addInitScript(() => {
     const layer: unknown[] = JSON.parse(sessionStorage.getItem("test:dataLayer") ?? "[]");
     layer.push = (...items) => {
       Array.prototype.push.apply(layer, items);
@@ -19,6 +17,12 @@ test("entry events reach the data layer, and login_success carries no email", as
     };
     (window as unknown as { dataLayer: unknown[] }).dataLayer = layer;
   });
+
+test("entry events reach the data layer, and login_success carries no email", async ({ page, next }) => {
+  const user = newUser();
+  stubGoogleToken(next, user);
+  await stubGoogle(page);
+  await captureDataLayer(page);
   await page.goto("/");
   await page.getByRole("link", { name: "QR Scan" }).click();
   await page.getByRole("textbox").fill("forms-of-stillness");
@@ -36,4 +40,28 @@ test("entry events reach the data layer, and login_success carries no email", as
   expect(after).toContainEqual(expect.objectContaining({ event: "login_start", source_action: "login" }));
   expect(after).toContainEqual(expect.objectContaining({ event: "login_success", provider: "GOOGLE" }));
   expect(JSON.stringify(after)).not.toContain(user.email);
+});
+
+test("record events carry codes and ids, never journal text", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await captureDataLayer(page);
+  await signIn(page);
+  await openGuide(page, "forms-of-stillness");
+  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
+  await expect.poll(async () => (await dataLayer(page)).map((e) => e.event)).toContain("scrap_save");
+  const popup = page.waitForEvent("popup");
+  await page.getByRole("link", { name: "Listen on Spotify" }).click();
+  await (await popup).close();
+
+  await page.getByRole("link", { name: "Write a journal" }).click();
+  for (const [text, event] of [["Quiet light.", "journal_create"], ["Quiet light, softer.", "journal_update"]]) {
+    await page.getByRole("textbox", { name: "Journal" }).fill(text);
+    await page.getByRole("button", { name: "Save Journal" }).click();
+    await expect.poll(async () => (await dataLayer(page)).map((e) => e.event)).toContain(event);
+  }
+  const entries = await dataLayer(page);
+  expect(entries).toContainEqual(expect.objectContaining({ event: "scrap_save", exhibition_code: "forms-of-stillness", sentence_id: expect.any(String) }));
+  expect(entries).toContainEqual(expect.objectContaining({ event: "audio_external_click", provider: "SPOTIFY", exhibition_code: "forms-of-stillness" }));
+  expect(JSON.stringify(entries)).not.toContain("Quiet light");
 });

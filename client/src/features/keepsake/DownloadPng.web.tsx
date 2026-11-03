@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
@@ -9,7 +10,7 @@ const strings = keepsakeStrings.png;
 
 // The signed URL needs no request inside the tap (SPEC §7.3): the PNG is fetched ahead into a File,
 // so Share can call navigator.share synchronously. Without file sharing, the image is long-pressable.
-export function DownloadPng({ url }: { url: string }) {
+export function DownloadPng({ url, code }: { url: string; code: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
@@ -26,7 +27,7 @@ export function DownloadPng({ url }: { url: string }) {
 
   return (
     <Stack>
-      <Button label={strings.download} variant="secondary" href={url} download />
+      <Button label={strings.download} variant="secondary" href={url} download onPress={() => track("keepsake_png_download", { exhibition_code: code })} />
       {canShareFiles ? (
         <Button
           label={strings.share}

@@ -37,7 +37,7 @@ export default function ExhibitionGuide() {
       <Screen tabs>
         <PendingActionRunner code={code} />
         <GuideHeader {...exhibition.data} />
-        <AudioArea audio={exhibition.data.audio} screen="guide" />
+        <AudioArea code={code} audio={exhibition.data.audio} screen="guide" />
         <DocumentView document={exhibition.data.description} />
         <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
         <Button label={guideStrings.writeJournal} trailing="→" variant="secondary" href={`/e/${code}/journal`} />

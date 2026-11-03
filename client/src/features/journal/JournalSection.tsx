@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useMe } from "../auth/use-me";
@@ -21,6 +22,7 @@ export function JournalSection({ code }: { code: string }) {
   const remove = useMutation(
     trpc.journal.delete.mutationOptions({
       onSuccess: () => {
+        track("journal_delete", { exhibition_code: code });
         setConfirming(false);
         draft.discard();
         queryClient.setQueryData(trpc.journal.get.queryKey({ code }), null);

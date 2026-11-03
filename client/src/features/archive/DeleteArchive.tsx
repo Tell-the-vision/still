@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -26,6 +27,7 @@ export function DeleteArchive({ code }: { code: string }) {
       setFailed(true);
       return;
     }
+    track("archive_delete", { exhibition_code: code });
     router.replace("/archive");
     for (const [path, value] of Object.entries(AFTER_DELETE)) {
       queryClient.setQueriesData({ predicate: (q) => queryPath(q.queryKey) === path && (q.queryKey[1] as { input?: { code?: string } } | undefined)?.input?.code === code }, value);

@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTRPC } from "../../lib/trpc";
@@ -24,6 +25,7 @@ export function KeepsakeSection({ code }: { code: string }) {
   const remove = useMutation(
     trpc.keepsake.delete.mutationOptions({
       onSuccess: () => {
+        track("keepsake_delete", { exhibition_code: code, template_id: keepsake?.templateId ?? "" });
         queryClient.setQueryData(trpc.keepsake.get.queryKey({ code }), null);
         void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
       },
@@ -46,7 +48,7 @@ export function KeepsakeSection({ code }: { code: string }) {
     <Section label={keepsakeStrings.present}>
       <Stack>
         <KeepsakeCard card={keepsake.card} templateId={keepsake.templateId} />
-        <DownloadPng url={keepsake.png.url} />
+        <DownloadPng code={code} url={keepsake.png.url} />
         <Button label={keepsakeStrings.edit} trailing="→" href={href} />
         <Button label={keepsakeStrings.delete} variant="secondary" onPress={() => setConfirming(true)} />
         {remove.isError && <Notice error message={keepsakeStrings.deleteFailed} />}

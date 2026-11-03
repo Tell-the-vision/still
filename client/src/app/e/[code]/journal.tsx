@@ -1,3 +1,4 @@
+import { track } from "../../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
@@ -32,6 +33,7 @@ export default function Journal() {
   const save = useMutation(
     trpc.journal.upsert.mutationOptions({
       onSuccess: (r) => {
+        track(r.created ? "journal_create" : "journal_update", { exhibition_code: code });
         queryClient.setQueryData(trpc.journal.get.queryKey({ code }), r.journal);
         if (r.created) void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
         setDraft(null);
@@ -91,7 +93,7 @@ export default function Journal() {
       {!journal.isPending && drafts.restored !== undefined && (
         <TextField multiline label={journalStrings.label} value={content} onChangeText={(text) => { setDraft(text); drafts.save(text); setSaved(false); }} />
       )}
-      {exhibition.data && <AudioArea audio={exhibition.data.audio} screen="journal" onModeChange={setAudioType} />}
+      {exhibition.data && <AudioArea code={code} audio={exhibition.data.audio} screen="journal" onModeChange={setAudioType} />}
       <Button label={journalStrings.save} disabled={save.isPending} onPress={submit} />
       {appCode === "JOURNAL_INVALID" && <Notice error message={journalStrings.invalid} />}
       {isNetworkError && <Notice error message={journalStrings.network} />}

@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ExpandedBlock } from "@still/shared/document";
 import { useRouter } from "expo-router";
@@ -36,6 +37,7 @@ export function SentenceAction({ code, sentence }: Props) {
         queryClient.setQueryData(listKey, [...(snapshot ?? []), entry]);
         return { snapshot };
       },
+      onSuccess: () => track("scrap_save", { exhibition_code: code, sentence_id: sentence.sentenceId }),
       onError: (_error, _input, context) => queryClient.setQueryData(listKey, context?.snapshot),
       onSettled: () =>
         Promise.all([

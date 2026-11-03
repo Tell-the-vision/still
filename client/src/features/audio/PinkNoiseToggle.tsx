@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { useFocusEffect } from "expo-router";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { useCallback, useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import { focusRing } from "../../ui/theme";
 import { audioStrings } from "./strings";
 
 // SPEC §6.1: Pink Noise plays only from this press and is Off on every mount, blur, unmount and background.
-export function PinkNoiseToggle() {
+export function PinkNoiseToggle({ code }: { code: string }) {
   const player = useAudioPlayer(require("../../../assets/audio/pink-noise.wav"));
   const [on, setOn] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -29,7 +30,10 @@ export function PinkNoiseToggle() {
   }, [stop]);
 
   const toggle = async () => {
-    if (on) return stop();
+    if (on) {
+      track("ambience_off", { exhibition_code: code });
+      return stop();
+    }
     try {
       setFailed(false);
       await setAudioModeAsync({
@@ -41,6 +45,7 @@ export function PinkNoiseToggle() {
       });
       await player.play();
       setOn(true);
+      track("ambience_on", { exhibition_code: code });
     } catch {
       setFailed(true);
       stop();

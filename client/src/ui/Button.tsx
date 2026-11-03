@@ -5,7 +5,7 @@ import { Text } from "./Text";
 import { colors, focusRing } from "./theme";
 
 type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean; trailing?: string; selected?: boolean; download?: boolean } & (
-  | { href: Href; onPress?: undefined }
+  | { href: Href; onPress?: () => void }
   | { onPress: () => void; href?: undefined }
 );
 
