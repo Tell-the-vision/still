@@ -7,6 +7,8 @@ import { spacing } from "./theme";
 
 type SentenceBlock = Extract<ExpandedBlock, { type: "sentence" }>;
 
+const quoted = (text: string) => (/^["“]/.test(text) ? text : `“${text}”`);
+
 // Renders a served document (SPEC §9). Text is plain, never HTML.
 export function DocumentView({
   document,
@@ -16,11 +18,11 @@ export function DocumentView({
   renderSentence?: (block: SentenceBlock) => ReactNode;
 }) {
   return (
-    <View style={{ gap: spacing.inset }}>
+    <View style={{ gap: spacing.gap }}>
       {document?.blocks.map((block, i) => {
         switch (block.type) {
           case "heading":
-            return <Text key={i} variant="title">{block.text}</Text>;
+            return <Text key={i} variant="subhead">{block.text}</Text>;
           case "paragraph":
             return <Text key={i}>{block.text}</Text>;
           case "image":
@@ -29,8 +31,8 @@ export function DocumentView({
             );
           case "sentence":
             return (
-              <View key={i}>
-                <Text>{block.text}</Text>
+              <View key={i} style={{ gap: spacing.inset }}>
+                <Text variant="quote">{quoted(block.text)}</Text>
                 {renderSentence?.(block)}
               </View>
             );

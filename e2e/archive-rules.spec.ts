@@ -29,7 +29,7 @@ test("an archive of an unpublished exhibition stays readable but cannot be creat
   const fresh = await browser.newContext({ baseURL });
   const freshPage = await fresh.newPage();
   await openGuide(freshPage, "status-flip");
-  await expect(freshPage.getByText("This exhibition isn't available.")).toBeVisible();
+  await expect(freshPage.getByText("Not available.")).toBeVisible();
   await fresh.close();
 
   expect((await trpcCall(page, "archive.upsert", { code: "status-flip" })).status).toBe(404);

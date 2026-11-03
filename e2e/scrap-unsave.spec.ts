@@ -9,7 +9,7 @@ test("a saved sentence is unsaved from Archive Detail and can be saved again", a
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
   const saveButton = page.getByRole("button", { name: "＋ Save this guide sentence" }).first();
-  const sentenceText = (await saveButton.locator("xpath=preceding::*[normalize-space(text())][1]").innerText()).trim();
+  const sentenceText = (await saveButton.locator("xpath=preceding::*[normalize-space(text())][1]").innerText()).replace(/[“”]/g, "").trim();
   await saveButton.click();
   await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
   await page.goto("/");

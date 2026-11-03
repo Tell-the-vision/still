@@ -13,7 +13,11 @@ import { STALE_TIME, useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
 import { DocumentView } from "../../../ui/DocumentView";
 import { Notice } from "../../../ui/Notice";
+import { Rule } from "../../../ui/Rule";
 import { Screen } from "../../../ui/Screen";
+import { Section } from "../../../ui/Section";
+import { Text } from "../../../ui/Text";
+import { TextAction } from "../../../ui/TextAction";
 
 // Exhibition Guide 04 (SPEC §3).
 export default function ExhibitionGuide() {
@@ -37,10 +41,15 @@ export default function ExhibitionGuide() {
       <Screen tabs>
         <PendingActionRunner code={code} />
         <GuideHeader {...exhibition.data} />
-        <AudioArea code={code} audio={exhibition.data.audio} screen="guide" />
+        <Text variant="subhead">{guideStrings.about}</Text>
         <DocumentView document={exhibition.data.description} />
-        <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
-        <Button label={guideStrings.writeJournal} trailing="→" variant="secondary" href={`/e/${code}/journal`} />
+        <AudioArea code={code} audio={exhibition.data.audio} screen="guide" />
+        <Rule />
+        <Section label={guideStrings.commentary}>
+          <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
+        </Section>
+        <Rule />
+        <TextAction label={guideStrings.writeJournal} trailing="→" variant="subhead" href={`/e/${code}/journal`} />
       </Screen>
     );
   }
@@ -48,12 +57,20 @@ export default function ExhibitionGuide() {
   if (!error) return <Screen tabs>{null}</Screen>;
 
   const notFound = error instanceof TRPCClientError && error.data?.code === "NOT_FOUND";
+  if (!notFound) {
+    return (
+      <Screen tabs>
+        <Notice message={guideStrings.loadFailed} error />
+        <TextAction label={guideStrings.retry} onPress={() => void Promise.all([exhibition.refetch(), guide.refetch()])} />
+      </Screen>
+    );
+  }
   return (
     <Screen tabs>
-      <Notice message={notFound ? guideStrings.unavailable : guideStrings.loadFailed} error />
-      {!notFound && (
-        <Button label={guideStrings.retry} onPress={() => void Promise.all([exhibition.refetch(), guide.refetch()])} />
-      )}
+      <Text variant="headline">{guideStrings.unavailableTitle}</Text>
+      <Text variant="secondary">{guideStrings.unavailable}</Text>
+      <Button label={guideStrings.scan} href="/scan" />
+      <TextAction label={guideStrings.backHome} trailing="→" href="/" />
     </Screen>
   );
 }

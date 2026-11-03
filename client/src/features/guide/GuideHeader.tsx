@@ -1,7 +1,9 @@
-import { View } from "react-native";
-import { longRange } from "../../lib/dates";
+import { longRange, year } from "../../lib/dates";
 import { Artwork } from "../../ui/Artwork";
+import { View } from "react-native";
 import { Text } from "../../ui/Text";
+import { spacing } from "../../ui/theme";
+import { guideStrings } from "./strings";
 
 type Props = {
   title: string;
@@ -13,11 +15,12 @@ type Props = {
 
 export function GuideHeader({ title, venue, startDate, endDate, coverImage }: Props) {
   return (
-    <View>
-      {coverImage && <Artwork {...coverImage} />}
-      <Text variant="title">{title}</Text>
-      <Text variant="secondary">{`${venue.name} · ${venue.city}`}</Text>
-      <Text variant="secondary">{longRange(startDate, endDate)}</Text>
+    <View style={{ gap: spacing.tight }}>
+      <Text variant="eyebrow">{guideStrings.eyebrow(year(startDate))}</Text>
+      <Text variant="display">{title}</Text>
+      <Text variant="eyebrow">{venue.name}</Text>
+      <Text variant="secondary">{`${venue.city} · ${longRange(startDate, endDate)}`}</Text>
+      {coverImage && <Artwork {...coverImage} caption={guideStrings.viewCaption} />}
     </View>
   );
 }
