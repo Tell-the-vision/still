@@ -52,7 +52,7 @@ export function KeepsakeCard({
         borderWidth: cardTokens.borderWidth,
       }}
     >
-      <View style={{ gap: spacing.inset, flexShrink: 1, minHeight: 0 }}>
+      <View style={{ gap: spacing.inset, flexShrink: 1, minHeight: 0, marginBottom: spacing.tight }}>
         <Wordmark size="card" />
         {image && <Cover image={image} innerWidth={innerWidth} />}
         <Text variant="title">{exhibition.title}</Text>

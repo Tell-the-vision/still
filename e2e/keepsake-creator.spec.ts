@@ -148,7 +148,8 @@ test("a long record shrinks the cover instead of cutting the text", async ({ pag
   const cardBox = await card.boundingBox();
   const excerptBox = await excerpt.boundingBox();
   const captionBox = await caption.boundingBox();
-  expect((excerptBox?.y ?? 0) + (excerptBox?.height ?? Infinity)).toBeLessThanOrEqual(captionBox?.y ?? 0);
+  const tight = 8 * ((cardBox?.width ?? 0) / 360); // spacing.tight, at the card's rendered scale
+  expect((excerptBox?.y ?? 0) + (excerptBox?.height ?? Infinity) + tight).toBeLessThanOrEqual(captionBox?.y ?? 0); // at least spacing.tight between text and caption
   expect((captionBox?.y ?? 0) + (captionBox?.height ?? Infinity)).toBeLessThanOrEqual((cardBox?.y ?? 0) + (cardBox?.height ?? 0));
 });
 

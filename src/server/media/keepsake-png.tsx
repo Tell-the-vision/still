@@ -82,7 +82,7 @@ export async function renderKeepsakePng(card: Card, templateId: string) {
   return new ImageResponse(
     (
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "100%", height: "100%", padding: spacing.gap * scale, background: colors.white, color: colors.black, border: `${cardTheme.borderWidth * scale}px solid ${colors.black}` }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: spacing.inset * scale, flexShrink: 1, minHeight: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: spacing.inset * scale, flexShrink: 1, minHeight: 0, marginBottom: spacing.tight * scale }}>
           <div style={{ flexShrink: 0, ...faces.display, fontSize: mark.size * scale, lineHeight: `${mark.line * scale}px`, letterSpacing: mark.tracking * scale }}>{mark.text}</div>
           {card.image && cover && (
             <div style={{ display: "flex", height: coverHeight(innerWidth, card.image) * scale, flexShrink: 1, minHeight: 0 }}>
