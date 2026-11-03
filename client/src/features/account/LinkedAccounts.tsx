@@ -9,6 +9,7 @@ import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Notice } from "../../ui/Notice";
 import { Rule } from "../../ui/Rule";
+import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { accountStrings } from "./strings";
@@ -54,13 +55,15 @@ export function LinkedAccounts() {
   const startLink = () =>
     Platform.OS === "web" ? window.location.assign("/api/auth/google?" + new URLSearchParams({ intent: "link", returnTo: "/account" })) : linkNative();
   return (
-    <>
+    <Stack gap="gap">
       {data?.map((identity, index) => (
         <Fragment key={identity.id}>
           {index > 0 ? <Rule /> : null}
-          <Text variant="caption">{accountStrings.provider}</Text>
-          <Text variant="action">{identity.email}</Text>
-          <TextAction label={accountStrings.unlink} variant="secondary" onPress={() => setConfirmingId(identity.id)} />
+          <Stack gap="tight">
+            <Text variant="caption">{accountStrings.provider}</Text>
+            <Text variant="action">{identity.email}</Text>
+            <TextAction label={accountStrings.unlink} variant="secondary" onPress={() => setConfirmingId(identity.id)} />
+          </Stack>
         </Fragment>
       ))}
       <TextAction label={accountStrings.linkAnother} leading="＋" disabled={link.isPending || (Platform.OS !== "web" && !google.ready)} onPress={startLink} />
@@ -69,6 +72,6 @@ export function LinkedAccounts() {
         <Button label={accountStrings.unlink} disabled={unlink.isPending} onPress={confirm} />
         <Button label={accountStrings.cancel} variant="secondary" onPress={() => setConfirmingId(null)} />
       </Dialog>
-    </>
+    </Stack>
   );
 }
