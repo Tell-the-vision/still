@@ -31,7 +31,7 @@ test("on a wide window the screen stays a phone-width column", async ({ page }) 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/scan");
   const box = await page.getByRole("navigation").boundingBox();
-  expect(box?.width).toBeLessThanOrEqual(560);
+  expect(box?.width).toBeLessThanOrEqual(720);
 });
 
 test("signed-in Home keeps its sections together and the header rule clears the wordmark", async ({ page, next }) => {

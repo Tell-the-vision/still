@@ -11,12 +11,15 @@ test("the signed PNG url downloads without any auth header", async ({ page, next
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, code);
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
   await trpcCall(page, "keepsake.upsert", { code, templateId: "sentence", sentenceIds: ["00000000-0000-4000-8000-000000000001"] });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  const loaded = page.waitForResponse((r) => r.url().includes("keepsake.get") && r.ok());
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
+  // The guide already holds the card as it was; reload so the detail reads the one just saved.
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  const loaded = page.waitForResponse((r) => r.url().includes("keepsake.get") && r.ok());
+  await page.reload();
   await loaded;
   await expect(page.getByText("Download PNG", { exact: true })).toBeVisible();
 

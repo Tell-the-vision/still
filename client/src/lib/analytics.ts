@@ -17,7 +17,8 @@ type Events = {
   audio_external_click: { provider: string; exhibition_code: string };
   ambience_on: { exhibition_code: string };
   ambience_off: { exhibition_code: string };
-  keepsake_save: { exhibition_code: string; template_id: string };
+  keepsake_save: { exhibition_code: string; template_id: string; source: "guide" | "archive" };
+  keepsake_open: { exhibition_code: string; source: "guide_band" | "archive" };
   keepsake_delete: { exhibition_code: string; template_id: string };
   keepsake_png_download: { exhibition_code: string };
   archive_delete: { exhibition_code: string };

@@ -15,7 +15,7 @@ test("a saved journal shows in Detail, where it can be deleted", async ({ page, 
 
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await expect(page.getByRole("heading", { name: "01 journal · editable" })).toBeVisible();
   await expect(page.getByText("Quiet light.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", "/e/forms-of-stillness/journal");

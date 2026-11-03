@@ -22,10 +22,11 @@ test("No audio saved in Account hides the playlist on the Guide and persists", a
   await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await page.getByLabel("Exhibition URL or code").fill("forms-of-stillness");
   await page.getByRole("button", { name: "Open" }).click();
-  await expect(page.getByText("Music already playing in other apps won't stop.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Listen on Spotify" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Forms of Stillness" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Playlist on Spotify" })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByText("Music already playing in other apps won't stop.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Forms of Stillness" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Playlist on Spotify" })).toHaveCount(0);
 });
 
 test("an unknown audio mode is rejected", async ({ page, next }) => {

@@ -14,7 +14,7 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   await expect(page).toHaveURL(/\/archive$/);
   await expect(page.getByText("My Archive", { exact: true })).toHaveCSS("font-size", "32px");
   await expect(page.getByText("01 EXPERIENCES")).toHaveCSS("color", "rgb(102, 102, 102)");
-  const card = page.getByRole("link", { name: "Forms of Stillness" });
+  const card = page.getByRole("link", { name: "Forms of Stillness", exact: true });
   await expect(card).toHaveCSS("border-top-width", "1px");
   await expect(card).toContainText(/· 2026/);
   await expect(card.locator("> *").first()).toHaveCSS("background-color", "rgb(237, 237, 237)");

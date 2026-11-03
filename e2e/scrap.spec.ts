@@ -9,16 +9,16 @@ test("a saved sentence stays saved after reload and can no longer be pressed", a
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveAttribute("aria-pressed", "true");
   await page.reload();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Saved" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
 });
 
 test("a guest is asked to log in", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
-  await expect(page.getByText("Login Required").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Keep this line" }).first()).toBeVisible();
 });
 
 test("a failed save shows Retry and a retry saves it", async ({ page, next }) => {
@@ -33,12 +33,12 @@ test("a failed save shows Retry and a retry saves it", async ({ page, next }) =>
       body: JSON.stringify([{ error: { message: "boom", code: -32603, data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 } } }]),
     });
   await page.route(/scrap\.upsert/, failing);
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Couldn't save.")).toBeVisible();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByText("Couldn't keep this line.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(0);
   await page.unroute(/scrap\.upsert/, failing);
   await page.getByRole("button", { name: "Retry" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
 });
 
 test("saving is idempotent, concurrent-safe and rejects another exhibition's sentence", async ({ page, next }) => {

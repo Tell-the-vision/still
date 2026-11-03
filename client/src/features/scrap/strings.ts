@@ -1,9 +1,9 @@
 export const scrapStrings = {
-  save: "＋ Save this guide sentence",
-  saved: "Saved",
-  saveFailed: "Couldn't save.",
+  keep: "Keep this line",
+  kept: "Kept",
+  signInHint: "Sign in to keep this line.",
+  saveFailed: "Couldn't keep this line.",
   retry: "Retry",
-  loginRequired: "Login Required",
   unsave: "Unsave",
   unsaveFailed: "Couldn't unsave. Retry.",
   savedCount: (total: number) => `${String(total).padStart(2, "0")} saved guide sentence${total === 1 ? "" : "s"}`,

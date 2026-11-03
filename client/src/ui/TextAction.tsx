@@ -26,8 +26,10 @@ export function TextAction({ label, accessibilityLabel, variant = "action", tone
   const [pressed, setPressed] = useState(false);
   // A disabled action is always gray.
   const color = disabled ? "secondary" : tone;
+  // Montserrat's arrow sits low at the larger sizes, so it is lifted to the label's x-height.
+  const lift = variant === "subhead" ? -2 : -1;
   const glyph = (text: string) => (
-    <Text variant={variant} tone={color} aria-hidden>
+    <Text variant={variant} tone={color} aria-hidden style={{ transform: [{ translateY: lift }] }}>
       {text}
     </Text>
   );
@@ -50,11 +52,11 @@ export function TextAction({ label, accessibilityLabel, variant = "action", tone
     >
       <View style={styles.row}>
         {mark ? <Mark shape={mark} /> : null}
-        {leading ? glyph(`${leading} `) : null}
+        {leading ? glyph(leading) : null}
         <Text variant={variant} tone={color}>
           {label}
         </Text>
-        {trailing ? glyph(` ${trailing}`) : null}
+        {trailing ? glyph(trailing) : null}
       </View>
     </Pressable>
   );

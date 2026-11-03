@@ -2,12 +2,11 @@ import { track } from "../../lib/analytics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ExpandedBlock } from "@still/shared/document";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, type RefObject } from "react";
-import { View, type HostInstance } from "react-native";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View, type HostInstance } from "react-native";
 import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
 import { Notice } from "../../ui/Notice";
-import { TextAction } from "../../ui/TextAction";
-import { Text } from "../../ui/Text";
+import { colors, focusRing, spacing } from "../../ui/theme";
 import { savePendingAction } from "../auth/pending-action";
 import { useMe } from "../auth/use-me";
 import { scrapStrings } from "./strings";
@@ -16,10 +15,10 @@ import { useSavedSentences } from "./useSavedSentences";
 // Root views of the mounted sentences, so a restored one can be scrolled back into view.
 export const sentenceViews = new Map<string, RefObject<HostInstance | null>>();
 
-type Props = { code: string; sentence: Extract<ExpandedBlock, { type: "sentence" }> };
+type Props = { code: string; sentence: Extract<ExpandedBlock, { type: "sentence" }>; quote: ReactNode };
 
-// Save control under a guide sentence (SPEC §4.1): guests log in, saved sentences show a plain label.
-export function SentenceAction({ code, sentence }: Props) {
+// The quote with a mark beside it (SPEC §4.1): "+" keeps the line, a dot shows it is kept. Guests sign in first.
+export function SentenceAction({ code, sentence, quote }: Props) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -46,6 +45,7 @@ export function SentenceAction({ code, sentence }: Props) {
         ]),
     }),
   );
+  const [focused, setFocused] = useState(false);
   const viewRef = useRef<HostInstance>(null);
   useEffect(() => {
     sentenceViews.set(sentence.sentenceId, viewRef);
@@ -56,11 +56,62 @@ export function SentenceAction({ code, sentence }: Props) {
     await savePendingAction({ kind: "SCRAP_SAVE", exhibitionCode: code, sentenceId: sentence.sentenceId });
     router.push({ pathname: "/login", params: { returnTo: `/e/${code}` } });
   };
-  const renderControl = () => {
-    if (!me) return <TextAction variant="label" label={scrapStrings.loginRequired} onPress={() => void loginThenSave()} />;
-    if (saved.has(sentence.sentenceId)) return <Text variant="secondary">{scrapStrings.saved}</Text>;
-    if (isError) return <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: save }} />;
-    return <TextAction variant="label" label={scrapStrings.save} disabled={isPending} onPress={save} />;
-  };
-  return <View ref={viewRef}>{renderControl()}</View>;
+  const kept = saved.has(sentence.sentenceId);
+  const press = !me ? () => void loginThenSave() : kept ? undefined : save;
+  return (
+    <View ref={viewRef} style={{ gap: spacing.inset }}>
+      <View style={styles.row}>
+        <View style={styles.quote}>{quote}</View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={kept ? scrapStrings.kept : scrapStrings.keep}
+          accessibilityHint={!me ? scrapStrings.signInHint : undefined}
+          aria-pressed={kept}
+          disabled={isPending}
+          onPress={press}
+          hitSlop={{ top: 13, bottom: 12, left: 10, right: 10 }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={[styles.mark, isPending && styles.pending, focused && focusRing]}
+        >
+          {kept ? <KeptDot /> : <Plus />}
+        </Pressable>
+      </View>
+      {isError && !kept && <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: save }} />}
+    </View>
+  );
 }
+
+// Two 1px bars in a 12x12 box; black only (SPEC §0.3).
+function Plus() {
+  return (
+    <View aria-hidden style={styles.box}>
+      <View style={[styles.bar, { width: MARK, height: 1 }]} />
+      <View style={[styles.bar, { width: 1, height: MARK }]} />
+    </View>
+  );
+}
+
+// The plus turns into the dot with a short scale; reduced motion makes it instant.
+function KeptDot() {
+  const scale = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (reduced) return scale.setValue(1);
+      Animated.timing(scale, { toValue: 1, duration: 150, easing: Easing.out(Easing.exp), useNativeDriver: true }).start();
+    });
+  }, [scale]);
+  return <Animated.View aria-hidden style={[styles.box, styles.dot, { transform: [{ scale }] }]} />;
+}
+
+const MARK = 12;
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.tight },
+  quote: { flex: 1 },
+  // 24 wide and one quote line (18.6) tall, so the mark sits on the first line.
+  mark: { width: 24, height: 19, alignItems: "center", justifyContent: "center" },
+  pending: { opacity: 0.4 },
+  box: { width: MARK, height: MARK, alignItems: "center", justifyContent: "center" },
+  bar: { position: "absolute", backgroundColor: colors.black },
+  dot: { backgroundColor: colors.black, borderRadius: MARK / 2 },
+});

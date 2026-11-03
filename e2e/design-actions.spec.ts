@@ -22,10 +22,10 @@ test("Creator: the selected template button is filled and swaps on click", async
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await page.getByRole("link", { name: "Create web card" }).click();
   const sentence = page.getByRole("radio", { name: "Sentence" });
   const cover = page.getByRole("radio", { name: "Cover" });

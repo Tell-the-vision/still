@@ -1,9 +1,8 @@
-import { longRange, year } from "../../lib/dates";
+import { View, useWindowDimensions } from "react-native";
+import { longRange } from "../../lib/dates";
 import { Artwork } from "../../ui/Artwork";
-import { View } from "react-native";
 import { Text } from "../../ui/Text";
 import { spacing } from "../../ui/theme";
-import { guideStrings } from "./strings";
 
 type Props = {
   title: string;
@@ -13,14 +12,18 @@ type Props = {
   coverImage: { url: string; altText: string | null; width: number; height: number } | null;
 };
 
+// Title, meta line and the cover: the work comes first (SPEC §3.1). The cover carries no caption.
 export function GuideHeader({ title, venue, startDate, endDate, coverImage }: Props) {
+  const { height } = useWindowDimensions();
   return (
-    <View style={{ gap: spacing.tight, marginBottom: spacing.gap }}>
-      <Text variant="eyebrow">{guideStrings.eyebrow(year(startDate))}</Text>
+    <View style={{ gap: spacing.tight }}>
       <Text variant="display">{title}</Text>
-      <Text variant="eyebrow">{venue.name}</Text>
-      <Text variant="secondary">{`${venue.city} · ${longRange(startDate, endDate)}`}</Text>
-      {coverImage && <Artwork {...coverImage} caption={guideStrings.viewCaption} />}
+      <Text variant="secondary">{`${venue.name}, ${venue.city} · ${longRange(startDate, endDate)}`}</Text>
+      {coverImage && (
+        <View style={{ marginTop: spacing.tight }}>
+          <Artwork {...coverImage} maxHeight={Math.round(0.6 * height)} />
+        </View>
+      )}
     </View>
   );
 }

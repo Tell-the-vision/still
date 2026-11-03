@@ -8,7 +8,7 @@ test("guide shows the title and venue, and the response is publicly cacheable", 
   expect(res.request().method()).toBe("GET");
   expect(res.headers()["cache-control"]).toMatch(/^public, max-age=60/);
   expect(res.headers()["set-cookie"]).toBeUndefined();
-  await expect(page.getByText("Forms of Stillness", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Forms of Stillness" })).toBeVisible();
   await expect(page.getByText(/Seoul · /)).toBeVisible();
 });
 
@@ -38,13 +38,13 @@ test("the cover image is requested from the media origin and shown", async ({ pa
 test("a cover that fails to load leaves the text without a broken image", async ({ page }) => {
   await page.route("https://media.test.invalid/**", (route) => route.fulfill({ status: 404 }));
   await openGuide(page, "with-cover");
-  await expect(page.getByText("With Cover", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "With Cover" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Test cover" })).toHaveCount(0);
 });
 
 test("the header leaves room before the description", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
   const date = await page.getByText(/ · /).first().boundingBox();
-  const about = await page.getByText("About the exhibition").first().boundingBox();
+  const about = await page.getByText("About Forms of Stillness.").boundingBox();
   expect(about && date && about.y - (date.y + date.height)).toBeGreaterThanOrEqual(32);
 });
