@@ -2,6 +2,9 @@ import { expect, test } from "next/experimental/testmode/playwright";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 import { openGuide } from "./support/reach";
 
+// The chromium default window is desktop-wide; these tests cover the phone layout.
+test.use({ viewport: { width: 390, height: 844 } });
+
 test("My Archive lists visited exhibitions", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
@@ -35,4 +38,20 @@ test("an empty archive points to QR Scan", async ({ page, next }) => {
   await page.getByRole("link", { name: "QR Scan" }).click();
   await expect(page).toHaveURL(/\/scan$/);
   await expect(page.getByText("Scan to enter.")).toBeVisible();
+});
+
+test("on desktop the archive grid has uses the wide column", async ({ page, next }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  const upserted = page.waitForResponse(/archive\.upsert/);
+  await openGuide(page, "forms-of-stillness");
+  await upserted;
+  await page.goto("/archive");
+  const card = page.getByRole("link", { name: "Forms of Stillness" });
+  const box = await card.boundingBox();
+  // The desktop archive uses the 1144px wide column (the phone grid is capped at 560px).
+  expect(box!.width).toBeGreaterThan(720);
+  await page.screenshot({ path: "/tmp/still-shots/shell/desktop-archive.png" });
 });

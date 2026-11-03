@@ -18,7 +18,7 @@ export default function Home() {
   }, [userState]);
   if (me) {
     return (
-      <Screen tabs headerRight>
+      <Screen tabs>
         <Stack gap="section">
           <Stack gap="tight">
             <Text variant="headline">{homeStrings.welcome}</Text>

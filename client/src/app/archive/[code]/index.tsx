@@ -28,7 +28,7 @@ export default function ArchiveDetail() {
   const { data: archive, error, refetch } = useQuery(trpc.archive.get.queryOptions({ code }, { enabled: Boolean(me) }));
   const missing = archive === null || (error instanceof TRPCClientError && error.data?.code === "NOT_FOUND");
   return (
-    <Screen tabs headerRight>
+    <Screen tabs>
       {(missing || error) && (
         <Stack>
           <BackLink />
@@ -42,7 +42,7 @@ export default function ArchiveDetail() {
           <BackLink />
           <Text variant="headline">{archive.exhibition.title}</Text>
           <Text variant="caption">{`${archive.exhibition.venue.name.toUpperCase()} · ${year(archive.exhibition.startDate)}`}</Text>
-          {archive.exhibition.coverImage && <Artwork {...archive.exhibition.coverImage} caption={archiveStrings.exhibition} />}
+          {archive.exhibition.coverImage && <Artwork {...archive.exhibition.coverImage} />}
           <Rule />
           <Section label={archiveStrings.collection}>
             <Stack gap="section">

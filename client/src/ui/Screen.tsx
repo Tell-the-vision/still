@@ -3,12 +3,12 @@ import { KeyboardAvoidingView, Platform, ScrollView, type ScrollViewInstance, St
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "./BottomNav";
 import { useWide } from "./useWide";
-import { TextLink } from "./TextLink";
+import { Link } from "expo-router";
+import { Pressable } from "react-native";
 import { Wordmark } from "./Wordmark";
-import { uiStrings } from "./strings";
 import { colors, rule, spacing } from "./theme";
 
-type Props = { children: ReactNode; header?: boolean; headerRight?: boolean; tabs?: boolean; scroll?: boolean; width?: "reading" | "wide" };
+type Props = { children: ReactNode; header?: boolean; tabs?: boolean; scroll?: boolean; width?: "reading" | "wide" };
 
 // Lets a child scroll its own position into view, e.g. after a login round trip (SPEC §2.2 Sign in 8).
 export const ScreenScrollContext = createContext<RefObject<ScrollViewInstance | null> | null>(null);
@@ -18,10 +18,10 @@ const COLUMN_MAX_WIDTH = 560;
 // Desktop web (useWide): reading screens keep a comfortable measure, list and grid screens go wide.
 const WIDE_MAX_WIDTH = { reading: 720, wide: 1144 } as const;
 
-// `header` (default on) shows the wordmark over a rule; `headerRight` adds the MY ARCHIVE link (SPEC §0.3);
+// `header` (default on) shows the wordmark over a rule; the wordmark links Home. On desktop web `tabs` render in the header;
 // `tabs` shows the bottom tab bar.
 // `scroll={false}` is for screens that bring their own list (a FlatList must not nest in a ScrollView).
-export function Screen({ children, header = true, headerRight = false, tabs = false, scroll = true, width = "reading" }: Props) {
+export function Screen({ children, header = true, tabs = false, scroll = true, width = "reading" }: Props) {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const wide = useWide();
   return (
@@ -30,8 +30,12 @@ export function Screen({ children, header = true, headerRight = false, tabs = fa
         <KeyboardAvoidingView behavior={Platform.OS === "web" ? undefined : "padding"} style={styles.fill}>
           {header && (
             <View style={styles.header}>
-              <Wordmark size="header" />
-              {headerRight && <TextLink href="/archive" label={uiStrings.myArchive} variant="eyebrow" tone="secondary" />}
+              <Link href="/" asChild>
+                <Pressable accessibilityRole="link" accessibilityLabel="STILL, home" hitSlop={8}>
+                  <Wordmark size="header" />
+                </Pressable>
+              </Link>
+              {tabs && wide && <BottomNav placement="header" />}
             </View>
           )}
           {scroll ? (
@@ -42,7 +46,7 @@ export function Screen({ children, header = true, headerRight = false, tabs = fa
             <View style={styles.body}>{children}</View>
           )}
         </KeyboardAvoidingView>
-        {tabs && <BottomNav />}
+        {tabs && !wide && <BottomNav />}
       </View>
     </SafeAreaView>
   );
