@@ -7,11 +7,11 @@ import { db } from "../../db/client";
 import { userSessions } from "../../db/schema";
 import { createAppSession, rotateAppSession } from "../../services/app-sessions";
 import { getMe } from "../../services/me";
-import { clientProcedure, protectedProcedure, router } from "../init";
+import { ipLimitedProcedure, protectedProcedure, router } from "../init";
 
 export const sessionRouter = router({
   // Native sign-in (SPEC §2.2 Sign in 4): exchange the Google code, then issue app tokens.
-  create: clientProcedure.input(sessionCreateInput).mutation(async ({ input, ctx }) => {
+  create: ipLimitedProcedure.input(sessionCreateInput).mutation(async ({ input, ctx }) => {
     const identity = await exchangeNativeCode(ctx.req, input);
     const { userId, userTokenId } = await signInWithIdentity({ provider: "GOOGLE", ...identity });
     const appSession = await createAppSession(userId, userTokenId);
@@ -19,7 +19,7 @@ export const sessionRouter = router({
   }),
 
   // SPEC §2.3: trade a refresh token for a new pair.
-  refresh: clientProcedure.input(sessionRefreshInput).mutation(({ input }) => rotateAppSession(input.refreshToken)),
+  refresh: ipLimitedProcedure.input(sessionRefreshInput).mutation(({ input }) => rotateAppSession(input.refreshToken)),
 
   // Sign out (SPEC §2.2): drop this session's row and clear the web cookie.
   delete: protectedProcedure.mutation(async ({ ctx }) => {

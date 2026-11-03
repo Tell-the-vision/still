@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ipAllowed } from "../../../../../server/rate-limit";
 import { exchangeCode, readIdToken } from "../../../../../server/auth/google";
 import { signInWithIdentity } from "../../../../../server/auth/identity";
 import { consumeOAuthState } from "../../../../../server/auth/oauth-state";
@@ -16,6 +17,7 @@ const redirectTo = (path: string, result?: Result) => {
 export async function GET(req: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   if (provider !== "google") return new Response(null, { status: 404 });
+  if (!ipAllowed(req)) return new Response(null, { status: 429 });
   const query = new URL(req.url).searchParams;
   const stored = await consumeOAuthState(query.get("state"));
   if (!stored) return redirectTo("/", { auth: "failed" });

@@ -2,6 +2,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createContext } from "../../../../server/trpc/context";
 import { appRouter } from "../../../../server/trpc/root";
 
+const MAX_BODY_BYTES = 100 * 1024;
 const PUBLIC_PATHS = ["exhibition.get", "guide.get"];
 const PUBLIC_CACHE = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400";
 
@@ -10,6 +11,8 @@ async function handler(req: Request) {
   if (req.method === "POST" && !req.headers.get("content-type")?.startsWith("application/json")) {
     return new Response(null, { status: 415 });
   }
+  // Oversized bodies are refused before tRPC reads them (SPEC §11.1).
+  if (Number(req.headers.get("content-length")) > MAX_BODY_BYTES) return new Response(null, { status: 413 });
   return fetchRequestHandler({
     endpoint: "/api/trpc",
     req,

@@ -1,6 +1,7 @@
 import { TRPCError, initTRPC } from "@trpc/server";
 import { ZodError } from "zod";
 import type { AppCode } from "@still/shared/errors";
+import { ipAllowed, userAllowed } from "../rate-limit";
 import { getConsent } from "../services/consent";
 import type { Context } from "./context";
 
@@ -63,9 +64,18 @@ const versionCheck = t.middleware(({ ctx, next }) => {
 
 export const clientProcedure = t.procedure.use(versionCheck);
 
+const tooManyRequests = () => new TRPCError({ code: "TOO_MANY_REQUESTS" });
+
+// Unauthenticated sign-in calls are limited per IP (SPEC §11.1).
+export const ipLimitedProcedure = clientProcedure.use(({ ctx, next }) => {
+  if (!ipAllowed(ctx.req)) throw tooManyRequests();
+  return next();
+});
+
 export const protectedProcedure = clientProcedure.use(async ({ ctx, next }) => {
   const session = await ctx.getSession();
   if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!userAllowed(session.userId)) throw tooManyRequests();
   return next({ ctx: { session } });
 });
 

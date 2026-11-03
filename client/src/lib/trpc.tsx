@@ -35,15 +35,17 @@ export const ME_KEY = [["me", "get"], { type: "query" }];
 export const CONSENT_KEY = [["consent", "get"], { type: "query" }];
 export const queryPath = (key: readonly unknown[]) => (key[0] as string[]).join(".");
 const isUpgradeRequired = (error: unknown) => error instanceof TRPCClientError && error.data?.appCode === "CLIENT_UPGRADE_REQUIRED";
+const isRateLimited = (error: unknown) => error instanceof TRPCClientError && error.data?.code === "TOO_MANY_REQUESTS";
 const isConsentRequired = (error: unknown) => error instanceof TRPCClientError && error.data?.appCode === "CONSENT_REQUIRED";
 
 // SPEC §2.3: a 401 while signed in means the session ended. Drop personal data, keep drafts and pending actions.
 // A guest's own me.get 401 is ignored because me.get has no data.
-export function makeQueryClient(onSessionEnded: () => void, onUpgradeRequired: () => void) {
+export function makeQueryClient(onSessionEnded: () => void, onUpgradeRequired: () => void, onRateLimited: () => void) {
   const handleError = (error: unknown) => {
     // The server says consent is missing: ConsentGate redirects when it sees consent.get is null.
     if (isConsentRequired(error)) queryClient.setQueryData(CONSENT_KEY, null);
     if (isUpgradeRequired(error)) onUpgradeRequired();
+    if (isRateLimited(error)) onRateLimited();
     if (!isUnauthorized(error) || !queryClient.getQueryData(ME_KEY)) return;
     queryClient.removeQueries({ predicate: (q) => !PUBLIC_PATHS.includes(queryPath(q.queryKey)) && queryPath(q.queryKey) !== "me.get" });
     queryClient.setQueryData(ME_KEY, null);
@@ -158,16 +160,33 @@ export const useSessionEnded = () => useContext(SessionEndedContext);
 const UpgradeRequiredContext = createContext(false);
 export const useUpgradeRequired = () => useContext(UpgradeRequiredContext);
 
+const RateLimitedContext = createContext(false);
+export const useRateLimited = () => useContext(RateLimitedContext);
+
+const RATE_LIMIT_NOTICE_MS = 10_000;
+
 export function TRPCReactProvider({ children }: { children: ReactNode }) {
   const [sessionEnded, setSessionEnded] = useState(false);
   const [upgradeRequired, setUpgradeRequired] = useState(false);
-  const [queryClient] = useState(() => makeQueryClient(() => setSessionEnded(true), () => setUpgradeRequired(true)));
+  const [rateLimited, setRateLimited] = useState(false);
+  const [queryClient] = useState(() =>
+    makeQueryClient(
+      () => setSessionEnded(true),
+      () => setUpgradeRequired(true),
+      () => {
+        setRateLimited(true);
+        setTimeout(() => setRateLimited(false), RATE_LIMIT_NOTICE_MS);
+      },
+    ),
+  );
   const [trpcClient] = useState(makeTRPCClient);
   return (
     <QueryClientProvider client={queryClient}>
       <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
         <SessionEndedContext.Provider value={sessionEnded}>
-          <UpgradeRequiredContext.Provider value={upgradeRequired}>{children}</UpgradeRequiredContext.Provider>
+          <UpgradeRequiredContext.Provider value={upgradeRequired}>
+            <RateLimitedContext.Provider value={rateLimited}>{children}</RateLimitedContext.Provider>
+          </UpgradeRequiredContext.Provider>
         </SessionEndedContext.Provider>
       </TRPCProvider>
     </QueryClientProvider>

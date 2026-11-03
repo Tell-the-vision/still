@@ -45,7 +45,9 @@ export default defineConfig({
       PRIVACY_VERSION: "p1",
       PRIVACY_URL: "https://policy.test.invalid/privacy",
       MIN_CLIENT_VERSION: "0.5.0",
-      RATE_LIMIT_IP_PER_MIN: "300",
+      RATE_LIMIT_IP_PER_MIN: "2000",
+      RATE_LIMIT_USER_PER_MIN: "1000",
+      TRUST_PROXY: "1",
     },
   },
 });

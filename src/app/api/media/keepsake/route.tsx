@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { userAllowed } from "../../../../server/rate-limit";
 import { db } from "../../../../server/db/client";
 import { archives } from "../../../../server/db/schema";
 import { renderKeepsakePng } from "../../../../server/media/keepsake-png";
@@ -9,6 +10,7 @@ import { verifyTicket } from "../../../../server/media/keepsake-ticket";
 export async function GET(req: Request) {
   const payload = verifyTicket(new URL(req.url).searchParams.get("ticket") ?? "");
   if (!payload) return new Response(null, { status: 403 });
+  if (!userAllowed(payload.userId)) return new Response(null, { status: 429 });
   const archive = await db.query.archives.findFirst({
     where: eq(archives.id, payload.archiveId),
     with: { keepsake: true, exhibition: { with: { venue: true, coverImage: true } } },
