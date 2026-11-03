@@ -1,9 +1,8 @@
 import { Platform } from "react-native";
 
-// SPEC §0.3: monochrome palette, gray only for secondary text.
-export const colors = { white: "#FFFFFF", black: "#000000", gray: "#666666" };
-export const spacing = { gutter: 24, gap: 16, inset: 12 };
-export const fontSize = { body: 16 };
+import { colors } from "./tokens";
+
+export { card, colors, fontSize, spacing } from "./tokens";
 
 // Web focus ring shared by interactive primitives.
 export const focusRing = { outlineWidth: 2, outlineOffset: 2, outlineColor: colors.black, outlineStyle: "solid" } as const;
@@ -18,6 +17,3 @@ export const fontFamily = {
   body: stack("DMSans_400Regular"),
   bodyMedium: stack("DMSans_500Medium"),
 };
-
-// Keepsake card: a 3:4 sheet, 360 wide by default.
-export const card = { width: 360, aspectRatio: 3 / 4, borderWidth: 1 };
