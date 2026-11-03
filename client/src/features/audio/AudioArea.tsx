@@ -11,7 +11,7 @@ import { Stack } from "../../ui/Stack";
 import { spacing } from "../../ui/theme";
 import { View } from "react-native";
 import { displayMode, type Audio } from "./display-mode";
-import { PinkNoiseToggle } from "./PinkNoiseToggle";
+import { AmbienceToggle } from "./AmbienceToggle";
 import { audioStrings } from "./strings";
 
 type Props = { code: string; audio: Audio; screen: "guide" | "journal"; onModeChange?: (mode: ReturnType<typeof displayMode>) => void };
@@ -47,7 +47,7 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
               }}
             />
           )}
-          {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} />}
+          {base === "AMBIENCE" && focused && <AmbienceToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} />}
           <Choice role="radio" label={audioStrings.none} selected={mode === "NONE"} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
         </View>
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
