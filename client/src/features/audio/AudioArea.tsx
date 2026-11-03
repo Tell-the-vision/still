@@ -25,13 +25,14 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
   const choice = settings.data?.audioMode ?? "AUTO";
   const focused = useIsFocused();
   const [muted, setMuted] = useState(false);
+  const [pinkNoiseOn, setPinkNoiseOn] = useState(false);
   const base = displayMode(choice, audio);
   const mode = muted ? "NONE" : base;
   useEffect(() => onModeChange?.(mode), [mode, onModeChange]);
   if (!base) return null;
   const playlist = audio.playlist;
   return (
-    <Section label={audioStrings.section}>
+    <Section label={audioStrings.groupLabel} hideLabel>
       <Stack gap="tight">
         <View role="radiogroup" aria-label={audioStrings.groupLabel} style={{ gap: spacing.tight }}>
           {base === "EXTERNAL" && playlist && (
@@ -47,8 +48,8 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
               }}
             />
           )}
-          {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} />}
-          <Choice role="radio" label={audioStrings.none} selected={mode === "NONE"} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
+          {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} onChange={setPinkNoiseOn} />}
+          <Choice role="radio" label={audioStrings.none} selected={mode === "NONE" || (base === "AMBIENCE" && !pinkNoiseOn)} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
         </View>
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
       </Stack>
