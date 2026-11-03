@@ -16,6 +16,8 @@ export const keepsakeStrings = {
   onTheCard: "On the card",
   chooseUpTo: "Choose up to 3.",
   threeChosen: "3 of 3 chosen.",
+  chooseOne: "Choose 1.",
+  oneChosen: "1 of 1 chosen.",
   templates: [
     { id: "sentence", label: "Sentence" },
     { id: "reflection", label: "Reflection" },

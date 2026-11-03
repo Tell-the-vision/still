@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { useWindowDimensions } from "react-native";
-import { templateDefaults } from "@still/shared/keepsake";
+import { clipExcerpt, sentenceLimit, templateDefaults } from "@still/shared/keepsake";
 import { useRequireLogin } from "../../../features/auth/require-login";
 import { keepsakeStrings as strings } from "../../../features/keepsake/strings";
 import { useTRPC } from "../../../lib/trpc";
@@ -69,9 +69,12 @@ export default function KeepsakeCreator() {
   const savedExcerpt = saved?.card.journalExcerpt;
   const keptExcerpt = savedExcerpt && journal?.content.normalize("NFC").includes(savedExcerpt) ? savedExcerpt : null;
   const chosenIds = sentenceIds ?? savedSentenceIds;
+  // Only as many picks as the template shows count; extra ones wait in case the layout changes back.
+  const limit = sentenceLimit(templateId);
+  const shownIds = chosenIds.slice(0, limit);
   const chosenExcerpt = excerpt === undefined ? keptExcerpt : excerpt;
   const picks = {
-    sentenceIds: templateId !== "cover" && chosenIds.length > 0 ? chosenIds : undefined,
+    sentenceIds: shownIds.length > 0 ? shownIds : undefined,
     journalExcerpt: templateId === "reflection" ? (chosenExcerpt ?? undefined) : undefined,
   };
   const card = {
@@ -81,7 +84,9 @@ export default function KeepsakeCreator() {
     journalExcerpt: picks.journalExcerpt ?? defaults.journalExcerpt,
   };
   const paragraphs = (journal?.content ?? "").split("\n").filter((p) => p.trim() !== "");
-  const toggleSentence = (id: string) => setSentenceIds(chosenIds.includes(id) ? chosenIds.filter((i) => i !== id) : [...chosenIds, id]);
+  const toggleSentence = (id: string) => setSentenceIds(shownIds.includes(id) ? shownIds.filter((i) => i !== id) : [...shownIds, id]);
+  const full = shownIds.length >= limit;
+  const countNote = limit === 1 ? (full ? strings.oneChosen : strings.chooseOne) : full ? strings.threeChosen : strings.chooseUpTo;
   return (
     <Screen tabs>
       <Stack>
@@ -97,24 +102,34 @@ export default function KeepsakeCreator() {
         {templateId !== "cover" && (
           <Section label={strings.onTheCard}>
             <Stack gap="inset">
-              <Text variant="secondary">{chosenIds.length >= 3 ? strings.threeChosen : strings.chooseUpTo}</Text>
+              <Text variant="secondary">{countNote}</Text>
               {scraps.map((s) => (
                 <Choice
                   key={s.sentenceId}
                   label={s.content}
                   role="checkbox"
                   textVariant="action"
-                  selected={chosenIds.includes(s.sentenceId)}
-                  disabled={!chosenIds.includes(s.sentenceId) && chosenIds.length >= 3}
+                  selected={shownIds.includes(s.sentenceId)}
+                  disabled={!shownIds.includes(s.sentenceId) && full}
                   onPress={() => toggleSentence(s.sentenceId)}
                 />
               ))}
               {templateId === "reflection" && (
                 <>
                   <Text variant="label">{strings.excerptHeading}</Text>
-                  {paragraphs.map((p) => (
-                    <Choice key={p} label={p} role="radio" selected={p === chosenExcerpt} onPress={() => setExcerpt(p === chosenExcerpt ? null : p)} />
-                  ))}
+                  {paragraphs.map((p) => {
+                    // A paragraph longer than the card holds is offered as its start; "…" marks the cut.
+                    const clipped = clipExcerpt(p);
+                    return (
+                      <Choice
+                        key={p}
+                        label={clipped.length < p.length ? `${clipped}…` : p}
+                        role="radio"
+                        selected={clipped === chosenExcerpt}
+                        onPress={() => setExcerpt(clipped === chosenExcerpt ? null : clipped)}
+                      />
+                    );
+                  })}
                 </>
               )}
             </Stack>

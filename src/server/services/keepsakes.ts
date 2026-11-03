@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { z } from "zod";
-import { KEEPSAKE_TEMPLATES, templateDefaults, type keepsakeUpsertInput } from "@still/shared/keepsake";
+import { KEEPSAKE_TEMPLATES, sentenceLimit, templateDefaults, type keepsakeUpsertInput } from "@still/shared/keepsake";
 import { db } from "../db/client";
 import { archives, digitalKeepsakes, journals, scraps } from "../db/schema";
 import { issueTicket } from "../media/keepsake-ticket";
@@ -56,12 +56,15 @@ export async function upsertKeepsake(userId: string, { code, templateId, sentenc
       .orderBy(asc(scraps.createdAt), asc(scraps.guideSentenceId));
     const journal = await tx.query.journals.findFirst({ where: eq(journals.archiveId, archive.id) });
     const defaults = templateDefaults(templateId, saved, journal?.content ?? null);
-    // Picked sentences come from the saved snapshot, in the order the user picked.
-    const picked = sentenceIds?.map((id) => {
-      const scrap = saved.find((s) => s.sentenceId === id);
-      if (!scrap) throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("SCRAP_NOT_IN_ARCHIVE") });
-      return scrap;
-    });
+    // Picked sentences come from the saved snapshot, in the order the user picked,
+    // and only as many as the template shows, so nothing is stored that the card leaves out.
+    const picked = sentenceIds
+      ?.map((id) => {
+        const scrap = saved.find((s) => s.sentenceId === id);
+        if (!scrap) throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("SCRAP_NOT_IN_ARCHIVE") });
+        return scrap;
+      })
+      .slice(0, sentenceLimit(templateId));
     // An explicit excerpt must appear in the saved journal, compared after NFC normalization on both sides.
     if (journalExcerpt !== undefined && !journal?.content.normalize("NFC").includes(journalExcerpt.normalize("NFC"))) {
       throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("EXCERPT_NOT_IN_JOURNAL") });

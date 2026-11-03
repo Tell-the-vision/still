@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     journalExcerpt: string | null;
   };
   const { coverImage } = archive.exhibition;
-  const image = await renderKeepsakePng({ exhibition: archive.exhibition, sentences, journalExcerpt, image: coverImage && { url: publicImageUrl(coverImage.objectKey) } }, archive.keepsake.templateId);
+  const image = await renderKeepsakePng({ exhibition: archive.exhibition, sentences, journalExcerpt, image: coverImage && { url: publicImageUrl(coverImage.objectKey), width: coverImage.width, height: coverImage.height } }, archive.keepsake.templateId);
   const seconds = Math.max(0, Math.floor((payload.exp - Date.now()) / 1000));
   return new Response(image.body, {
     headers: {
