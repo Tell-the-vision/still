@@ -20,7 +20,7 @@ export default function Home() {
   }, [userState]);
   if (me) {
     return (
-      <Screen tabs headerRight width="wide">
+      <Screen tabs width="wide">
         <Stack gap="section">
           <Stack gap="tight">
             <Text variant="headline">{homeStrings.welcome}</Text>

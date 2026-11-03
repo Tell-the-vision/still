@@ -10,9 +10,11 @@ import { Screen } from "../../ui/Screen";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { spacing } from "../../ui/theme";
+import { useWide } from "../../ui/useWide";
 
 // My Archive 07: two-column grid, most recently visited first, loading further pages on scroll.
 export default function Archive() {
+  const wide = useWide();
   const me = useRequireLogin("/archive");
   const trpc = useTRPC();
   const { data, error, refetch, hasNextPage, fetchNextPage } = useInfiniteQuery(
@@ -27,20 +29,21 @@ export default function Archive() {
     </View>
   );
   return (
-    <Screen tabs headerRight scroll={false}>
+    <Screen tabs scroll={false} width="wide">
       {me && error && <Notice error message={archiveStrings.error} action={{ label: archiveStrings.retry, onPress: () => refetch() }} />}
       {me && data && items.length === 0 && (
         <Stack>
           {header}
           <Text variant="subhead">{archiveStrings.emptyTitle}</Text>
           <Text variant="secondary">{archiveStrings.empty}</Text>
-          <Button label={archiveStrings.scan} href="/scan" />
+          {!wide && <Button label={archiveStrings.scan} href="/scan" />}
         </Stack>
       )}
       {me && items.length > 0 && (
         <FlatList
           data={items}
-          numColumns={2}
+          key={wide ? "wide" : "narrow"}
+          numColumns={wide ? 4 : 2}
           keyExtractor={(item) => item.exhibition.code}
           columnWrapperStyle={{ gap: spacing.gap }}
           contentContainerStyle={{ gap: spacing.section }}

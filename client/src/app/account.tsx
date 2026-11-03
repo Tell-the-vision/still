@@ -46,9 +46,9 @@ export default function Account() {
     await leave();
   };
   const title = <Text variant="headline">{accountStrings.title}</Text>;
-  if (!me) return <Screen tabs headerRight>{title}</Screen>;
+  if (!me) return <Screen tabs>{title}</Screen>;
   return (
-    <Screen tabs headerRight>
+    <Screen tabs>
       <Stack>
         {title}
         <Section label={accountStrings.signedInWith(providerNames[me.provider] ?? me.provider)}>

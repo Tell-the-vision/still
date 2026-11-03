@@ -8,7 +8,6 @@ export const archiveStrings = {
   retry: "Retry",
   backLabel: "MY ARCHIVE",
   backName: "Back to My Archive",
-  exhibition: "EXHIBITION",
   collection: "YOUR COLLECTION",
   lastVisited: "LAST VISITED",
   actions: "Archive actions",

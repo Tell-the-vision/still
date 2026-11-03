@@ -2,6 +2,9 @@ import { expect, test } from "next/experimental/testmode/playwright";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 import { openGuide } from "./support/reach";
 
+// The chromium default window is desktop-wide; these tests cover the phone layout.
+test.use({ viewport: { width: 390, height: 844 } });
+
 test("a guide taller than the viewport scrolls, and the tab bar stays reachable", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
   await expect(page.getByRole("link", { name: "Write a journal" })).toBeAttached();
@@ -12,13 +15,13 @@ test("a guide taller than the viewport scrolls, and the tab bar stays reachable"
   await expect(page.getByRole("navigation")).toBeInViewport();
 });
 
-test("the tab bar marks the current tab and MY ARCHIVE shows a focus ring", async ({ page, next }) => {
+test("the tab bar marks the current tab and the ARCHIVE tab shows a focus ring", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
-  const home = page.getByRole("link", { name: "HOME" });
+  const home = page.getByRole("link", { name: "HOME", exact: true });
   const account = page.getByRole("link", { name: "ACCOUNT" });
-  const archive = page.getByRole("link", { name: "MY ARCHIVE" });
+  const archive = page.getByRole("link", { name: "ARCHIVE", exact: true });
   await expect(home).toHaveAttribute("aria-current", "page");
   await archive.focus();
   await expect(archive).toHaveCSS("outline-style", "solid");
@@ -27,11 +30,12 @@ test("the tab bar marks the current tab and MY ARCHIVE shows a focus ring", asyn
   await expect(home).not.toHaveAttribute("aria-current", "page");
 });
 
-test("on a wide window the screen stays a reading-width column", async ({ page }) => {
+test("on a wide window a reading screen stays within 720px", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/scan");
-  const box = await page.getByRole("navigation").boundingBox();
-  expect(box?.width).toBeLessThanOrEqual(720);
+  const box = await page.getByText("STILL.").boundingBox();
+  const nav = await page.getByRole("navigation").boundingBox();
+  expect(nav!.x + nav!.width - box!.x).toBeLessThanOrEqual(720);
 });
 
 test("signed-in Home keeps its sections together and the header rule clears the wordmark", async ({ page, next }) => {
