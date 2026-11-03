@@ -42,6 +42,9 @@ export default function KeepsakeCreator() {
   const [picked, setPicked] = useState<string>();
   const [sentenceIds, setSentenceIds] = useState<string[]>();
   const [excerpt, setExcerpt] = useState<string | null>();
+  // The tallest the editor has been: switching to a shorter layout (Cover) keeps this height, so a scrolled page
+  // is not pulled up and the scrollbar does not disappear.
+  const [tallest, setTallest] = useState(0);
   const changed = picked !== undefined || sentenceIds !== undefined || excerpt !== undefined;
   const templateId = picked ?? saved?.templateId ?? "sentence";
   const save = useMutation(
@@ -93,6 +96,13 @@ export default function KeepsakeCreator() {
   const drawnHeight = drawnWidth / cardTokens.aspectRatio;
   return (
     <Screen tabs>
+      <View
+        style={{ minHeight: tallest }}
+        onLayout={(e) => {
+          const height = e.nativeEvent.layout.height;
+          if (height > tallest) setTallest(height);
+        }}
+      >
       <Stack gap="section">
         <Text variant="headline">{strings.heading}</Text>
         <View style={{ width: drawnWidth, height: drawnHeight, alignSelf: "center" }}>
@@ -156,6 +166,7 @@ export default function KeepsakeCreator() {
         </KeepsakeActions>
         </Stack>
       </Stack>
+      </View>
     </Screen>
   );
 }

@@ -1,5 +1,5 @@
 import { createContext, useRef, useState, type ReactNode, type RefObject } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, type ScrollViewInstance, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, type ScrollViewInstance, StyleSheet, useWindowDimensions, View, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "./BottomNav";
 import { QrIcon } from "./QrIcon";
@@ -28,6 +28,9 @@ const WIDE_MAX_WIDTH = { reading: 720, wide: 1144 } as const;
 export function Screen({ children, header = true, tabs = false, scroll = true, width = "reading" }: Props) {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const wide = useWide();
+  // Scrollbar room is reserved only once the window is wider than the column, so a phone-width column never narrows.
+  const { width: windowWidth } = useWindowDimensions();
+  const stable = Platform.OS === "web" && windowWidth >= STABLE_GUTTER_MIN_WIDTH;
   const canScan = useCanScan() && usePathname() !== "/scan";
   // The scroll container spans the window so the wheel scrolls over the margins; the header and body share this centred column.
   const column = { width: "100%", maxWidth: wide ? WIDE_MAX_WIDTH[width] : COLUMN_MAX_WIDTH, alignSelf: "center" } as const;
@@ -51,7 +54,7 @@ export function Screen({ children, header = true, tabs = false, scroll = true, w
             </View>
           )}
           {scroll ? (
-            <ScrollView ref={scrollRef} style={styles.fill} contentContainerStyle={[styles.content, column]} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={scrollRef} style={[styles.fill, stable && styles.stableGutter]} contentContainerStyle={[styles.content, column]} keyboardShouldPersistTaps="handled">
               <ScreenScrollContext.Provider value={scrollRef}>{children}</ScreenScrollContext.Provider>
             </ScrollView>
           ) : (
@@ -85,9 +88,16 @@ function QrScanLink() {
 
 const content = { paddingHorizontal: spacing.gutter, paddingTop: spacing.contentTop, paddingBottom: spacing.section, gap: spacing.gap };
 
+// Web: keep room for the scrollbar on both sides even when the page is short, so the centred column
+// does not shift sideways when content grows or shrinks (e.g. switching the keepsake layout to Cover).
+const stableGutter = { scrollbarGutter: "stable both-edges" } as ViewStyle;
+// The phone column plus room for a desktop scrollbar on each side.
+const STABLE_GUTTER_MIN_WIDTH = COLUMN_MAX_WIDTH + 40;
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
   fill: { flex: 1 },
+  stableGutter,
   qrLink: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginVertical: -12, marginRight: -12 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.section },
   header: {
