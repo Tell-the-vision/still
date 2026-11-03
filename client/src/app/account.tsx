@@ -49,31 +49,39 @@ export default function Account() {
   if (!me) return <Screen tabs>{title}</Screen>;
   return (
     <Screen tabs>
-      <Stack>
+      <Stack gap="section">
         {title}
         <Section label={accountStrings.signedInWith(providerNames[me.provider] ?? me.provider)}>
-          <Text variant="bodyStrong">{me.displayName}</Text>
-          <Text tone="secondary" numberOfLines={1} ellipsizeMode="middle">{me.email}</Text>
+          <Stack gap="tight">
+            <Text variant="bodyStrong">{me.displayName}</Text>
+            <Text tone="secondary" numberOfLines={1} ellipsizeMode="middle">{me.email}</Text>
+          </Stack>
         </Section>
-        <Rule />
+        <Rule tight />
         <Section label={accountStrings.preferences}>
           <TextAction href="/account/audio" label={audioStrings.settingsLink} trailing="→" />
         </Section>
-        <Rule />
+        <Rule tight />
         <Section label={accountStrings.linkedAccounts}>
           <LinkedAccounts />
         </Section>
-        <Rule />
+        <Rule tight />
         <Section label={accountStrings.about}>
-          <Text variant="subhead">{accountStrings.tagline}</Text>
-          <Text tone="secondary">{accountStrings.aboutBody}</Text>
-          <PolicyLinks />
+          <Stack gap="gutter">
+            <Stack gap="tight">
+              <Text variant="subhead">{accountStrings.tagline}</Text>
+              <Text tone="secondary">{accountStrings.aboutBody}</Text>
+            </Stack>
+            <PolicyLinks />
+          </Stack>
         </Section>
-        <Rule />
+        <Rule tight />
         <Section label={accountStrings.account}>
-          <TextAction label={accountStrings.logOut} trailing="→" disabled={signingOut} onPress={logOut} />
-          <TextAction label={accountStrings.deleteAccount} trailing="→" tone="secondary" disabled={deleteAccount.isPending} onPress={() => setConfirming(true)} />
-          {failed ? <Notice error message={accountStrings.deleteFailed} /> : null}
+          <Stack gap="gap">
+            <TextAction label={accountStrings.logOut} trailing="→" disabled={signingOut} onPress={logOut} />
+            <TextAction label={accountStrings.deleteAccount} trailing="→" tone="secondary" disabled={deleteAccount.isPending} onPress={() => setConfirming(true)} />
+            {failed ? <Notice error message={accountStrings.deleteFailed} /> : null}
+          </Stack>
         </Section>
       </Stack>
       <Dialog label={accountStrings.deleteDialogLabel} body={accountStrings.deleteWarning} visible={confirming} onClose={() => setConfirming(false)}>

@@ -58,7 +58,7 @@ export function LinkedAccounts() {
     <Stack gap="gap">
       {data?.map((identity, index) => (
         <Fragment key={identity.id}>
-          {index > 0 ? <Rule /> : null}
+          {index > 0 ? <Rule tight /> : null}
           <Stack gap="tight">
             <Text variant="caption">{accountStrings.provider}</Text>
             <Text variant="action">{identity.email}</Text>
