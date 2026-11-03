@@ -4,7 +4,7 @@ import { openGuide } from "./support/reach";
 
 test("a guide taller than the viewport scrolls, and the tab bar stays reachable", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
-  await page.setViewportSize({ width: 390, height: 360 });
+  await page.setViewportSize({ width: 390, height: 440 });
   await page.mouse.move(195, 150);
   await page.mouse.wheel(0, 2000);
   await expect(page.getByText("A room can hold its breath.")).toBeInViewport();

@@ -4,10 +4,10 @@ import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-nat
 import { Text } from "./Text";
 import { colors } from "./theme";
 
-type Props = { href: Href; label: string; style?: StyleProp<ViewStyle>; selected?: boolean; variant?: "label" | "secondary"; target?: "_blank"; onPress?: () => void };
+type Props = { href: Href; label: string; style?: StyleProp<ViewStyle>; selected?: boolean; variant?: "label" | "secondary" | "eyebrow" | "action" | "caption"; tone?: "primary" | "secondary"; target?: "_blank"; onPress?: () => void };
 
 // A text-only navigation link. Shows the same web focus ring as `Button`.
-export function TextLink({ href, label, style, selected = false, variant = "label", target, onPress }: Props) {
+export function TextLink({ href, label, style, selected = false, variant = "label", tone, target, onPress }: Props) {
   const [focused, setFocused] = useState(false);
   return (
     <Link href={href} asChild>
@@ -25,7 +25,7 @@ export function TextLink({ href, label, style, selected = false, variant = "labe
         // Flattened because `Link asChild` forwards the style prop untouched.
         style={StyleSheet.flatten([style, focused && styles.focus])}
       >
-        <Text variant={variant} maxFontSizeMultiplier={1.5} numberOfLines={1}>
+        <Text variant={variant} tone={tone} maxFontSizeMultiplier={1.5} numberOfLines={1}>
           {label}
         </Text>
       </Pressable>

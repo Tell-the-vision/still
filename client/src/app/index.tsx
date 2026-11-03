@@ -17,7 +17,7 @@ export default function Home() {
     if (userState) track("home_view", { user_state: userState });
   }, [userState]);
   return (
-    <Screen tabs={!!me} headerRight={!!me}>
+    <Screen tabs={!!me} header={!!me} headerRight={!!me}>
       <Stack centered>
         <Wordmark />
         {me ? (
