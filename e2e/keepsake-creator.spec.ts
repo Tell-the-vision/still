@@ -23,6 +23,11 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   await page.getByRole("link", { name: "Create web card" }).click();
   await expect(page.getByRole("radio", { name: "Sentence" })).toHaveAttribute("aria-checked", "true");
   const cardBox = await page.getByLabel("Web card", { exact: true }).boundingBox();
+  const captionBox = await page.getByText("SEOUL / 2026").boundingBox();
+  expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0) - ((captionBox?.y ?? 0) + (captionBox?.height ?? 0))).toBeLessThanOrEqual(24);
+  const headingBox = await page.getByRole("heading", { name: "Keep this moment." }).boundingBox();
+  const eyebrowBox = await page.getByText("DIGITAL KEEPSAKE / WEB CARD").boundingBox();
+  expect(headingBox?.y).toBeLessThan(eyebrowBox?.y ?? 0);
   const saveBox = await page.getByRole("button", { name: "Save Web Card" }).boundingBox();
   expect(cardBox?.y).toBeLessThan(saveBox?.y ?? 0);
   await expect(page.getByRole("button", { name: "Download PNG" })).toHaveAttribute("aria-disabled", "true");

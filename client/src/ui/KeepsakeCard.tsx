@@ -26,19 +26,21 @@ export function KeepsakeCard({ card, templateId, width = cardTokens.width }: { c
         width,
         aspectRatio: cardTokens.aspectRatio,
         padding: spacing.gap,
-        gap: spacing.inset,
+        justifyContent: "space-between",
         overflow: "hidden",
         backgroundColor: colors.white,
         borderColor: colors.black,
         borderWidth: cardTokens.borderWidth,
       }}
     >
-      <Wordmark size="card" />
-      {image && <Artwork {...image} />}
-      <Text variant="title">{exhibition.title}</Text>
-      {personal.map((text) => (
-        <Text key={text} variant="secondary">{text}</Text>
-      ))}
+      <View style={{ gap: spacing.inset }}>
+        <Wordmark size="card" />
+        {image && <Artwork {...image} />}
+        <Text variant="title">{exhibition.title}</Text>
+        {personal.map((text) => (
+          <Text key={text} variant="secondary">{text}</Text>
+        ))}
+      </View>
       <Text variant="caption">{`${exhibition.venue.city} / ${exhibition.startDate.slice(0, 4)}`}</Text>
     </View>
   );
