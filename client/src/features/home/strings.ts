@@ -2,6 +2,7 @@ export const homeStrings = {
   welcome: "Welcome back.",
   tagline: "Your experiences, kept in one place.",
   login: "Login",
+  scan: "QR Scan",
   filterLabel: "Show exhibitions",
   onView: "ON VIEW",
   all: "ALL",
