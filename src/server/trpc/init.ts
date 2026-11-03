@@ -72,11 +72,16 @@ export const ipLimitedProcedure = clientProcedure.use(({ ctx, next }) => {
   return next();
 });
 
-export const protectedProcedure = clientProcedure.use(async ({ ctx, next }) => {
+// Session check without the per-user limit: cheap identity reads must not be refused, or a busy signed-in user looks like a guest.
+export const sessionProcedure = clientProcedure.use(async ({ ctx, next }) => {
   const session = await ctx.getSession();
   if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
-  if (!userAllowed(session.userId)) throw tooManyRequests();
   return next({ ctx: { session } });
+});
+
+export const protectedProcedure = sessionProcedure.use(({ ctx, next }) => {
+  if (!userAllowed(ctx.session.userId)) throw tooManyRequests();
+  return next();
 });
 
 // Procedures on personal data require agreement to the current policies (SPEC §2.2 Consent).
