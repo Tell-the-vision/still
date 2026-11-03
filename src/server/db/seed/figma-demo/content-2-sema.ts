@@ -13,7 +13,7 @@ const pkg: ContentPackage = {
       title: "유영국",
       about: "Yoo Youngkuk. Seoul Museum of Art, Seosomun Main Branch, 1F Galleries.",
       startDate: "2026-05-19",
-      endDate: "2026-10-25",
+      endDate: "2027-02-28", // Board: 2026-10-25 (ended); extended so it shows as on view.
       sentences: [
         "산은 바라보는 풍경이자, 마음속에 쌓이는 감각이다.",
         "멀리 있는 능선이 내 안의 기억과 겹쳐진다.",
