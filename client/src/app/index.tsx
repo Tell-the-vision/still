@@ -7,14 +7,14 @@ import { Screen } from "../ui/Screen";
 import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
 import { TextAction } from "../ui/TextAction";
-import { useWide } from "../ui/useWide";
+import { useCanScan } from "../ui/useCanScan";
 import { Wordmark } from "../ui/Wordmark";
 
 // Home 01 (guest) has the login and QR scan entry points; Home 02 (signed in) adds the tab bar (SPEC §1.1).
 export default function Home() {
   const me = useMe();
   const userState = useUserState();
-  const wide = useWide();
+  const canScan = useCanScan();
   useEffect(() => {
     if (userState) track("home_view", { user_state: userState });
   }, [userState]);
@@ -27,7 +27,6 @@ export default function Home() {
             <Text variant="secondary">{homeStrings.tagline}</Text>
           </Stack>
           <Exhibitions />
-          {!wide && <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="circle" />}
         </Stack>
       </Screen>
     );
@@ -38,7 +37,7 @@ export default function Home() {
         <Wordmark size="hero" />
         <Stack gap="section" align="flex-start">
           <TextAction label={homeStrings.login} href="/login?returnTo=/" variant="subhead" mark="square" />
-          {!wide && <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="circle" />}
+          {canScan && <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="circle" />}
         </Stack>
       </Stack>
     </Screen>

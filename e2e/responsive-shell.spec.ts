@@ -14,8 +14,7 @@ test("on desktop the tabs sit in the header and there is no bottom bar", async (
   await page.setViewportSize({ width: 1280, height: 900 });
   const nav = page.getByRole("navigation", { name: "Main" });
   await expect(nav).toHaveCount(1);
-  const box = await nav.boundingBox();
-  expect(box!.y).toBeLessThan(100);
+  await expect.poll(async () => (await nav.boundingBox())?.y ?? 9999).toBeLessThan(100);
   await page.screenshot({ path: "/tmp/still-shots/shell/desktop-home.png" });
 });
 
