@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.still.placeholder",
-      "associatedDomains": ["applinks:still.example"]
+      "associatedDomains": ["applinks:team2.gdgoc-devfest.org"]
     },
     "android": {
       "package": "app.still.placeholder",
@@ -18,7 +18,7 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "still.example", "pathPrefix": "/e" }],
+          "data": [{ "scheme": "https", "host": "team2.gdgoc-devfest.org", "pathPrefix": "/e" }],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
