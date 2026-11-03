@@ -9,6 +9,7 @@ import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
 import { TextAction } from "../ui/TextAction";
 import { useCanScan } from "../ui/useCanScan";
+import { useWide } from "../ui/useWide";
 import { Wordmark } from "../ui/Wordmark";
 
 // Home 01 (guest) has the login and QR scan entry points; Home 02 (signed in) adds the tab bar (SPEC §1.1).
@@ -16,6 +17,8 @@ export default function Home() {
   const me = useMe();
   const userState = useUserState();
   const canScan = useCanScan();
+  // Desktop guests have no QR entry, so they get the exhibition list.
+  const wide = useWide();
   useEffect(() => {
     if (userState) track("home_view", { user_state: userState });
   }, [userState]);
