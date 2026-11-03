@@ -65,19 +65,18 @@ function Plain({ card, personal, caption }: LayoutProps) {
   );
 }
 
-// The whole cover on black, never cropped, under a dark veil; the text sits on it in white.
+// The whole cover, never cropped, over a blurred fill of itself, under a light veil; the text sits on it in white.
 function Overlay({ card, personal, caption }: LayoutProps) {
+  const cover = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
   return (
     <View style={{ flex: 1, backgroundColor: colors.black }}>
       {card.image && (
-        <Image
-          source={{ uri: card.image.url }}
-          accessibilityLabel={card.image.altText ?? undefined}
-          resizeMode="contain"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        />
+        <>
+          <Image source={{ uri: card.image.url }} resizeMode="cover" blurRadius={24} aria-hidden style={cover} />
+          <Image source={{ uri: card.image.url }} accessibilityLabel={card.image.altText ?? undefined} resizeMode="contain" style={cover} />
+        </>
       )}
-      <View style={{ flex: 1, padding: spacing.gap, justifyContent: "space-between", backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
+      <View style={{ flex: 1, padding: spacing.gap, justifyContent: "space-between", backgroundColor: "rgba(0, 0, 0, 0.35)" }}>
         <Text variant="caption" style={white}>STILL</Text>
         <View style={{ gap: spacing.inset }}>
           {personal.map((text) => (
@@ -116,11 +115,15 @@ function Quote({ card, personal, caption }: LayoutProps) {
   return (
     <Fill padding justify="space-between">
       <Wordmark size="card" />
-      <View style={{ gap: spacing.inset }}>
-        {personal.map((text, i) => (
-          <Text key={text} variant="row" numberOfLines={8}>{`${i === 0 ? "“" : ""}${text}${i === personal.length - 1 ? "”" : ""}`}</Text>
-        ))}
-      </View>
+      {personal.length > 0 && (
+        <View style={{ gap: spacing.inset }}>
+          <Text variant="headline">“</Text>
+          {personal.map((text) => (
+            <Text key={text} variant={quoteSize(personal)} numberOfLines={10}>{text}</Text>
+          ))}
+          <Text variant="headline" style={{ textAlign: "right" }}>”</Text>
+        </View>
+      )}
       <View style={{ flexDirection: "row", gap: spacing.inset, alignItems: "center", borderTopWidth: 1, borderColor: colors.black, paddingTop: spacing.inset }}>
         {card.image && <Image source={{ uri: card.image.url }} accessibilityLabel={card.image.altText ?? undefined} resizeMode="cover" style={{ width: 44, height: 44 }} />}
         <View style={{ flex: 1 }}>
@@ -131,6 +134,12 @@ function Quote({ card, personal, caption }: LayoutProps) {
     </Fill>
   );
 }
+
+// The quoted words are as large as their length allows: a short sentence reads big, a long record stays whole.
+const quoteSize = (texts: string[]) => {
+  const length = texts.join("").length;
+  return length <= 60 ? "subhead" : length <= 140 ? "row" : "action";
+};
 
 const layouts: Record<KeepsakeStyle, (props: LayoutProps) => ReactNode> = { plain: Plain, overlay: Overlay, frame: Frame, quote: Quote };
 
