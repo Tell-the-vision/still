@@ -12,7 +12,7 @@ import { tokenStorage } from "../features/auth/token-storage";
 export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 
 // Procedures served as cacheable GET without headers (SPEC §11.1).
-export const PUBLIC_PATHS = ["exhibition.get", "guide.get"];
+export const PUBLIC_PATHS = ["exhibition.get", "exhibition.list", "guide.get"];
 
 // Staleness per kind of query (SPEC §11.10). policy.get sets 0 in its own query options.
 export const STALE_TIME = { public: 5 * 60_000, personal: 30_000, policy: 0 };

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Notice } from "./Notice";
 import { uiStrings } from "./strings";
-import { colors, spacing } from "./theme";
+import { colors, rule, spacing } from "./theme";
 
 type Props = { message: string; error?: boolean; dismissible?: boolean };
 
@@ -12,7 +12,7 @@ export function Banner({ message, error = false, dismissible = true }: Props) {
   if (dismissed) return null;
   const action = dismissible ? { label: uiStrings.dismiss, onPress: () => setDismissed(true) } : undefined;
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={{ backgroundColor: colors.white, paddingHorizontal: spacing.gutter }}>
+    <SafeAreaView edges={["top", "left", "right"]} style={{ backgroundColor: colors.white, paddingHorizontal: spacing.gutter, paddingBottom: spacing.inset, borderBottomWidth: rule, borderColor: colors.black }}>
       <Notice message={message} error={error} action={action} />
     </SafeAreaView>
   );

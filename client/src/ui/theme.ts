@@ -7,7 +7,7 @@ export { card, colors, coverHeight, fontSize, spacing, type, wordmark } from "./
 export const control = { height: 52, row: 42, tile: 56 };
 export const rule = 1;
 export const pageField = { minHeight: 300 };
-export const mark = { square: 20, circle: 22 };
+export const mark = { square: 20, circle: 22, qr: 22 };
 
 // Web focus ring shared by interactive primitives.
 export const focusRing = { outlineWidth: 2, outlineOffset: 2, outlineColor: colors.black, outlineStyle: "solid" } as const;

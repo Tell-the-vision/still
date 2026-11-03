@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StyleSheet, TextInput, type TextInputProps } from "react-native";
-import { colors, focusRing, fontFamily, fontSize, pageField, spacing } from "./theme";
+import { colors, fontFamily, fontSize, pageField, spacing } from "./theme";
 
 type Props = Omit<TextInputProps, "onSubmitEditing"> & {
   label: string;
@@ -38,5 +38,6 @@ const styles = StyleSheet.create({
     padding: spacing.inset,
   },
   page: { ...pageField, textAlignVertical: "top" },
-  focus: focusRing,
+  // One 2px edge inside the bounds: the outline overlays the 1px border instead of ringing outside it.
+  focus: { outlineWidth: 1, outlineOffset: -1, outlineColor: colors.black, outlineStyle: "solid" },
 });

@@ -10,41 +10,47 @@ import { Screen } from "../../ui/Screen";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { spacing } from "../../ui/theme";
+import { useWide } from "../../ui/useWide";
+import { useCanScan } from "../../ui/useCanScan";
 
 // My Archive 07: two-column grid, most recently visited first, loading further pages on scroll.
 export default function Archive() {
+  const wide = useWide();
+  const canScan = useCanScan();
   const me = useRequireLogin("/archive");
   const trpc = useTRPC();
   const { data, error, refetch, hasNextPage, fetchNextPage } = useInfiniteQuery(
     trpc.archive.list.infiniteQueryOptions({ limit: 20 }, { getNextPageParam: (page) => page.nextCursor }),
   );
   const items = data?.pages.flatMap((page) => page.items) ?? [];
-  const totalSize = data?.pages[0]?.totalSize ?? 0;
+  const columns = wide ? 4 : 2;
+  // Pad the last row with blanks so a lone tile keeps the column width instead of stretching across the row.
+  const cells = [...items, ...Array.from({ length: (columns - (items.length % columns)) % columns }, () => null)];
   const header = (
     <View style={{ gap: spacing.inset, marginBottom: spacing.gutter }}>
       <Text variant="headline">{archiveStrings.heading}</Text>
-      <Text variant="eyebrow">{archiveStrings.count(totalSize)}</Text>
     </View>
   );
   return (
-    <Screen tabs headerRight scroll={false}>
+    <Screen tabs scroll={false} width="wide">
       {me && error && <Notice error message={archiveStrings.error} action={{ label: archiveStrings.retry, onPress: () => refetch() }} />}
       {me && data && items.length === 0 && (
         <Stack>
           {header}
           <Text variant="subhead">{archiveStrings.emptyTitle}</Text>
           <Text variant="secondary">{archiveStrings.empty}</Text>
-          <Button label={archiveStrings.scan} href="/scan" />
+          {canScan && <Button label={archiveStrings.scan} href="/scan" />}
         </Stack>
       )}
       {me && items.length > 0 && (
         <FlatList
-          data={items}
-          numColumns={2}
-          keyExtractor={(item) => item.exhibition.code}
+          data={cells}
+          key={wide ? "wide" : "narrow"}
+          numColumns={columns}
+          keyExtractor={(item, index) => item?.exhibition.code ?? `blank-${index}`}
           columnWrapperStyle={{ gap: spacing.gap }}
           contentContainerStyle={{ gap: spacing.section }}
-          renderItem={({ item }) => <ArchiveCard archive={item} />}
+          renderItem={({ item }) => (item ? <ArchiveCard archive={item} /> : <View style={{ flex: 1 }} />)}
           onEndReached={() => hasNextPage && fetchNextPage()}
           ListHeaderComponent={header}
         />

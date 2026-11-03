@@ -8,9 +8,10 @@ import { Choice } from "../../ui/Choice";
 import { Section } from "../../ui/Section";
 import { Text } from "../../ui/Text";
 import { Stack } from "../../ui/Stack";
-import { TextAction } from "../../ui/TextAction";
+import { spacing } from "../../ui/theme";
+import { View } from "react-native";
 import { displayMode, type Audio } from "./display-mode";
-import { PinkNoiseToggle } from "./PinkNoiseToggle";
+import { AmbienceToggle } from "./AmbienceToggle";
 import { audioStrings } from "./strings";
 
 type Props = { code: string; audio: Audio; screen: "guide" | "journal"; onModeChange?: (mode: ReturnType<typeof displayMode>) => void };
@@ -24,32 +25,33 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
   const choice = settings.data?.audioMode ?? "AUTO";
   const focused = useIsFocused();
   const [muted, setMuted] = useState(false);
+  const [ambienceOn, setAmbienceOn] = useState(false);
   const base = displayMode(choice, audio);
   const mode = muted ? "NONE" : base;
   useEffect(() => onModeChange?.(mode), [mode, onModeChange]);
   if (!base) return null;
   const playlist = audio.playlist;
   return (
-    <Section label={audioStrings.section}>
+    <Section label={audioStrings.groupLabel} hideLabel>
       <Stack gap="tight">
-        {base === "EXTERNAL" && playlist && (
-          <Choice
-            role="button"
-            href={playlist.url}
-            target="_blank"
-            selected={!muted}
-            label={playlist.provider === "SPOTIFY" ? audioStrings.listen.SPOTIFY : audioStrings.listen.APPLE_MUSIC}
-            onPress={() => {
-              setMuted(false);
-              track("audio_external_click", { provider: playlist.provider, exhibition_code: code });
-            }}
-          />
-        )}
-        {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} />}
-        {base === "NONE" && <Text>{audioStrings.none}</Text>}
-        {base !== "NONE" && <TextAction variant="secondary" label={audioStrings.none} active={muted} tone={muted ? "primary" : "secondary"} onPress={() => setMuted(!muted)} />}
+        <View role="radiogroup" aria-label={audioStrings.groupLabel} style={{ gap: spacing.tight }}>
+          {base === "EXTERNAL" && playlist && (
+            <Choice
+              role="button"
+              href={playlist.url}
+              target="_blank"
+              selected={!muted}
+              label={playlist.provider === "SPOTIFY" ? audioStrings.listen.SPOTIFY : audioStrings.listen.APPLE_MUSIC}
+              onPress={() => {
+                setMuted(false);
+                track("audio_external_click", { provider: playlist.provider, exhibition_code: code });
+              }}
+            />
+          )}
+          {base === "AMBIENCE" && focused && <AmbienceToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} onChange={setAmbienceOn} />}
+          <Choice role="radio" label={audioStrings.none} selected={mode === "NONE" || (base === "AMBIENCE" && !ambienceOn)} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
+        </View>
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
-        {screen === "journal" && base === "AMBIENCE" && <Text variant="secondary">{audioStrings.journalCaption}</Text>}
       </Stack>
     </Section>
   );

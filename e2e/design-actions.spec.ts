@@ -2,7 +2,7 @@ import { expect, test } from "next/experimental/testmode/playwright";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 import { openGuide } from "./support/reach";
 
-test("Home: View all and QR Scan are borderless text actions", async ({ page, next }) => {
+test("Home: ON VIEW / ALL and QR Scan are borderless text actions", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
@@ -10,11 +10,12 @@ test("Home: View all and QR Scan are borderless text actions", async ({ page, ne
   await openGuide(page, "forms-of-stillness");
   await upserted;
   await page.goto("/");
-  const viewAll = page.getByRole("link", { name: "View all" });
-  await expect(viewAll).toHaveCSS("border-top-width", "0px");
+  for (const name of ["ON VIEW", "ALL"]) {
+    await expect(page.getByText(name, { exact: true })).toHaveCSS("border-top-width", "0px");
+  }
   await expect(page.getByRole("link", { name: "QR Scan" })).toHaveCSS("border-top-width", "0px");
-  await viewAll.click();
-  await expect(page.getByText("My Archive").first()).toBeVisible();
+  await page.getByText("ALL", { exact: true }).click();
+  await expect(page.getByText("ALL", { exact: true })).toHaveCSS("border-top-width", "0px");
 });
 
 test("Creator: the selected template button is filled and swaps on click", async ({ page, next }) => {
@@ -22,11 +23,11 @@ test("Creator: the selected template button is filled and swaps on click", async
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
-  await page.getByRole("link", { name: "Create web card" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
+  await page.getByRole("link", { name: "Make your card" }).click();
   const sentence = page.getByRole("radio", { name: "Sentence" });
   const cover = page.getByRole("radio", { name: "Cover" });
   await expect(sentence).toHaveCSS("background-color", "rgb(0, 0, 0)");

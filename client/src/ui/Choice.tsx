@@ -40,7 +40,7 @@ export function Choice({ label, selected, role, layout = "row", disabled = false
 
 const styles = StyleSheet.create({
   base: { borderWidth: 1, borderColor: colors.black, backgroundColor: colors.white, justifyContent: "center" },
-  row: { alignSelf: "stretch", minHeight: control.row, paddingHorizontal: spacing.inset + 2 },
+  row: { alignSelf: "stretch", minHeight: control.row, paddingHorizontal: spacing.inset + 2, paddingVertical: spacing.inset },
   tile: { flex: 1, flexBasis: 0, minHeight: control.tile, alignItems: "center", paddingHorizontal: spacing.tight },
   selected: { backgroundColor: colors.black },
 });

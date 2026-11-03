@@ -2,7 +2,7 @@ import { track } from "../../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { useWindowDimensions } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { clipExcerpt, sentenceLimit, templateDefaults } from "@still/shared/keepsake";
 import { useRequireLogin } from "../../../features/auth/require-login";
 import { keepsakeStrings as strings } from "../../../features/keepsake/strings";
@@ -13,7 +13,6 @@ import { Choice } from "../../../ui/Choice";
 import { KeepsakeCard } from "../../../ui/KeepsakeCard";
 import { Notice } from "../../../ui/Notice";
 import { Screen } from "../../../ui/Screen";
-import { Section } from "../../../ui/Section";
 import { Stack } from "../../../ui/Stack";
 import { Text } from "../../../ui/Text";
 import { TextAction } from "../../../ui/TextAction";
@@ -21,8 +20,9 @@ import { card as cardTokens, spacing } from "../../../ui/theme";
 
 // Web card creator: pick a template, preview it live, save.
 export default function KeepsakeCreator() {
-  const { code } = useLocalSearchParams<{ code: string }>();
-  const me = useRequireLogin(`/archive/${code}/keepsake`);
+  const { code, from } = useLocalSearchParams<{ code: string; from?: string }>();
+  const fromGuide = from === "guide";
+  const me = useRequireLogin(fromGuide ? `/archive/${code}/keepsake?from=guide` : `/archive/${code}/keepsake`);
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -46,10 +46,11 @@ export default function KeepsakeCreator() {
   const save = useMutation(
     trpc.keepsake.upsert.mutationOptions({
       onSuccess: (r, variables) => {
-        track("keepsake_save", { exhibition_code: code, template_id: variables.templateId });
+        track("keepsake_save", { exhibition_code: code, template_id: variables.templateId, source: fromGuide ? "guide" : "archive" });
         queryClient.setQueryData(trpc.keepsake.get.queryKey({ code }), r.keepsake);
         if (r.created) void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
-        router.replace(`/archive/${code}`);
+        if (router.canGoBack()) router.back();
+        else router.replace(fromGuide ? `/e/${code}` : `/archive/${code}`);
       },
     }),
   );
@@ -86,23 +87,28 @@ export default function KeepsakeCreator() {
   const paragraphs = (journal?.content ?? "").split("\n").filter((p) => p.trim() !== "");
   const toggleSentence = (id: string) => setSentenceIds(shownIds.includes(id) ? shownIds.filter((i) => i !== id) : [...shownIds, id]);
   const full = shownIds.length >= limit;
-  const countNote = limit === 1 ? (full ? strings.oneChosen : strings.chooseOne) : full ? strings.threeChosen : strings.chooseUpTo;
+  // One rule for every artwork: the card is as wide as the column allows (up to its own width), centred.
+  const drawnWidth = Math.min(width - 2 * spacing.gutter, cardTokens.width);
+  const drawnHeight = drawnWidth / cardTokens.aspectRatio;
   return (
     <Screen tabs>
-      <Stack>
+      <Stack gap="section">
         <Text variant="headline">{strings.heading}</Text>
-        <Text variant="eyebrow">{strings.eyebrow}</Text>
-        <KeepsakeCard card={card} templateId={templateId} width={Math.min(width - 2 * spacing.gutter, cardTokens.width)} />
-        <Text variant="label">{strings.layoutLabel}</Text>
-        <Stack direction="row">
-          {strings.templates.map((t) => (
-            <Choice key={t.id} layout="tile" role="radio" label={t.label} selected={t.id === templateId} onPress={() => setPicked(t.id)} />
-          ))}
+        <View style={{ width: drawnWidth, height: drawnHeight, alignSelf: "center" }}>
+          <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} />
+        </View>
+        <Stack gap="inset">
+          <Text variant="label">{strings.layoutLabel}</Text>
+          <Stack direction="row">
+            {strings.templates.map((t) => (
+              <Choice key={t.id} layout="tile" role="radio" label={t.label} selected={t.id === templateId} onPress={() => setPicked(t.id)} />
+            ))}
+          </Stack>
         </Stack>
         {templateId !== "cover" && (
-          <Section label={strings.onTheCard}>
+          <Stack gap="inset">
+            <Text variant="label" role="heading">{strings.onTheCard}</Text>
             <Stack gap="inset">
-              <Text variant="secondary">{countNote}</Text>
               {scraps.map((s) => (
                 <Choice
                   key={s.sentenceId}
@@ -114,9 +120,11 @@ export default function KeepsakeCreator() {
                   onPress={() => toggleSentence(s.sentenceId)}
                 />
               ))}
-              {templateId === "reflection" && (
-                <>
-                  <Text variant="label">{strings.excerptHeading}</Text>
+            </Stack>
+            {templateId === "reflection" && (
+              <View style={{ marginTop: spacing.section - spacing.inset }}>
+                <Stack gap="inset">
+                  <Text variant="label" role="heading">{strings.excerptHeading}</Text>
                   {paragraphs.map((p) => {
                     // A paragraph longer than the card holds is offered as its start; "…" marks the cut.
                     const clipped = clipExcerpt(p);
@@ -130,18 +138,20 @@ export default function KeepsakeCreator() {
                       />
                     );
                   })}
-                </>
-              )}
-            </Stack>
-          </Section>
+                </Stack>
+              </View>
+            )}
+          </Stack>
         )}
         {save.isError && <Notice error message={strings.failed} />}
+        <Stack>
         <Button label={strings.save} onPress={() => save.mutate({ code, templateId, ...picks })} />
         {saved && !changed ? (
           <DownloadPng code={code} url={saved.png.url} />
         ) : (
           <TextAction label={strings.png.download} leading="↓" disabled onPress={() => undefined} />
         )}
+        </Stack>
       </Stack>
     </Screen>
   );

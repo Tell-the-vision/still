@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useIsFocused, useRouter } from "expo-router";
+import { View } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { parseExhibitionTarget } from "@still/shared/entry";
 import { useUserState } from "../features/auth/use-me";
@@ -58,6 +59,7 @@ export default function Scan() {
           <Text variant="headline">{entryStrings.headline}</Text>
           <Text variant="secondary">{entryStrings.headlineHint}</Text>
         </Stack>
+        <View style={{ width: "100%", maxWidth: 320, alignSelf: "center" }}>
         <Viewfinder label={entryStrings.viewfinder}>
           {cameraOn && (
             <CameraView
@@ -68,6 +70,7 @@ export default function Scan() {
             />
           )}
         </Viewfinder>
+        </View>
         {notice && <Notice message={notice} error />}
         {permission && !permission.granted && <Notice message={entryStrings.cameraOff} />}
         <Stack gap="tight">

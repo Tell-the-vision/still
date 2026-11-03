@@ -51,7 +51,7 @@ const exhibition = (
     description: describe(`About ${title}.`),
     guide: guideOf(list),
     startDate: "2026-01-01",
-    endDate: "2026-12-31",
+    endDate: "2030-12-31",
     status: "PUBLISHED",
     ambienceEnabled: true,
     playlist: null,
@@ -71,6 +71,9 @@ export const defaultPackage: ContentPackage = {
       playlist: { provider: "SPOTIFY", url: "https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ", title: "Forms of Stillness", description: null },
     }),
     exhibition("quiet-rooms", "busan-gallery", "Quiet Rooms", ["Quiet is the space between things."], 3),
+    exhibition("past-light", "busan-gallery", "Past Light", ["Light remembers the room."], 5, {
+      startDate: "2025-01-01", endDate: "2025-06-30",
+    }),
     exhibition("draft-preview", "seoul-hall", "Draft Preview", ["Not yet open."], 4, {
       startDate: "2027-01-01", endDate: "2027-12-31", status: "DRAFT", ambienceEnabled: false,
     }),

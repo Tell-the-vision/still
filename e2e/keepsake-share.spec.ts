@@ -11,13 +11,14 @@ async function reachDetail(page: Parameters<typeof signIn>[0], next: Parameters<
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, code);
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await trpcCall(page, "keepsake.upsert", { code, templateId: "sentence", sentenceIds: ["00000000-0000-4000-8000-000000000001"] });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  const loaded = page.waitForResponse((r) => r.url().includes("keepsake.get") && r.ok());
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
-  await loaded;
+  // The guide already holds the card as it was; reload so the detail reads the one just saved.
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  await page.reload();
 }
 
 test("Share hands exactly one PNG file to the share sheet", async ({ page, next }) => {
@@ -36,10 +37,17 @@ test("Share hands exactly one PNG file to the share sheet", async ({ page, next 
   expect(shared[0]).toEqual(["image/png"]);
 });
 
-test("without file sharing, the image can be long-pressed to save", async ({ page, next }) => {
+test("without file sharing, only the download link is offered", async ({ page, next }) => {
   await reachDetail(page, next);
-  await expect(page.getByText("Press and hold the image to save it.")).toBeVisible();
-  const image = page.locator("img[src*='/api/media/keepsake']");
-  await expect(image).toBeVisible();
-  await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await expect(page.getByText("Press and hold the image to save it.")).toHaveCount(0);
+  await expect(page.locator("img[src*='/api/media/keepsake']")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Download PNG" })).toBeVisible();
+});
+
+test("on desktop the PNG is not rendered in the page and there is no long-press hint", async ({ page, next }) => {
+  await reachDetail(page, next);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.getByRole("link", { name: "Download PNG" })).toBeVisible();
+  await expect(page.getByText("Press and hold the image to save it.")).toHaveCount(0);
+  await expect(page.locator("img[src*='/api/media/keepsake']")).toHaveCount(0);
 });

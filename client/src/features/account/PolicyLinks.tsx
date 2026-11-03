@@ -10,7 +10,7 @@ export function PolicyLinks() {
   const { data } = useQuery(trpc.policy.get.queryOptions(undefined, { staleTime: STALE_TIME.policy }));
   if (!data) return null;
   return (
-    <Stack gap="inset">
+    <Stack gap="gap">
       <TextAction variant="secondary" target="_blank" href={data.termsUrl as never} label={accountStrings.terms} trailing="→" />
       <TextAction variant="secondary" target="_blank" href={data.privacyUrl as never} label={accountStrings.privacy} trailing="→" />
     </Stack>

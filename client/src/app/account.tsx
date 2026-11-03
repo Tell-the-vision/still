@@ -13,12 +13,9 @@ import { Dialog } from "../ui/Dialog";
 import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
 import { Rule } from "../ui/Rule";
-import { Section } from "../ui/Section";
 import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
 import { TextAction } from "../ui/TextAction";
-
-const providerNames: Record<string, string> = { GOOGLE: "GOOGLE" };
 
 // Account (Figma 09, SPEC §2.2 Profile).
 export default function Account() {
@@ -46,35 +43,33 @@ export default function Account() {
     await leave();
   };
   const title = <Text variant="headline">{accountStrings.title}</Text>;
-  if (!me) return <Screen tabs headerRight>{title}</Screen>;
+  if (!me) return <Screen tabs>{title}</Screen>;
   return (
-    <Screen tabs headerRight>
-      <Stack>
+    <Screen tabs>
+      <Stack gap="section">
         {title}
-        <Section label={accountStrings.signedInWith(providerNames[me.provider] ?? me.provider)}>
+        <Stack gap="tight">
           <Text variant="bodyStrong">{me.displayName}</Text>
           <Text tone="secondary" numberOfLines={1} ellipsizeMode="middle">{me.email}</Text>
-        </Section>
-        <Rule />
-        <Section label={accountStrings.preferences}>
-          <TextAction href="/account/audio" label={audioStrings.settingsLink} trailing="→" />
-        </Section>
-        <Rule />
-        <Section label={accountStrings.linkedAccounts}>
-          <LinkedAccounts />
-        </Section>
-        <Rule />
-        <Section label={accountStrings.about}>
-          <Text variant="subhead">{accountStrings.tagline}</Text>
-          <Text tone="secondary">{accountStrings.aboutBody}</Text>
+        </Stack>
+        <Rule tight />
+        <TextAction href="/account/audio" label={audioStrings.settingsLink} trailing="→" />
+        <Rule tight />
+        <LinkedAccounts />
+        <Rule tight />
+        <Stack gap="gutter">
+          <Stack gap="tight">
+            <Text variant="subhead">{accountStrings.tagline}</Text>
+            <Text tone="secondary">{accountStrings.aboutBody}</Text>
+          </Stack>
           <PolicyLinks />
-        </Section>
-        <Rule />
-        <Section label={accountStrings.account}>
-          <TextAction label={accountStrings.logOut} trailing="→" disabled={signingOut} onPress={logOut} />
-          <TextAction label={accountStrings.deleteAccount} trailing="→" tone="secondary" disabled={deleteAccount.isPending} onPress={() => setConfirming(true)} />
-          {failed ? <Notice error message={accountStrings.deleteFailed} /> : null}
-        </Section>
+        </Stack>
+        <Rule tight />
+        <Stack gap="gap">
+            <TextAction label={accountStrings.logOut} trailing="→" disabled={signingOut} onPress={logOut} />
+            <TextAction label={accountStrings.deleteAccount} trailing="→" tone="secondary" disabled={deleteAccount.isPending} onPress={() => setConfirming(true)} />
+            {failed ? <Notice error message={accountStrings.deleteFailed} /> : null}
+        </Stack>
       </Stack>
       <Dialog label={accountStrings.deleteDialogLabel} body={accountStrings.deleteWarning} visible={confirming} onClose={() => setConfirming(false)}>
         <Button label={accountStrings.delete} disabled={deleteAccount.isPending} onPress={confirmDelete} />

@@ -22,12 +22,15 @@ test("a Korean reflection card downloads as a full-size PNG without fetching fon
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, code);
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await trpcCall(page, "journal.upsert", { code, content: "고요한 빛 Quiet light.", audioType: null, revision: null });
   await trpcCall(page, "keepsake.upsert", { code, templateId: "reflection", journalExcerpt: "고요한 빛 Quiet light." });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  // The guide already holds the card as it was; reload so the detail reads the one just saved.
+  await page.reload();
 
   const downloading = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download PNG" }).click();
@@ -45,8 +48,8 @@ async function downloadWithCoverCard(page: Page, next: Parameters<typeof stubGoo
   // This exhibition has no guide sentences, so a journal creates the archive.
   await trpcCall(page, "journal.upsert", { code: "with-cover", content: "Quiet light.", audioType: null, revision: null });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "With Cover" }).click();
-  await page.getByRole("link", { name: "Create web card" }).click();
+  await page.getByRole("link", { name: "With Cover", exact: true }).click();
+  await page.getByRole("link", { name: "Make your card" }).click();
   await page.getByRole("radio", { name: "Cover" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/with-cover$/);

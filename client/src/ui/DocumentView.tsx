@@ -15,27 +15,24 @@ export function DocumentView({
   renderSentence,
 }: {
   document: ExpandedDocument | null;
-  renderSentence?: (block: SentenceBlock) => ReactNode;
+  renderSentence?: (block: SentenceBlock, quote: ReactNode) => ReactNode;
 }) {
   return (
     <View style={{ gap: spacing.gap }}>
       {document?.blocks.map((block, i) => {
         switch (block.type) {
           case "heading":
-            return <Text key={i} variant="subhead">{block.text}</Text>;
+            return <Text key={i} variant="subhead" style={i > 0 ? { marginTop: spacing.section - spacing.tight } : undefined}>{block.text}</Text>;
           case "paragraph":
             return <Text key={i}>{block.text}</Text>;
           case "image":
             return (
               <Artwork key={i} url={block.url} altText={block.altText} width={block.width} height={block.height} />
             );
-          case "sentence":
-            return (
-              <View key={i} style={{ gap: spacing.inset }}>
-                <Text variant="quote">{quoted(block.text)}</Text>
-                {renderSentence?.(block)}
-              </View>
-            );
+          case "sentence": {
+            const quote = <Text variant="quote">{quoted(block.text)}</Text>;
+            return <View key={i}>{renderSentence ? renderSentence(block, quote) : quote}</View>;
+          }
           default:
             return null;
         }

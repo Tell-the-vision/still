@@ -11,7 +11,7 @@ import { spacing } from "../../ui/theme";
 export default function Audio() {
   const me = useRequireLogin("/account");
   return (
-    <Screen tabs headerRight>
+    <Screen tabs>
       {me ? (
         <View style={styles.body}>
           <TextAction href="/account" label={audioStrings.back} leading="←" variant="secondary" />

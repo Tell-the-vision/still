@@ -1,8 +1,8 @@
 export const audioStrings = {
-  section: "LISTENING",
   listen: { SPOTIFY: "EXTERNAL PLAYLIST · SPOTIFY", APPLE_MUSIC: "EXTERNAL PLAYLIST · APPLE MUSIC" },
-  pinkNoise: "STILL AMBIENCE · PINK NOISE",
-  playFailed: "Couldn't play Pink Noise.",
+  playlist: { SPOTIFY: "Playlist on Spotify", APPLE_MUSIC: "Playlist on Apple Music" },
+  ambience: "Ambience",
+  playFailed: "Couldn't play Ambience.",
   settingsLink: "Audio settings",
   back: "ACCOUNT",
   headline: "Audio.",
@@ -10,9 +10,8 @@ export const audioStrings = {
   automaticHint: "Play the exhibition's playlist or ambience when offered.",
   silent: "No audio",
   silentHint: "Start every exhibition in silence.",
-  saved: "Saved",
   saveFailed: "Couldn't save your choice.",
-  none: "NO AUDIO",
+  none: "No audio",
+  groupLabel: "Sound while writing",
   noneHint: "Music already playing in other apps won't stop.",
-  journalCaption: "Pink Noise is user-controlled. Default: Off.",
 };

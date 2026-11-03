@@ -1,59 +1,60 @@
-import { track } from "../../lib/analytics";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { useTRPC } from "../../lib/trpc";
 import { Notice } from "../../ui/Notice";
 import { Section } from "../../ui/Section";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
-import { TextAction } from "../../ui/TextAction";
+import { spacing } from "../../ui/theme";
+import { KeepMark } from "./KeepMark";
 import { scrapStrings } from "./strings";
+import { useKeepToggle } from "./useKeepToggle";
 
-// One saved sentence; its unsave shares the save's mutation scope so both are serialized.
-function SavedSentence({ code, scrap }: { code: string; scrap: { sentenceId: string; content: string } }) {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const listKey = trpc.scrap.list.queryKey({ code });
-  const { mutate, isError } = useMutation(
-    trpc.scrap.delete.mutationOptions({
-      scope: { id: `scrap:${code}:${scrap.sentenceId}` },
-      retry: retryNetworkErrors,
-      onMutate: async ({ sentenceId }) => {
-        await queryClient.cancelQueries({ queryKey: listKey });
-        const snapshot = queryClient.getQueryData(listKey);
-        queryClient.setQueryData(listKey, snapshot?.filter((scrap) => scrap.sentenceId !== sentenceId));
-        return { snapshot };
-      },
-      onSuccess: () => track("scrap_remove", { exhibition_code: code, sentence_id: scrap.sentenceId }),
-      onError: (_error, _input, context) => queryClient.setQueryData(listKey, context?.snapshot),
-      onSettled: () =>
-        Promise.all([
-          queryClient.invalidateQueries({ queryKey: trpc.scrap.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() }),
-        ]),
-    }),
-  );
+type Line = { sentenceId: string; content: string };
+
+// One kept line with its mark. Unkeeping leaves the row in place showing "+", which keeps it again.
+function KeptLine({ code, line, kept }: { code: string; line: Line; kept: boolean }) {
+  const toggle = useKeepToggle(code, line.sentenceId, line.content);
   return (
-    <Stack>
-      {isError && <Notice message={scrapStrings.unsaveFailed} error />}
-      <Text variant="quote">{scrap.content}</Text>
-      <Stack direction="row">
-        <TextAction label={scrapStrings.unsave} tone="secondary" onPress={() => mutate({ code, sentenceId: scrap.sentenceId })} />
-      </Stack>
+    <Stack gap="inset">
+      <View style={styles.row}>
+        <View style={styles.quote}>
+          <Text variant="quote">{line.content}</Text>
+        </View>
+        <KeepMark kept={kept} pending={toggle.pending} onPress={kept ? toggle.unkeep : toggle.keep} />
+      </View>
+      {toggle.unkeepFailed && kept && <Notice message={scrapStrings.removeFailed} error action={{ label: scrapStrings.retry, onPress: toggle.unkeep }} />}
+      {toggle.keepFailed && !kept && <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: toggle.keep }} />}
     </Stack>
   );
 }
 
-// Archive Detail: the sentences saved from this exhibition. Unsaving happens only here (SPEC §4.2).
+// Archive Detail: the lines kept from this exhibition (SPEC §4.2). Lines unkept here stay listed until the screen is left.
 export function ScrapSection({ code }: { code: string }) {
   const trpc = useTRPC();
   const { data: scraps = [] } = useQuery(trpc.scrap.list.queryOptions({ code }));
+  const seen = useShownLines(scraps);
+  const keptIds = new Set(scraps.map((scrap) => scrap.sentenceId));
   return (
-    <Section labelVariant="row" label={scrapStrings.savedCount(scraps.length)}>
+    <Section labelVariant="row" label={scrapStrings.keptHeading()}>
       <Stack>
-        {scraps.map((scrap) => (
-          <SavedSentence key={scrap.sentenceId} code={code} scrap={scrap} />
+        {seen.map((line) => (
+          <KeptLine key={line.sentenceId} code={code} line={line} kept={keptIds.has(line.sentenceId)} />
         ))}
       </Stack>
     </Section>
   );
 }
+
+// Every line seen while this screen is mounted, in first-seen order.
+function useShownLines(scraps: Line[]) {
+  const [shown] = useState(() => new Map<string, Line>());
+  for (const scrap of scraps) if (!shown.has(scrap.sentenceId)) shown.set(scrap.sentenceId, scrap);
+  return [...shown.values()];
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.tight },
+  quote: { flex: 1 },
+});

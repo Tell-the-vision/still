@@ -11,23 +11,25 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page.getByText("Saved", { exact: true }).last()).toBeVisible();
+  // Saving returns to the Archive Detail, which shows the time.
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
 
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
-  await page.getByRole("link", { name: "Create web card" }).click();
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
+  await page.getByRole("link", { name: "Make your card" }).click();
   await expect(page.getByRole("radio", { name: "Sentence" })).toHaveAttribute("aria-checked", "true");
   const cardBox = await page.getByLabel("Web card", { exact: true }).boundingBox();
-  const captionBox = await page.getByText("SEOUL / 2026").boundingBox();
+  const captionBox = await page.getByLabel("Web card", { exact: true }).getByText("SEOUL / 2026").boundingBox();
   expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0) - ((captionBox?.y ?? 0) + (captionBox?.height ?? 0))).toBeLessThanOrEqual(24);
   const headingBox = await page.getByRole("heading", { name: "Keep this moment." }).boundingBox();
-  const eyebrowBox = await page.getByText("DIGITAL KEEPSAKE / WEB CARD").boundingBox();
-  expect(headingBox?.y).toBeLessThan(eyebrowBox?.y ?? 0);
+  await expect(page.getByText("DIGITAL KEEPSAKE / WEB CARD")).toHaveCount(0);
+  expect(headingBox?.y).toBeLessThan(cardBox?.y ?? 0);
   const saveBox = await page.getByRole("button", { name: "Save Web Card" }).boundingBox();
   expect(cardBox?.y).toBeLessThan(saveBox?.y ?? 0);
   await expect(page.getByRole("button", { name: "Download PNG" })).toHaveAttribute("aria-disabled", "true");
@@ -35,17 +37,17 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText("Quiet light.");
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
-  await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText("Quiet light.");
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).toContainText("Quiet light.");
   const first = await getKeepsake(page);
   const sentence = first.card.sentences[0].content;
-  await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText(sentence);
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).toContainText(sentence);
 
-  await page.getByRole("link", { name: "Edit web card" }).click();
+  await page.getByRole("link", { name: "Edit card" }).click();
   await page.getByRole("radio", { name: "Cover" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
-  await expect(page.getByLabel("Web card", { exact: true }).last()).not.toContainText("Quiet light.");
-  await expect(page.getByLabel("Web card", { exact: true }).last()).not.toContainText(sentence);
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).not.toContainText("Quiet light.");
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).not.toContainText(sentence);
   expect((await getKeepsake(page)).createdAt).toBe(first.createdAt);
 });
 
@@ -146,7 +148,8 @@ test("a long record shrinks the cover instead of cutting the text", async ({ pag
   const cardBox = await card.boundingBox();
   const excerptBox = await excerpt.boundingBox();
   const captionBox = await caption.boundingBox();
-  expect((excerptBox?.y ?? 0) + (excerptBox?.height ?? Infinity)).toBeLessThanOrEqual(captionBox?.y ?? 0);
+  const tight = 8 * ((cardBox?.width ?? 0) / 360); // spacing.tight, at the card's rendered scale
+  expect((excerptBox?.y ?? 0) + (excerptBox?.height ?? Infinity) + tight).toBeLessThanOrEqual(captionBox?.y ?? 0); // at least spacing.tight between text and caption
   expect((captionBox?.y ?? 0) + (captionBox?.height ?? Infinity)).toBeLessThanOrEqual((cardBox?.y ?? 0) + (cardBox?.height ?? 0));
 });
 
@@ -184,7 +187,7 @@ test("Reflection takes one sentence", async ({ page, next }) => {
   await page.getByRole("checkbox", { name: scraps[0].content }).click();
   await page.getByRole("checkbox", { name: scraps[1].content }).click();
   await page.getByRole("radio", { name: "Reflection" }).click();
-  await expect(page.getByText("1 of 1 chosen.")).toBeVisible();
+  await expect(page.getByText("1 of 1 chosen.")).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: scraps[0].content })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("checkbox", { name: scraps[1].content })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("checkbox", { name: scraps[1].content })).toBeDisabled();
@@ -195,4 +198,18 @@ test("Reflection takes one sentence", async ({ page, next }) => {
   // The server keeps no more than the template shows, whatever the request.
   await trpcCall(page, "keepsake.upsert", { code, templateId: "reflection", sentenceIds: [id(1), id(2)] });
   expect((await getKeepsake(page)).card.sentences).toHaveLength(1);
+});
+
+test("on a phone the layout choice is visible without scrolling", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await openGuide(page, code);
+  await trpcCall(page, "scrap.upsert", { code, sentenceId: "00000000-0000-4000-8000-000000000001" });
+  await trpcCall(page, "journal.upsert", { code, content: "Quiet light.", audioType: null, revision: null });
+  await page.goto(`/archive/${code}/keepsake`);
+  await expect(page.getByText("Choose a layout", { exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("radio", { name: "Sentence" })).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: "/tmp/still-shots/creator/creator-390.png" });
 });

@@ -49,18 +49,20 @@ test("record events carry codes and ids, never journal text", async ({ page, nex
   await captureDataLayer(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
   await expect.poll(async () => (await dataLayer(page)).map((e) => e.event)).toContain("scrap_save");
   const popup = page.waitForEvent("popup");
-  await page.getByRole("link", { name: "EXTERNAL PLAYLIST · SPOTIFY" }).click();
+  await page.getByRole("link", { name: /^Listen to .+ on Spotify$/ }).click();
   await (await popup).close();
 
-  await page.getByRole("link", { name: "Write a journal" }).click();
-  for (const [text, event] of [["Quiet light.", "journal_create"], ["Quiet light, softer.", "journal_update"]]) {
+  for (const [text, event, link] of [["Quiet light.", "journal_create", "Write a journal"], ["Quiet light, softer.", "journal_update", "Your journal"]]) {
+    await openGuide(page, "forms-of-stillness");
+    await page.getByRole("link", { name: link }).click();
     await page.getByRole("textbox", { name: "Journal" }).fill(text);
     const saved = page.waitForResponse((r) => r.url().includes("/api/trpc/") && r.request().method() === "POST" && r.ok());
     await page.getByRole("button", { name: "Save Journal" }).click();
     await saved;
+    await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
     await expect.poll(async () => (await dataLayer(page)).map((e) => e.event)).toContain(event);
   }
   const entries = await dataLayer(page);

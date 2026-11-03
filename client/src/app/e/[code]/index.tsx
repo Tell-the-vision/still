@@ -1,12 +1,15 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { useArchiveVisit } from "../../../features/archive/useArchiveVisit";
 import { PendingActionRunner } from "../../../features/auth/PendingActionRunner";
-import { AudioArea } from "../../../features/audio/AudioArea";
+import { GuidePlaylist } from "../../../features/audio/GuidePlaylist";
+import { useMe } from "../../../features/auth/use-me";
+import { KeepsakePresence } from "../../../features/keepsake/KeepsakePresence";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
+import { useSavedLabel } from "../../../features/journal/saved-label";
 import { SentenceAction } from "../../../features/scrap/SentenceAction";
 import { track } from "../../../lib/analytics";
 import { STALE_TIME, useTRPC } from "../../../lib/trpc";
@@ -15,8 +18,9 @@ import { DocumentView } from "../../../ui/DocumentView";
 import { Notice } from "../../../ui/Notice";
 import { Rule } from "../../../ui/Rule";
 import { Screen } from "../../../ui/Screen";
-import { Section } from "../../../ui/Section";
 import { Text } from "../../../ui/Text";
+import { spacing } from "../../../ui/theme";
+import { View } from "react-native";
 import { TextAction } from "../../../ui/TextAction";
 
 // Exhibition Guide 04 (SPEC §3).
@@ -41,15 +45,17 @@ export default function ExhibitionGuide() {
       <Screen tabs>
         <PendingActionRunner code={code} />
         <GuideHeader {...exhibition.data} />
-        <Text variant="subhead">{guideStrings.about}</Text>
+        <GuidePlaylist code={code} audio={exhibition.data.audio} />
+        <KeepsakePresence code={code} exhibition={exhibition.data} hasGuide={guide.data.document !== null} />
         <DocumentView document={exhibition.data.description} />
-        <AudioArea code={code} audio={exhibition.data.audio} screen="guide" />
+        {guide.data.document && (
+          <>
+            <Rule />
+            <DocumentView document={guide.data.document} renderSentence={(b, quote) => <SentenceAction code={code} sentence={b} quote={quote} />} />
+          </>
+        )}
         <Rule />
-        <Section label={guideStrings.commentary}>
-          <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
-        </Section>
-        <Rule />
-        <TextAction label={guideStrings.writeJournal} trailing="→" variant="subhead" href={`/e/${code}/journal`} />
+        <JournalLink code={code} />
       </Screen>
     );
   }
@@ -72,5 +78,19 @@ export default function ExhibitionGuide() {
       <Button label={guideStrings.scan} href="/scan" />
       <TextAction label={guideStrings.backHome} trailing="→" href="/" />
     </Screen>
+  );
+}
+
+// The last block: the way to the journal, centred in the column.
+function JournalLink({ code }: { code: string }) {
+  const trpc = useTRPC();
+  const me = useMe();
+  const { data: journal } = useQuery(trpc.journal.get.queryOptions({ code }, { enabled: !!me }));
+  const savedLabel = useSavedLabel(code);
+  return (
+    <View style={{ alignItems: "center", gap: spacing.tight, }}>
+      <TextAction label={journal ? guideStrings.yourJournal : guideStrings.writeJournal} trailing="→" variant="subhead" href={`/e/${code}/journal?from=guide`} />
+      {savedLabel && <Text variant="secondary">{savedLabel}</Text>}
+    </View>
   );
 }

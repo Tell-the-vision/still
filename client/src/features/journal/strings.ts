@@ -5,7 +5,8 @@ export const journalStrings = {
   guestCaption: "Saving asks you to sign in. Your text stays on this device.",
   label: "Journal",
   save: "Save Journal",
-  saved: "Saved",
+  saving: "Saving…",
+  announce: "Journal saved.",
   invalid: "Write something (up to 2000 characters).",
   network: "Couldn't save. Your text is kept.",
   conflict: "This journal was changed on another device.",
@@ -17,12 +18,12 @@ export const journalStrings = {
 };
 
 export const journalSectionStrings = {
-  present: "01 journal · editable",
-  absent: "00 journal",
+  present: "Journal",
+  absent: "Journal",
   edit: "Edit",
   write: "Write a journal",
   delete: "Delete journal",
-  dialogBody: "Your saved sentences and web card stay.",
+  dialogBody: "Your kept lines and keepsake stay.",
   cancel: "Cancel",
   confirm: "Delete",
   failed: "Couldn't delete the journal.",

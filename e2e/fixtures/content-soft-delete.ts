@@ -10,7 +10,7 @@ export const softDeleteExhibition = (sentences: { id: string; content: string }[
   description: { version: 1, blocks: [] },
   guide: { version: 1, blocks: sentences.map((s) => ({ type: "sentence" as const, sentenceId: s.id })) },
   startDate: "2026-01-01",
-  endDate: "2026-12-31",
+  endDate: "2030-12-31",
   status: "PUBLISHED",
   ambienceEnabled: false,
   playlist: null,

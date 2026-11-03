@@ -9,8 +9,8 @@ test("a saved sentence survives the exhibition re-import that removes it", async
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "soft-delete");
-  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
 
   execFileSync("npm", ["run", "db:seed", "--", "e2e/fixtures/pkg-soft-delete-v2.ts"], {
     env: { ...process.env, ...E2E_DB_ENV },
@@ -27,7 +27,7 @@ test("a saved sentence survives the exhibition re-import that removes it", async
 
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Soft Delete" }).click();
-  await expect(page.getByRole("heading", { name: "01 saved guide sentence" })).toBeVisible();
-  await expect(page.getByText("This line will be removed.")).toBeVisible();
+  await page.locator(`a[href="/archive/soft-delete"]`).click();
+  await expect(page.getByRole("heading", { name: "Kept lines", exact: true })).toBeVisible();
+  await expect(page.getByText("This line will be removed.").last()).toBeVisible();
 });

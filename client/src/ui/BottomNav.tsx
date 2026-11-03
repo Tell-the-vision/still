@@ -10,10 +10,11 @@ const tabs: { label: string; href: "/" | "/archive" | "/account"; align: "flex-s
   { label: uiStrings.tabs.account, href: "/account", align: "flex-end" },
 ];
 
-export function BottomNav() {
+// `placement="header"` is the desktop web variant: the same tabs, inline in the top header instead of a bottom bar.
+export function BottomNav({ placement = "bottom" }: { placement?: "bottom" | "header" }) {
   const pathname = usePathname();
   return (
-    <View role="navigation" aria-label="Main" style={styles.bar}>
+    <View role="navigation" aria-label="Main" style={placement === "header" ? styles.headerBar : styles.bar}>
       {tabs.map((tab) => {
         const selected = tab.href === "/" ? pathname === "/" : pathname === tab.href || pathname.startsWith(tab.href + "/");
         return (
@@ -23,7 +24,7 @@ export function BottomNav() {
             label={tab.label}
             variant="eyebrow"
             tone={selected ? "primary" : "secondary"}
-            style={[styles.tab, { alignItems: tab.align }]}
+            style={placement === "header" ? styles.headerTab : [styles.tab, { alignItems: tab.align }]}
             selected={selected}
           />
         );
@@ -34,5 +35,7 @@ export function BottomNav() {
 
 const styles = StyleSheet.create({
   bar: { flexDirection: "row", marginHorizontal: spacing.gutter, borderTopWidth: rule, borderColor: colors.black },
+  headerBar: { flexDirection: "row", gap: spacing.section },
+  headerTab: {},
   tab: { flex: 1, paddingTop: spacing.headerTop, paddingBottom: spacing.gap },
 });
