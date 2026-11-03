@@ -30,5 +30,8 @@ test("a cover-less archive card shows an outlined placeholder", async ({ page, n
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   const card = page.getByRole("link", { name: "Forms of Stillness", exact: true });
-  await expect(card.locator("div").first()).toHaveCSS("border-top-width", "1px");
+  // A cover-less tile shows the keepsake card in miniature, which draws its own 1px outline.
+  const outlined = await card.evaluate((el) => [...el.querySelectorAll("div")].some((d) => getComputedStyle(d).borderTopWidth === "1px"));
+  expect(outlined).toBe(true);
+  await expect(card).toContainText("Forms of Stillness");
 });
