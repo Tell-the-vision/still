@@ -13,7 +13,7 @@ export function ArchiveCard({ archive }: { archive: Archive }) {
   const { code, title, venue, startDate, coverImage } = archive.exhibition;
   return (
     <Tile href={`/archive/${code}`} label={title}>
-      {coverImage ? <Artwork url={coverImage.url} altText={null} width={147} height={150} /> : <Frame aspectRatio={147 / 150} />}
+      {coverImage ? <Artwork url={coverImage.url} altText={null} width={147} height={150} /> : <Frame aspectRatio={147 / 150} tone="solid" />}
       <Text variant="row">{title}</Text>
       <Text variant="caption">{`${venue.city} · ${year(startDate)}`}</Text>
     </Tile>

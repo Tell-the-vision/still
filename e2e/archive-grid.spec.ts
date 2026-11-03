@@ -17,6 +17,7 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   const card = page.getByRole("link", { name: "Forms of Stillness" });
   await expect(card).toHaveCSS("border-top-width", "1px");
   await expect(card).toContainText(/· 2026/);
+  await expect(card.locator("> *").first()).toHaveCSS("background-color", "rgb(0, 0, 0)");
 });
 
 test("an empty archive points to QR Scan", async ({ page, next }) => {
@@ -26,6 +27,10 @@ test("an empty archive points to QR Scan", async ({ page, next }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await expect(page.getByText("00 EXPERIENCES")).toBeVisible();
+  await expect(page.getByText("Nothing kept yet.")).toBeVisible();
+  const scan = page.getByRole("link", { name: "QR Scan" });
+  await expect(scan).toBeInViewport();
+  expect((await scan.boundingBox())?.y).toBeLessThan(400);
   await expect(page.getByText("Exhibitions you open appear here, with the lines you saved and your journal.")).toBeVisible();
   await page.getByRole("link", { name: "QR Scan" }).click();
   await expect(page).toHaveURL(/\/scan$/);
