@@ -1,7 +1,11 @@
 export const authStrings = {
   title: "Login",
   continueWithGoogle: "Continue with Google",
+  loginBody: "Keep the lines you save, your journal and your web cards on any device.",
+  notNow: "Not now",
+  openTitle: "Open in your browser.",
   openInBrowser: "Open STILL in your default browser to sign in.",
+  linkCopied: "Link copied",
   copyLink: "Copy link",
   cancelled: "Sign-in was cancelled.",
   sessionEnded: "Your session ended. Sign in again.",
@@ -13,8 +17,9 @@ export const authStrings = {
     conflict: "That Google account belongs to another STILL account.",
     failed: "Couldn't link the account. Try again.",
   },
-  consentTitle: "CONSENT",
-  consentBody: "Please agree to the Terms of Service and Privacy Policy to continue.",
+  consentTitle: "One more step.",
+  consentBody: "STILL keeps your sentences and journal private to you. Please agree to continue.",
   agree: "Agree",
   decline: "Decline",
+  declineNote: "Declining removes the account just created.",
 };

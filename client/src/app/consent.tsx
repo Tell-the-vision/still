@@ -12,6 +12,7 @@ import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
 import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
+import { TextAction } from "../ui/TextAction";
 
 // Paths that stay as they are after consent; everything else is personal data to reload (SPEC §11.10).
 const KEEP_PATHS = [...PUBLIC_PATHS, "me.get", "consent.get", "policy.get"];
@@ -53,13 +54,14 @@ export default function Consent() {
   if (!me) return <Screen>{null}</Screen>;
   return (
     <Screen>
-      <Stack centered>
+      <Stack>
         {declineFailed && <Notice error message={authStrings.failed} />}
-        <Text variant="label" role="heading">{authStrings.consentTitle}</Text>
-        <Text>{authStrings.consentBody}</Text>
+        <Text variant="headline">{authStrings.consentTitle}</Text>
+        <Text variant="secondary">{authStrings.consentBody}</Text>
         <PolicyLinks />
         <Button label={authStrings.agree} onPress={agree} disabled={!policy.data || busy} />
-        <Button label={authStrings.decline} variant="secondary" onPress={decline} disabled={busy} />
+        <TextAction variant="secondary" label={authStrings.decline} onPress={decline} disabled={busy} />
+        <Text variant="secondary">{authStrings.declineNote}</Text>
       </Stack>
     </Screen>
   );

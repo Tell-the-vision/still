@@ -15,6 +15,7 @@ import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
 import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
+import { TextAction } from "../ui/TextAction";
 
 // Login (SPEC §2.2 Sign in). Web starts the OAuth Route; native runs PKCE and calls session.create.
 export default function Login() {
@@ -26,6 +27,7 @@ export default function Login() {
   const google = useGoogleAuthCode();
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [copied, setCopied] = useState(false);
   const signInNative = async () => {
     setPending(true);
     setFailed(false);
@@ -54,18 +56,27 @@ export default function Login() {
     else await signInNative();
   };
   const inApp = isWeb && isInAppBrowser();
+  const copyLink = async () => {
+    await navigator.clipboard?.writeText(window.location.href).catch(() => undefined);
+    setCopied(true);
+  };
+  const notNow = () => (router.canGoBack() ? router.back() : router.replace("/"));
   return (
     <Screen>
-      <Stack centered>
+      <Stack>
         {failed && <Notice error message={authStrings.failed} />}
-        <Text variant="label" role="heading">{authStrings.title}</Text>
+        <Text variant="headline">{inApp ? authStrings.openTitle : authStrings.title}</Text>
+        <Text variant="secondary">{inApp ? authStrings.openInBrowser : authStrings.loginBody}</Text>
         {inApp ? (
           <>
-            <Notice message={authStrings.openInBrowser} />
-            <Button label={authStrings.copyLink} onPress={() => navigator.clipboard?.writeText(window.location.href).catch(() => undefined)} />
+            <Button label={authStrings.copyLink} onPress={copyLink} />
+            {copied && <Notice message={authStrings.linkCopied} />}
           </>
         ) : (
-          <Button label={authStrings.continueWithGoogle} onPress={startGoogle} disabled={pending || (!isWeb && !google.ready)} />
+          <>
+            <Button label={authStrings.continueWithGoogle} onPress={startGoogle} disabled={pending || (!isWeb && !google.ready)} />
+            <TextAction variant="secondary" label={authStrings.notNow} trailing="→" onPress={notNow} />
+          </>
         )}
       </Stack>
     </Screen>

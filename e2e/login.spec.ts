@@ -40,11 +40,13 @@ test("replaying a consumed callback fails", async ({ page }) => {
 
 test("in-app browsers see a default-browser notice instead of the Google button", async ({ browser }) => {
   const context = await browser.newContext({ userAgent: "Mozilla/5.0 (Linux; Android 14) KAKAOTALK 10.0" });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const page = await context.newPage();
   await page.goto("/");
   await page.getByRole("link", { name: "Login" }).click();
   await expect(page.getByText("Open STILL in your default browser to sign in.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("status")).toHaveText("Link copied");
   await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
   await context.close();
 });
