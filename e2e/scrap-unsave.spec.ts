@@ -3,7 +3,7 @@ import { trpcCall } from "./support/api";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 import { openGuide } from "./support/reach";
 
-test("a saved sentence is unsaved from Archive Detail and can be saved again", async ({ page, next }) => {
+test("a saved sentence is unkept on Archive Detail and kept again from the same row", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
@@ -15,13 +15,34 @@ test("a saved sentence is unsaved from Archive Detail and can be saved again", a
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "01 saved guide sentence" })).toBeVisible();
-  await expect(page.getByText(sentenceText)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Unsave" })).toHaveCSS("border-top-width", "0px");
-  await page.getByRole("button", { name: "Unsave" }).click();
-  await expect(page.getByRole("heading", { name: "00 saved guide sentences" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
+  await expect(page.getByText(sentenceText).first()).toBeVisible();
+  await page.getByRole("button", { name: "Remove this line" }).click();
+  await expect(page.getByRole("heading", { name: "Kept lines · 00" })).toBeVisible();
+  // The row stays, with "+" as the undo.
+  await expect(page.getByText(sentenceText).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Keep this line" })).toHaveCount(1);
   await openGuide(page, "forms-of-stillness");
   await expect(page.getByRole("button", { name: "Keep this line" }).first()).toBeVisible();
+});
+
+test("a line unkept on Archive Detail can be kept again in place", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await openGuide(page, "forms-of-stillness");
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
+  await page.goto("/archive/forms-of-stillness");
+  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
+  await page.getByRole("button", { name: "Remove this line" }).click();
+  await expect(page.getByRole("heading", { name: "Kept lines · 00" })).toBeVisible();
+  const kept = page.waitForResponse(/scrap\.upsert/);
+  await page.getByRole("button", { name: "Keep this line" }).click();
+  await kept;
+  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
+  expect((await trpcCall(page, "scrap.list", { code: "forms-of-stillness" })).json.result.data).toHaveLength(1);
 });
 
 test("unsaving is idempotent", async ({ page, next }) => {

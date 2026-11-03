@@ -20,7 +20,7 @@ test("a guest scans, signs in, records, makes a web card, downloads the PNG and 
 
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
-  await page.getByRole("link", { name: "Create web card" }).click();
+  await page.getByRole("link", { name: "Make your card" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
 

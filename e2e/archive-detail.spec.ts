@@ -39,9 +39,9 @@ test("collection groups are separated and the journal excerpt is small", async (
   await saved;
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
   await page.goto("/archive/forms-of-stillness");
-  const unsave = await page.getByRole("button", { name: "Unsave" }).boundingBox();
-  const journal = await page.getByRole("heading", { name: "01 journal · editable" }).boundingBox();
-  expect(journal && unsave && journal.y - (unsave.y + unsave.height)).toBeGreaterThanOrEqual(32);
+  const mark = await page.getByRole("button", { name: "Remove this line" }).boundingBox();
+  const journal = await page.getByRole("heading", { name: "Journal", exact: true }).boundingBox();
+  expect(journal && mark && journal.y - (mark.y + mark.height)).toBeGreaterThanOrEqual(32);
   await expect(page.getByText("Quiet light.")).toHaveCSS("font-size", "13px");
 });
 

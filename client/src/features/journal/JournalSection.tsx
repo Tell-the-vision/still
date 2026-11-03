@@ -48,8 +48,10 @@ export function JournalSection({ code }: { code: string }) {
       <Stack>
         <Text variant="action" numberOfLines={3}>{journal.content}</Text>
         {savedLabel && <Text variant="secondary">{savedLabel}</Text>}
-        <TextAction label={strings.edit} trailing="→" href={href} />
-        <TextAction label={strings.delete} tone="secondary" onPress={() => setConfirming(true)} />
+        <Stack direction="row" gap="section">
+          <TextAction label={strings.edit} trailing="→" href={href} />
+          <TextAction label={strings.delete} tone="secondary" onPress={() => setConfirming(true)} />
+        </Stack>
         {remove.isError && <Notice error message={strings.failed} />}
       </Stack>
       <Dialog visible={confirming} onClose={() => setConfirming(false)} label={strings.delete} body={strings.dialogBody}>

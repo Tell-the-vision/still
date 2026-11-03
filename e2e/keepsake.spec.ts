@@ -6,7 +6,7 @@ import { openGuide } from "./support/reach";
 const code = "forms-of-stillness";
 const sentence = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
-test("a web card shows on Archive Detail once saved", async ({ page, next }) => {
+test("a keepsake shows on Archive Detail once saved", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
@@ -15,13 +15,13 @@ test("a web card shows on Archive Detail once saved", async ({ page, next }) => 
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
-  await expect(page.getByText("No web card yet.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Make your card" })).toBeVisible();
 
   const saved = await trpcCall(page, "keepsake.upsert", { code, templateId: "sentence", sentenceIds: [sentence(1)] });
   expect(saved.json.result.data.created).toBe(true);
   await page.reload();
-  await expect(page.getByText("01 web card · PNG download")).toBeVisible();
-  const webCard = page.getByLabel("Web card", { exact: true });
+  await expect(page.getByRole("link", { name: "Download PNG" })).toBeVisible();
+  const webCard = page.getByRole("button", { name: "Your keepsake card" });
   const text = saved.json.result.data.keepsake.card.sentences[0].content;
   await expect(webCard).toContainText("STILL");
   await expect(webCard).toContainText("Forms of Stillness");
