@@ -126,7 +126,7 @@ test("the journal has no decorative captions, shows the active sound and a singl
   await expect(page.getByText("QUIET ROOMS", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("radiogroup", { name: "Sound while writing" })).toBeVisible();
   await expect(page.getByRole("radio", { name: "No audio" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("radio", { name: "Pink noise" })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("radio", { name: "Ambience" })).toHaveAttribute("aria-checked", "false");
   const field = page.getByRole("textbox", { name: "Journal" });
   await field.focus();
   await expect(field).toHaveCSS("outline-offset", "-1px");

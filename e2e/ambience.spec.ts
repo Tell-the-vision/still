@@ -27,7 +27,8 @@ test("saving a journal records the AMBIENCE audioType", async ({ page, next }) =
   await openJournal(page, "quiet-rooms");
   await page.getByRole("textbox", { name: "Journal" }).fill("Soft hum.");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page).toHaveURL(/\/e\/quiet-rooms$/);
+  // Saving lands on Archive Detail.
+  await expect(page).toHaveURL(/\/archive\/quiet-rooms$/);
   const { json } = await trpcCall(page, "journal.get", { code: "quiet-rooms" });
   expect(json.result.data.audioType).toBe("AMBIENCE");
 });

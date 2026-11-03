@@ -67,12 +67,12 @@ test("the ON VIEW/ALL control exposes its selected state", async ({ page, next }
 test.describe("desktop guest", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
-  test("Home lists exhibitions with Login and the nav in the header and an item opens its guide", async ({ page }) => {
+  // Desktop guests keep Home 01 (wordmark, Login) and get the list because QR entry is hidden there.
+  test("Home lists exhibitions under Login and an item opens its guide", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Show exhibitions" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Forms of Stillness/ })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
     const tops = await page.getByRole("link", { name: /Forms of Stillness|Quiet Rooms/ }).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
     expect(new Set(tops.map(Math.round)).size).toBe(1);
     await page.screenshot({ path: "/tmp/still-shots/home-review/guest-desktop-home.png" });

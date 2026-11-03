@@ -26,7 +26,8 @@ test("a saved web card downloads as a signed PNG", async ({ page, next }) => {
   expect((box?.x ?? 0) + (box?.width ?? Infinity)).toBeLessThanOrEqual((page.viewportSize()?.width ?? 0) - 24);
 
   const downloading = page.waitForEvent("download");
-  await page.getByText("Download PNG").click();
+  // Earlier screens stay mounted underneath; use the visible Download PNG.
+  await page.getByText("Download PNG").last().click();
   const path = await (await downloading).path();
   const png = await readFile(path);
   expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
