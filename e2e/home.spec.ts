@@ -26,3 +26,10 @@ test("the SPA fallback does not shadow the API", async ({ request }) => {
   expect(await res.text()).not.toContain('id="root"'); // not the SPA shell
   expect((await request.get("/api/trpc/nope")).status()).toBe(404);
 });
+
+test("guest Login and QR Scan share a left edge", async ({ page }) => {
+  await page.goto("/");
+  const login = await page.getByRole("link", { name: "Login" }).boundingBox();
+  const scan = await page.getByRole("link", { name: "QR Scan" }).boundingBox();
+  expect(Math.abs((login?.x ?? 0) - (scan?.x ?? 99))).toBeLessThanOrEqual(2);
+});

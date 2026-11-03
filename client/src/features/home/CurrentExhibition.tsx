@@ -10,12 +10,22 @@ import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { homeStrings } from "./strings";
 
-// Home 02: the most recently visited exhibition, plus the archive size. Nothing for an empty archive.
+// Home 02: the most recently visited exhibition, plus the archive size. An empty archive gets a start prompt.
 export function CurrentExhibition() {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.archive.list.queryOptions({ limit: 1 }));
   const current = data?.items[0];
-  if (!data || !current) return null;
+  if (!data) return null;
+  if (!current) {
+    return (
+      <Section label={homeStrings.startHere}>
+        <Stack gap="inset">
+          <Text variant="secondary">{homeStrings.startPrompt}</Text>
+          <Button label={homeStrings.scan} href="/scan" />
+        </Stack>
+      </Section>
+    );
+  }
   const { code, title, venue, startDate, endDate, coverImage } = current.exhibition;
   return (
     <>
@@ -29,12 +39,15 @@ export function CurrentExhibition() {
       </Section>
       <Rule />
       <Section label={homeStrings.archive}>
-        <Stack direction="row" align="center" gap="inset">
-          <Text variant="numeral">{String(data.totalSize).padStart(2, "0")}</Text>
-          <Text variant="secondary">{homeStrings.saved(data.totalSize)}</Text>
+        <Stack direction="row" align="center" justify="space-between">
+          <Stack direction="row" align="center" gap="inset">
+            <Text variant="numeral">{String(data.totalSize).padStart(2, "0")}</Text>
+            <Text variant="secondary">{homeStrings.saved(data.totalSize)}</Text>
+          </Stack>
           <TextAction label={homeStrings.viewAll} trailing="→" variant="secondary" tone="primary" href="/archive" />
         </Stack>
       </Section>
+      <TextAction label={homeStrings.scan} href="/scan" variant="secondary" tone="primary" />
     </>
   );
 }

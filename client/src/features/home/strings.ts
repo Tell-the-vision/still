@@ -3,6 +3,8 @@ export const homeStrings = {
   tagline: "Your experiences, kept in one place.",
   login: "Login",
   scan: "QR Scan",
+  startHere: "START HERE",
+  startPrompt: "Scan the QR at an exhibition to start your archive.",
   continueExploring: "CONTINUE EXPLORING",
   current: "CURRENT EXHIBITION",
   openGuide: "Open Exhibition Guide",
