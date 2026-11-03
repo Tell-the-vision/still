@@ -55,6 +55,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: spacing.headerTop,
+    paddingBottom: spacing.gap,
     minHeight: spacing.headerHeight,
     marginHorizontal: spacing.gutter,
     borderBottomWidth: rule,

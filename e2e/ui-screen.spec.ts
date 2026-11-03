@@ -33,3 +33,30 @@ test("on a wide window the screen stays a phone-width column", async ({ page }) 
   const box = await page.getByRole("navigation").boundingBox();
   expect(box?.width).toBeLessThanOrEqual(560);
 });
+
+test("signed-in Home keeps its sections together and the header rule clears the wordmark", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  const upserted = page.waitForResponse(/archive\.upsert/);
+  await openGuide(page, "forms-of-stillness");
+  await upserted;
+  await page.goto("/");
+  const tagline = await page.getByText("Your experiences, kept in one place.").boundingBox();
+  const next_ = await page.getByText("CONTINUE EXPLORING").boundingBox();
+  expect((next_?.y ?? Infinity) - ((tagline?.y ?? 0) + (tagline?.height ?? 0))).toBeLessThanOrEqual(48);
+  const wordmark = await page.getByText("STILL.", { exact: true }).boundingBox();
+  const ruleY = await page.getByText("STILL.", { exact: true }).evaluate((el) => {
+    let node: Element | null = el;
+    while (node && parseFloat(getComputedStyle(node).borderBottomWidth) === 0) node = node.parentElement;
+    return node ? node.getBoundingClientRect().bottom : 0;
+  });
+  expect(ruleY - ((wordmark?.y ?? 0) + (wordmark?.height ?? 0))).toBeGreaterThanOrEqual(16);
+});
+
+test("guest Home still centres the wordmark", async ({ page }) => {
+  await page.goto("/");
+  const box = await page.getByText("STILL.", { exact: true }).boundingBox();
+  const height = page.viewportSize()?.height ?? 0;
+  expect(Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - height / 2)).toBeLessThanOrEqual(height * 0.15);
+});
