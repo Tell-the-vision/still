@@ -1,5 +1,8 @@
 export const journalStrings = {
-  heading: "Your journal.",
+  headline: "Your journal.",
+  subhead: "Your one journal for this exhibition.",
+  placeholder: "Write and revisit your thoughts here. Your journal is saved once per exhibition and can be edited anytime.",
+  guestCaption: "Saving asks you to sign in. Your text stays on this device.",
   label: "Journal",
   save: "Save Journal",
   saved: "Saved",

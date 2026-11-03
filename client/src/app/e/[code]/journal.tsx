@@ -13,6 +13,7 @@ import { useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
 import { Dialog } from "../../../ui/Dialog";
 import { Notice } from "../../../ui/Notice";
+import { Rule } from "../../../ui/Rule";
 import { Screen } from "../../../ui/Screen";
 import { Text } from "../../../ui/Text";
 import { TextField } from "../../../ui/TextField";
@@ -88,16 +89,18 @@ export default function Journal() {
 
   return (
     <Screen tabs>
-      <Text variant="title">{exhibition.data?.title ?? ""}</Text>
-      <Text variant="secondary">{journalStrings.heading}</Text>
+      <Text variant="headline">{journalStrings.headline}</Text>
+      {exhibition.data && <Text variant="eyebrow">{exhibition.data.title}</Text>}
+      <Rule />
+      <Text variant="subhead">{journalStrings.subhead}</Text>
       {!journal.isPending && drafts.restored !== undefined && (
-        <TextField multiline label={journalStrings.label} value={content} onChangeText={(text) => { setDraft(text); drafts.save(text); setSaved(false); }} />
+        <TextField multiline size="page" label={journalStrings.label} placeholder={journalStrings.placeholder} value={content} onChangeText={(text) => { setDraft(text); drafts.save(text); setSaved(false); }} />
       )}
       {exhibition.data && <AudioArea code={code} audio={exhibition.data.audio} screen="journal" onModeChange={setAudioType} />}
       <Button label={journalStrings.save} disabled={save.isPending} onPress={submit} />
+      {!me && <Text variant="secondary">{journalStrings.guestCaption}</Text>}
       {appCode === "JOURNAL_INVALID" && <Notice error message={journalStrings.invalid} />}
-      {isNetworkError && <Notice error message={journalStrings.network} />}
-      {isNetworkError && <Button label={journalStrings.retry} variant="secondary" onPress={submit} />}
+      {isNetworkError && <Notice error message={journalStrings.network} action={{ label: journalStrings.retry, onPress: submit }} />}
       {appCode === "REVISION_MISMATCH" && <Notice message={journalStrings.conflict} />}
       {saved && <Notice message={journalStrings.saved} />}
       <Dialog visible={!!leave} onClose={() => setLeave(null)} label={journalStrings.leaveLabel} body={journalStrings.leaveBody}>

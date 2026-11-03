@@ -9,8 +9,11 @@ test("a signed-in visitor writes a journal, then edits it", async ({ page, next 
   await openGuide(page, "forms-of-stillness");
   await page.getByRole("link", { name: "Write a journal" }).click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness\/journal$/);
-  await expect(page.getByRole("heading", { name: "Forms of Stillness" }).last()).toBeVisible();
-  await expect(page.getByText("Your journal.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your journal." })).toHaveCSS("font-size", "32px");
+  await expect(page.getByText("Forms of Stillness", { exact: true }).last()).toBeVisible();
+  const field = page.getByRole("textbox", { name: "Journal" });
+  expect((await field.boundingBox())?.height).toBeGreaterThanOrEqual(300);
+  await expect(field).toHaveAttribute("placeholder", /^Write and revisit your thoughts here\./);
 
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   await page.getByRole("button", { name: "Save Journal" }).click();
@@ -74,6 +77,7 @@ test("a network failure keeps the text and offers Retry", async ({ page, next })
 
 test("a guest's Save goes to login", async ({ page }) => {
   await page.goto("/e/forms-of-stillness/journal");
+  await expect(page.getByText("Saving asks you to sign in. Your text stays on this device.")).toBeVisible();
   await page.getByRole("textbox", { name: "Journal" }).fill("Hello");
   await page.getByRole("button", { name: "Save Journal" }).click();
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fe%2Fforms-of-stillness%2Fjournal/);
