@@ -28,10 +28,10 @@ export function KeepsakeMini({ scale, ...card }: CardProps & { scale: number }) 
   );
 }
 
-type Props = CardProps & { onPress: () => void; scale?: number; accessibilityLabel?: string; accessibilityHint?: string };
+type Props = CardProps & { onPress: () => void; scale?: number; accessibilityLabel: string; accessibilityHint: string };
 
 // The card at 0.45 scale as one button; nothing inside it takes focus.
-export function KeepsakeThumb({ onPress, scale = THUMB_SCALE, accessibilityLabel = "Your keepsake card", accessibilityHint = "Shows the card at full size.", ...card }: Props) {
+export function KeepsakeThumb({ onPress, scale = THUMB_SCALE, accessibilityLabel, accessibilityHint, ...card }: Props) {
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
