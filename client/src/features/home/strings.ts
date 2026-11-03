@@ -1,0 +1,15 @@
+export const homeStrings = {
+  welcome: "Welcome back.",
+  tagline: "Your experiences, kept in one place.",
+  login: "Login",
+  scan: "QR Scan",
+  filterLabel: "Show exhibitions",
+  onView: "ON VIEW",
+  all: "ALL",
+  upcoming: "Upcoming",
+  ended: "Ended",
+  emptyOnView: "No exhibitions on view today.",
+  seeAll: "See all exhibitions",
+  error: "Exhibitions could not be loaded.",
+  retry: "Retry",
+};

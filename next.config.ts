@@ -1,39 +1,21 @@
 import type { NextConfig } from "next";
 
+// Expo web (single-page export in public/) is served same-origin: Next owns
+// /api/* and exported files; every other path falls back to the SPA shell.
+// In dev:hot the fallback proxies to Metro instead.
+const spaDestination = process.env.EXPO_WEB_DEV_URL
+  ? `${process.env.EXPO_WEB_DEV_URL}/:path`
+  : "/index.html";
+
 const nextConfig: NextConfig = {
-  // @libsql/client ships a native binding; keep it out of the webpack bundle.
-  serverExternalPackages: ["@libsql/client"],
-  images: {
-    // Cover images come from /public for the MVP. Add remote hosts here when
-    // exhibition content moves to a CDN.
-    remotePatterns: [],
+  transpilePackages: ["@still/shared"],
+  experimental: {
+    testProxy: process.env.E2E === "1",
   },
-  webpack: (config, { dev }) => {
-    if (dev) {
-      // The SQLite file (and its -journal / -wal siblings) lives inside the
-      // project. Without this, every DB write (e.g. a login) makes the dev
-      // server recompile, and requests racing that recompile get HTML error
-      // pages ("Unexpected end of JSON input", clientReferenceManifest…).
-      // Next's default `ignored` is a RegExp (git / .next / node_modules);
-      // webpack accepts either a RegExp or an array of globs, not a mix.
-      const prev = config.watchOptions?.ignored;
-      const prevGlobs = Array.isArray(prev) ? prev.filter((x: unknown): x is string => typeof x === "string") : [];
-      config.watchOptions = {
-        ...config.watchOptions,
-        ignored: [
-          ...prevGlobs,
-          "**/.git/**",
-          "**/.next/**",
-          "**/node_modules/**",
-          "**/data/**",
-          "**/*.db",
-          "**/*.db-journal",
-          "**/*.db-wal",
-          "**/*.db-shm",
-        ],
-      };
-    }
-    return config;
+  async rewrites() {
+    return {
+      fallback: [{ source: "/:path((?!api/|api$).*)", destination: spaDestination }],
+    };
   },
 };
 

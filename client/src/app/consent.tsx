@@ -1,0 +1,68 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { TRPCClientError } from "@trpc/client";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
+import { PolicyLinks } from "../features/account/PolicyLinks";
+import { useRequireLogin } from "../features/auth/require-login";
+import { useLeaveSession } from "../features/auth/sign-out";
+import { authStrings } from "../features/auth/strings";
+import { PUBLIC_PATHS, STALE_TIME, queryPath, useTRPC } from "../lib/trpc";
+import { Button } from "../ui/Button";
+import { Notice } from "../ui/Notice";
+import { Screen } from "../ui/Screen";
+import { Stack } from "../ui/Stack";
+import { Text } from "../ui/Text";
+import { TextAction } from "../ui/TextAction";
+
+// Paths that stay as they are after consent; everything else is personal data to reload (SPEC §11.10).
+const KEEP_PATHS = [...PUBLIC_PATHS, "me.get", "consent.get", "policy.get"];
+
+// Consent (SPEC §2.2 Consent): agree to the current policies, or decline and delete the account.
+export default function Consent() {
+  const { returnTo = "/" } = useLocalSearchParams<{ returnTo?: string }>();
+  const me = useRequireLogin("/consent");
+  const trpc = useTRPC();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const leave = useLeaveSession();
+  const policy = useQuery(trpc.policy.get.queryOptions(undefined, { staleTime: STALE_TIME.policy }));
+  const upsert = useMutation(trpc.consent.upsert.mutationOptions());
+  const deleteAccount = useMutation(trpc.me.delete.mutationOptions());
+
+  const [declineFailed, setDeclineFailed] = useState(false);
+  const busy = upsert.isPending || deleteAccount.isPending;
+
+  const agree = async () => {
+    try {
+      const { consent } = await upsert.mutateAsync(policy.data!);
+      queryClient.setQueryData(trpc.consent.get.queryKey(), consent);
+      await queryClient.invalidateQueries({ predicate: (q) => !KEEP_PATHS.includes(queryPath(q.queryKey)) });
+      router.replace(returnTo as never);
+    } catch (error) {
+      if (error instanceof TRPCClientError && error.data?.appCode === "POLICY_VERSION_OUTDATED") await policy.refetch();
+    }
+  };
+  const decline = async () => {
+    try {
+      await deleteAccount.mutateAsync();
+      await leave();
+    } catch {
+      setDeclineFailed(true);
+    }
+  };
+
+  if (!me) return <Screen>{null}</Screen>;
+  return (
+    <Screen>
+      <Stack>
+        {declineFailed && <Notice error message={authStrings.failed} />}
+        <Text variant="headline">{authStrings.consentTitle}</Text>
+        <Text variant="secondary">{authStrings.consentBody}</Text>
+        <PolicyLinks />
+        <Button label={authStrings.agree} onPress={agree} disabled={!policy.data || busy} />
+        <TextAction variant="secondary" label={authStrings.decline} onPress={decline} disabled={busy} />
+        <Text variant="secondary">{authStrings.declineNote}</Text>
+      </Stack>
+    </Screen>
+  );
+}

@@ -5,16 +5,6 @@ STILL은 관람객의 기억이 머무는 공간을 지향합니다.
 
 [SPEC](https://github.com/Tell-the-vision/PRD/blob/main/docs/SPEC.md) · [AGENTS.md](./AGENTS.md)
 
-<table align="center">
-  <tr>
-    <td align="center"><img src=".github/readme/02-home.png" width="140" alt="Home" /><br /><sub>Home</sub></td>
-    <td align="center"><img src=".github/readme/04-exhibition-guide.png" width="140" alt="Exhibition Guide" /><br /><sub>Exhibition Guide</sub></td>
-    <td align="center"><img src=".github/readme/05-journal.png" width="140" alt="Journal" /><br /><sub>Journal</sub></td>
-    <td align="center"><img src=".github/readme/06-keepsake-view.png" width="140" alt="Keepsake" /><br /><sub>Keepsake</sub></td>
-    <td align="center"><img src=".github/readme/07-archive.png" width="140" alt="Archive" /><br /><sub>Archive</sub></td>
-  </tr>
-</table>
-
 ## 제품 컨셉
 
 **QR/URL → Exhibition Guide(로그인 시 Archive 등록) → Scrap · Journal → Archive Detail → Digital Keepsake(PNG)**
@@ -25,7 +15,7 @@ STILL은 관람객의 기억이 머무는 공간을 지향합니다.
 4. Archive Detail에서 **Digital Keepsake**를 만듭니다. 전시 커버 이미지와 전시 정보, 개인 기록(Scrap·Journal 발췌)을 담은 흑백 웹카드를 저장한 뒤 PNG로 소장합니다. 진입점과 세부는 미결정 3·4·5·6입니다.
 5. 모든 기록은 전시별 **Archive**에 쌓입니다.
 
-Audio(External Playlist / Pink Noise / NO AUDIO, P1)는 Guide와 Journal에 있습니다. Pink Noise는 Journal에서만, 기본 Off입니다.
+Audio(External Playlist / Ambience / NO AUDIO, P1)는 Guide와 Journal에 있습니다. Ambience는 Journal에서만, 기본 Off입니다.
 범위 밖: 소셜·공유, 결제, 관리자 CMS UI, 생성형 AI 카드 이미지(로드맵), 3D/VR.
 
 ## 아키텍처 결정
@@ -55,5 +45,8 @@ Audio(External Playlist / Pink Noise / NO AUDIO, P1)는 Guide와 Journal에 있�
 
 ```bash
 npm install
-npm run dev
+createdb still
+npm run db:reset   # drop, migrate, seed
+npm run dev        # export the Expo web build, then start Next
+E2E_PORT=3100 E2E_DB=still_e2e npm run e2e   # createdb still_e2e first
 ```
