@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { AudioArea } from "../../../features/audio/AudioArea";
+import type { displayMode } from "../../../features/audio/display-mode";
 import { savePendingAction, takePendingAction } from "../../../features/auth/pending-action";
 import { takeGuestDraft, useDraft } from "../../../features/journal/drafts";
 import { useMe } from "../../../features/auth/use-me";
@@ -48,7 +50,8 @@ export default function Journal() {
   const [leave, setLeave] = useState<(() => void) | null>(null);
   usePreventRemove(dirty, ({ repeat }) => setLeave(() => repeat));
 
-  const { audioType = null, revision = null } = journal.data ?? {};
+  const [audioType, setAudioType] = useState<ReturnType<typeof displayMode>>(null);
+  const { revision = null } = journal.data ?? {};
   const error = save.error instanceof TRPCClientError ? save.error : null;
   const appCode = error?.data?.appCode;
   const isNetworkError = !!error && !error.data;
@@ -88,6 +91,7 @@ export default function Journal() {
       {!journal.isPending && drafts.restored !== undefined && (
         <TextField multiline label={journalStrings.label} value={content} onChangeText={(text) => { setDraft(text); drafts.save(text); setSaved(false); }} />
       )}
+      {exhibition.data && <AudioArea audio={exhibition.data.audio} screen="journal" onModeChange={setAudioType} />}
       <Button label={journalStrings.save} disabled={save.isPending} onPress={submit} />
       {appCode === "JOURNAL_INVALID" && <Notice error message={journalStrings.invalid} />}
       {isNetworkError && <Notice error message={journalStrings.network} />}
