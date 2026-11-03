@@ -8,7 +8,8 @@ import { Choice } from "../../ui/Choice";
 import { Section } from "../../ui/Section";
 import { Text } from "../../ui/Text";
 import { Stack } from "../../ui/Stack";
-import { TextAction } from "../../ui/TextAction";
+import { spacing } from "../../ui/theme";
+import { View } from "react-native";
 import { displayMode, type Audio } from "./display-mode";
 import { PinkNoiseToggle } from "./PinkNoiseToggle";
 import { audioStrings } from "./strings";
@@ -32,22 +33,23 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
   return (
     <Section label={audioStrings.section}>
       <Stack gap="tight">
-        {base === "EXTERNAL" && playlist && (
-          <Choice
-            role="button"
-            href={playlist.url}
-            target="_blank"
-            selected={!muted}
-            label={playlist.provider === "SPOTIFY" ? audioStrings.listen.SPOTIFY : audioStrings.listen.APPLE_MUSIC}
-            onPress={() => {
-              setMuted(false);
-              track("audio_external_click", { provider: playlist.provider, exhibition_code: code });
-            }}
-          />
-        )}
-        {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} />}
-        {base === "NONE" && <Text>{audioStrings.none}</Text>}
-        {base !== "NONE" && <TextAction variant="secondary" label={audioStrings.none} active={muted} tone={muted ? "primary" : "secondary"} onPress={() => setMuted(!muted)} />}
+        <View role="radiogroup" aria-label={audioStrings.groupLabel} style={{ gap: spacing.tight }}>
+          {base === "EXTERNAL" && playlist && (
+            <Choice
+              role="button"
+              href={playlist.url}
+              target="_blank"
+              selected={!muted}
+              label={playlist.provider === "SPOTIFY" ? audioStrings.listen.SPOTIFY : audioStrings.listen.APPLE_MUSIC}
+              onPress={() => {
+                setMuted(false);
+                track("audio_external_click", { provider: playlist.provider, exhibition_code: code });
+              }}
+            />
+          )}
+          {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} />}
+          <Choice role="radio" label={audioStrings.none} selected={mode === "NONE"} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
+        </View>
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
       </Stack>
     </Section>

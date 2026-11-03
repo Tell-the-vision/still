@@ -56,7 +56,7 @@ export function PinkNoiseToggle({ code, forceOff, onPlay }: { code: string; forc
 
   return (
     <>
-      <Choice role="switch" label={audioStrings.pinkNoise} selected={on} onPress={toggle} />
+      <Choice role="radio" label={audioStrings.pinkNoise} selected={on} onPress={toggle} />
       {failed && <Notice error message={audioStrings.playFailed} />}
     </>
   );

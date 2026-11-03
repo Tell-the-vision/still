@@ -2,7 +2,7 @@ export const audioStrings = {
   section: "LISTENING",
   listen: { SPOTIFY: "EXTERNAL PLAYLIST · SPOTIFY", APPLE_MUSIC: "EXTERNAL PLAYLIST · APPLE MUSIC" },
   playlist: { SPOTIFY: "Playlist on Spotify", APPLE_MUSIC: "Playlist on Apple Music" },
-  pinkNoise: "STILL AMBIENCE · PINK NOISE",
+  pinkNoise: "Pink noise",
   playFailed: "Couldn't play Pink Noise.",
   settingsLink: "Audio settings",
   back: "ACCOUNT",
@@ -12,6 +12,7 @@ export const audioStrings = {
   silent: "No audio",
   silentHint: "Start every exhibition in silence.",
   saveFailed: "Couldn't save your choice.",
-  none: "NO AUDIO",
+  none: "No audio",
+  groupLabel: "Sound while writing",
   noneHint: "Music already playing in other apps won't stop.",
 };
