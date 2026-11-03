@@ -2,6 +2,7 @@ import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import { KeepsakeCard } from "./KeepsakeCard";
 import { card as cardTokens, focusRing } from "./theme";
 import { useState, type ComponentProps } from "react";
+import { focusVisible } from "./focusVisible";
 
 // Phone size; desktop passes a larger scale so the card leads its panel.
 export const THUMB_SCALE = 0.45;
@@ -39,7 +40,7 @@ export function KeepsakeThumb({ onPress, scale = THUMB_SCALE, accessibilityLabel
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       onPress={onPress}
-      onFocus={() => setFocused(true)}
+      onFocus={() => setFocused(focusVisible())}
       onBlur={() => setFocused(false)}
       style={[{ width: cardTokens.width * scale, height: thumbHeight(scale), overflow: "hidden" }, focused && focusRing]}
     >

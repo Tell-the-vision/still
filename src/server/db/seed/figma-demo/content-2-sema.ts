@@ -13,7 +13,7 @@ const pkg: ContentPackage = {
       title: "유영국",
       about: "Yoo Youngkuk. Seoul Museum of Art, Seosomun Main Branch, 1F Galleries.",
       startDate: "2026-05-19",
-      endDate: "2026-10-25",
+      endDate: "2027-02-28", // Board: 2026-10-25 (ended); extended so it shows as on view.
       sentences: [
         "산은 바라보는 풍경이자, 마음속에 쌓이는 감각이다.",
         "멀리 있는 능선이 내 안의 기억과 겹쳐진다.",
@@ -23,6 +23,11 @@ const pkg: ContentPackage = {
       ],
       coverAlt: "Overlapping color fields in red, coral and mauve around a deep teal block, with a cream circle at the upper right, like mountains seen from within.",
       detailAlt: "A cream column inside nested crimson frames on a dark wine ground, with an orange-red sun at the upper right.",
+      playlist: {
+        title: "Inner Landscape",
+        description: "A listening note for colors, contours and quiet horizons.",
+        url: "https://music.apple.com/kr/playlist/%EC%82%B0%EC%9D%80-%EB%82%B4-%EC%95%88%EC%97%90-%EC%9E%88%EB%8B%A4/pl.u-BNA664eI1Kkdvmz",
+      },
       idBase: 2300,
     }),
   ],

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Text, type TextVariant } from "./Text";
 import { colors, control, focusRing, spacing } from "./theme";
+import { focusVisible } from "./focusVisible";
 
 type Props = {
   label: string;
@@ -27,7 +28,7 @@ export function Choice({ label, selected, role, layout = "row", disabled = false
       aria-pressed={role === "button" ? selected : undefined}
       onPress={onPress}
       disabled={disabled}
-      onFocus={() => setFocused(true)}
+      onFocus={() => setFocused(focusVisible())}
       onBlur={() => setFocused(false)}
       // Flattened because `Link asChild` forwards the style prop untouched.
       style={StyleSheet.flatten([styles.base, layout === "row" ? styles.row : styles.tile, selected && styles.selected, focused && focusRing])}

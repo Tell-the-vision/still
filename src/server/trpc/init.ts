@@ -72,8 +72,8 @@ export const ipLimitedProcedure = clientProcedure.use(({ ctx, next }) => {
   return next();
 });
 
-// Session check without the per-user limit: cheap identity reads must not be refused, or a busy signed-in user looks like a guest.
-export const sessionProcedure = clientProcedure.use(async ({ ctx, next }) => {
+// Requires a session; internal step of protectedProcedure so every signed-in call is counted against the per-user limit.
+const sessionProcedure = clientProcedure.use(async ({ ctx, next }) => {
   const session = await ctx.getSession();
   if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
   return next({ ctx: { session } });

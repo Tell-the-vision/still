@@ -10,6 +10,7 @@ import { Link, usePathname } from "expo-router";
 import { Pressable } from "react-native";
 import { Wordmark } from "./Wordmark";
 import { colors, focusRing, rule, spacing } from "./theme";
+import { focusVisible } from "./focusVisible";
 
 type Props = { children: ReactNode; header?: boolean; tabs?: boolean; scroll?: boolean; width?: "reading" | "wide" };
 
@@ -72,7 +73,7 @@ function QrScanLink() {
         accessibilityRole="link"
         accessibilityLabel={uiStrings.qrScan}
         {...(Platform.OS === "web" && { title: uiStrings.qrScan })}
-        onFocus={() => setFocused(true)}
+        onFocus={() => setFocused(focusVisible())}
         onBlur={() => setFocused(false)}
         style={StyleSheet.flatten([styles.qrLink, focused && focusRing])}
       >

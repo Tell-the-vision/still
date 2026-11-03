@@ -1,4 +1,4 @@
-import { View, useWindowDimensions } from "react-native";
+import { View } from "react-native";
 import { longRange } from "../../lib/dates";
 import { Artwork } from "../../ui/Artwork";
 import { Text } from "../../ui/Text";
@@ -12,16 +12,16 @@ type Props = {
   coverImage: { url: string; altText: string | null; width: number; height: number } | null;
 };
 
-// Title, meta line and the cover: the work comes first (SPEC §3.1). The cover carries no caption.
+// Title, meta line and the cover: the work comes first (SPEC §3.1). The cover carries no caption and
+// spans the full column, so its edges line up with the listen row and the keepsake panel below.
 export function GuideHeader({ title, venue, startDate, endDate, coverImage }: Props) {
-  const { height } = useWindowDimensions();
   return (
     <View style={{ gap: spacing.tight }}>
       <Text variant="display">{title}</Text>
       <Text variant="secondary">{`${venue.name}, ${venue.city} · ${longRange(startDate, endDate)}`}</Text>
       {coverImage && (
         <View style={{ marginTop: spacing.tight }}>
-          <Artwork {...coverImage} maxHeight={Math.round(0.6 * height)} />
+          <Artwork {...coverImage} />
         </View>
       )}
     </View>

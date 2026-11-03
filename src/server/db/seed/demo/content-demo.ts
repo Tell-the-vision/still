@@ -3,6 +3,7 @@ import type { ContentPackage } from "../content";
 // Demo exhibitions with original monochrome artwork, for showing STILL off.
 // Not part of the default seed: import by hand with `npm run db:seed src/server/db/seed/demo`.
 // It upgrades forms-of-stillness and quiet-rooms in place and adds tidal-archive and breath-of-ink.
+// They start on 2026-01-01 so Home (newest start first) lists the Figma demo exhibitions before them.
 const pkg: ContentPackage = {
   "institution": {
     "code": "still-museum",
@@ -103,7 +104,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,
@@ -254,7 +255,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,
@@ -404,7 +405,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,
@@ -554,7 +555,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,

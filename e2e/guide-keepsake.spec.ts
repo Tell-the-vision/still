@@ -92,4 +92,18 @@ test.describe("desktop", () => {
     expect(Math.abs(panel.x - row!.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(panel.right - (row!.x + row!.width))).toBeLessThanOrEqual(1);
   });
+
+  test("the cover spans the same column as the keepsake panel", async ({ page }) => {
+    await page.route("https://media.test.invalid/**", (route) => route.fulfill({ path: "e2e/fixtures/cover.png" }));
+    await page.goto("/e/with-cover");
+    const cover = await page.getByRole("img", { name: "Test cover" }).first().boundingBox();
+    const panel = await page.getByText("Your keepsake", { exact: true }).evaluate((el) => {
+      let node: Element | null = el;
+      while (node && getComputedStyle(node).borderTopWidth !== "1px") node = node.parentElement;
+      const b = node!.getBoundingClientRect();
+      return { x: b.x, width: b.width };
+    });
+    expect(Math.abs(cover!.x - panel.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(cover!.width - panel.width)).toBeLessThanOrEqual(1);
+  });
 });

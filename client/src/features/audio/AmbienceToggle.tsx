@@ -20,6 +20,10 @@ export function AmbienceToggle({ code, selected, onSelect, onStop }: { code: str
   const [failed, setFailed] = useState(false);
 
   const confirmed = useRef(false);
+  // Latest parent callbacks; the parent passes new functions on every render (e.g. while typing),
+  // and effects keyed on them would stop the sound each time.
+  const onStopRef = useRef(onStop);
+  onStopRef.current = onStop;
   const ramp = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearRamp = () => {
@@ -73,15 +77,22 @@ export function AmbienceToggle({ code, selected, onSelect, onStop }: { code: str
   useEffect(() => {
     player.loop = true;
   }, [player]);
-  useFocusEffect(useCallback(() => () => { stop(); onStop(); }, [stop, onStop]));
+  // Some web players ignore loop; restart from the top when the file ends while Ambience is on.
+  useEffect(() => {
+    if (!status.didJustFinish || !confirmed.current) return;
+    player.seekTo(0);
+    player.play();
+  }, [status.didJustFinish, player]);
+  // Leaving the screen (blur/unmount) and backgrounding are the only lifecycle stops.
+  useFocusEffect(useCallback(() => () => { stop(); onStopRef.current(); }, [stop]));
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") return;
       stop();
-      onStop();
+      onStopRef.current();
     });
     return () => subscription.remove();
-  }, [stop, onStop]);
+  }, [stop]);
 
   // Pressing the selected option does nothing.
   const press = async () => {
@@ -95,6 +106,7 @@ export function AmbienceToggle({ code, selected, onSelect, onStop }: { code: str
       shouldRouteThroughEarpiece: false,
     });
     player.volume = 0;
+    player.loop = true;
     player.play();
     setStarting(true);
   };

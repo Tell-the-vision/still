@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, View, type HostInstance } from "react-native";
 import { colors, focusRing } from "../../ui/theme";
 import { scrapStrings } from "./strings";
+import { focusVisible } from "../../ui/focusVisible";
 
 type Props = { kept: boolean; pending?: boolean; hint?: string; onPress: () => void };
 
@@ -24,7 +25,7 @@ export function KeepMark({ kept, pending = false, hint, onPress }: Props) {
       disabled={pending}
       onPress={onPress}
       hitSlop={{ top: 13, bottom: 12, left: 10, right: 10 }}
-      onFocus={() => setFocused(true)}
+      onFocus={() => setFocused(focusVisible())}
       onBlur={() => setFocused(false)}
       style={[styles.mark, pending && styles.pending, focused && focusRing]}
     >

@@ -9,6 +9,7 @@ import { colors, control, focusRing, spacing } from "../../ui/theme";
 import { useMe } from "../auth/use-me";
 import { displayMode, type Audio } from "./display-mode";
 import { audioStrings } from "./strings";
+import { focusVisible } from "../../ui/focusVisible";
 
 // The Guide's only audio: a link to the exhibition's playlist when it is EXTERNAL.
 // Ambience and No audio belong to the Journal (SPEC §6.3).
@@ -27,7 +28,7 @@ export function GuidePlaylist({ code, audio }: { code: string; audio: Audio }) {
         accessibilityRole="link"
         accessibilityLabel={`Listen to ${playlist.title} on ${provider}`}
         onPress={() => track("audio_external_click", { provider: playlist.provider, exhibition_code: code })}
-        onFocus={() => setFocused(true)}
+        onFocus={() => setFocused(focusVisible())}
         onBlur={() => setFocused(false)}
         style={StyleSheet.flatten([styles.row, focused && focusRing])}
       >
