@@ -13,7 +13,6 @@ import { Artwork } from "../../../ui/Artwork";
 import { Button } from "../../../ui/Button";
 import { Rule } from "../../../ui/Rule";
 import { Screen } from "../../../ui/Screen";
-import { Section } from "../../../ui/Section";
 import { Stack } from "../../../ui/Stack";
 import { Text } from "../../../ui/Text";
 import { TextAction } from "../../../ui/TextAction";
@@ -44,13 +43,11 @@ export default function ArchiveDetail() {
           <Text variant="caption">{`${archive.exhibition.venue.name.toUpperCase()} · ${year(archive.exhibition.startDate)}`}</Text>
           {archive.exhibition.coverImage && <Artwork {...archive.exhibition.coverImage} />}
           <Rule />
-          <Section label={archiveStrings.collection}>
-            <Stack gap="section">
-              <ScrapSection code={code} />
-              <JournalSection code={code} />
-              <KeepsakeSection code={code} />
-            </Stack>
-          </Section>
+          <Stack gap="section">
+            <ScrapSection code={code} />
+            <JournalSection code={code} />
+            <KeepsakeSection code={code} exhibition={archive.exhibition} />
+          </Stack>
           <Rule />
           <Text variant="caption">{archiveStrings.lastVisited}</Text>
           <Text variant="action">{longDate(archive.lastVisitedAt)}</Text>

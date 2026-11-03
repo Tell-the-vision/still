@@ -12,7 +12,7 @@ async function reachDetail(page: Parameters<typeof signIn>[0], next: Parameters<
   await signIn(page);
   await openGuide(page, code);
   await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await trpcCall(page, "keepsake.upsert", { code, templateId: "sentence", sentenceIds: ["00000000-0000-4000-8000-000000000001"] });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();

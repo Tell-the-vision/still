@@ -18,12 +18,12 @@ export const journalStrings = {
 };
 
 export const journalSectionStrings = {
-  present: "01 journal · editable",
-  absent: "00 journal",
+  present: "Journal",
+  absent: "Journal",
   edit: "Edit",
   write: "Write a journal",
   delete: "Delete journal",
-  dialogBody: "Your saved sentences and web card stay.",
+  dialogBody: "Your kept lines and keepsake stay.",
   cancel: "Cancel",
   confirm: "Delete",
   failed: "Couldn't delete the journal.",

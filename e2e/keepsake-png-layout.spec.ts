@@ -23,7 +23,7 @@ test("a Korean reflection card downloads as a full-size PNG without fetching fon
   await signIn(page);
   await openGuide(page, code);
   await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await trpcCall(page, "journal.upsert", { code, content: "고요한 빛 Quiet light.", audioType: null, revision: null });
   await trpcCall(page, "keepsake.upsert", { code, templateId: "reflection", journalExcerpt: "고요한 빛 Quiet light." });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();

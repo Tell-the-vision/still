@@ -17,6 +17,6 @@ test("Saving a sentence does not shift its layout", async ({ page, next }) => {
   const top = async () => (await row?.evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) ?? 0;
   const before = await top();
   await save.click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   expect(Math.abs((await top()) - before)).toBeLessThan(1);
 });

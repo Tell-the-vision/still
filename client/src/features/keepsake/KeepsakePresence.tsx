@@ -7,28 +7,29 @@ import { KeepsakeThumb } from "../../ui/KeepsakeThumb";
 import { Notice } from "../../ui/Notice";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
-import { spacing } from "../../ui/theme";
+import { colors, spacing } from "../../ui/theme";
 import { keepsakeStrings as strings } from "./strings";
 import { useGuideKeepsake } from "./useGuideKeepsake";
 
-type Props = { code: string; exhibition: Parameters<typeof useGuideKeepsake>[1]; hasGuide: boolean };
+type Props = { code: string; exhibition: Parameters<typeof useGuideKeepsake>[1]; hasGuide: boolean; where?: "guide" | "archive" };
 
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
-// The keepsake band on the Guide: the card as a thumbnail, where it stands, and the one next step.
-export function KeepsakePresence({ code, exhibition, hasGuide }: Props) {
+// The keepsake panel on the Guide and Archive Detail: the card as a thumbnail, where it stands, and the one next step.
+// On Archive Detail the status is plain text, since the collection is already in view.
+export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }: Props) {
   const router = useRouter();
   const k = useGuideKeepsake(code, exhibition);
-  const creator = `/archive/${code}/keepsake?from=guide` as const;
+  const creator = `/archive/${code}/keepsake?from=${where}` as const;
   const open = () => {
-    track("keepsake_open", { exhibition_code: code, source: "guide_band" });
+    track("keepsake_open", { exhibition_code: code, source: where === "guide" ? "guide_band" : "archive" });
     router.push(creator);
   };
   const collection = `/archive/${code}` as const;
   const see = strings.seeCollection(exhibition.title);
 
   // A status that leads to the collection, or plain text when there is nothing to see yet.
-  const link = (label: string) => <TextAction label={label} accessibilityLabel={see} trailing="→" href={collection} />;
+  const link = (label: string) => where === "archive" ? <Text variant="action">{label}</Text> : <TextAction label={label} accessibilityLabel={see} trailing="→" href={collection} />;
   const journalOnly = k.lineCount === 0 && k.hasJournal;
   const recordsLabel = journalOnly ? strings.yourJournal : `${plural(k.lineCount, "line")} kept${k.hasJournal ? " · journal" : ""}`;
   const staleLabel =
@@ -63,15 +64,15 @@ export function KeepsakePresence({ code, exhibition, hasGuide }: Props) {
   }
 
   return (
-    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "flex-start" }}>
+    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "stretch", alignSelf: "center", width: "100%", borderWidth: 1, borderColor: colors.black, padding: spacing.gap }}>
       <KeepsakeThumb card={k.card} templateId={k.templateId} placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined} entering={k.entering} onPress={open} />
-      <View style={{ flex: 1, gap: spacing.tight, minHeight: 77 }}>
-        <Text variant="subhead">{strings.band}</Text>
-        {/* Loading keeps the room (17 + 8 + 52) and shows nothing, so the page does not jump. */}
-        <View accessibilityLiveRegion="polite" style={{ gap: spacing.tight, alignItems: "flex-start" }}>
-          {status}
-          {action}
+      <View style={{ flex: 1, gap: spacing.tight, minHeight: 77, justifyContent: "space-between" }}>
+        <View style={{ gap: spacing.tight }}>
+          <Text variant="subhead">{strings.band}</Text>
+          <View accessibilityLiveRegion="polite" style={{ alignItems: "flex-start" }}>{status}</View>
         </View>
+        {/* Content-width, level with the thumbnail's bottom edge. */}
+        <View style={{ alignSelf: "flex-start" }}>{action}</View>
       </View>
     </View>
   );

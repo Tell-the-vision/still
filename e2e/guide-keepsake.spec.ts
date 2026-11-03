@@ -9,7 +9,7 @@ test("the guide reads in one order: title, playlist, keepsake, introduction, gui
   const top = async (locator: ReturnType<typeof page.getByText>) => (await locator.first().boundingBox())?.y ?? NaN;
   const ys = [
     await top(page.getByRole("heading", { name: "Forms of Stillness" })),
-    await top(page.getByRole("link", { name: "Playlist on Spotify" })),
+    await top(page.getByRole("link", { name: /^Listen to .* on Spotify$/ })),
     await top(page.getByRole("heading", { name: "Your keepsake" })),
     await top(page.getByText("About Forms of Stillness.")),
     await top(page.getByText(/A room can hold its breath/)),
@@ -27,21 +27,25 @@ test("a guest sees the preview card and a sign-in action", async ({ page }) => {
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fe%2Fforms-of-stillness/);
 });
 
-test("keeping a line turns + into a dot and the band links to the collection", async ({ page, next }) => {
+test("keeping a line turns + into a check, tapping it unkeeps, and the band links to the collection", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, code);
   const keep = page.getByRole("button", { name: "Keep this line" }).first();
-  await expect(keep).toHaveAttribute("aria-pressed", "false");
+  await expect(keep).toHaveAttribute("title", "Keep this line");
   await keep.click();
-  const kept = page.getByRole("button", { name: "Kept" });
-  await expect(kept).toHaveAttribute("aria-pressed", "true");
+  const kept = page.getByRole("button", { name: "Remove this line" });
   const status = page.getByRole("link", { name: "See your collection for Forms of Stillness" });
   await expect(status).toContainText("1 line kept");
   await expect(status).toHaveAttribute("href", `/archive/${code}`);
-  await status.click();
-  await expect(page).toHaveURL(new RegExp(`/archive/${code}$`));
+  await expect(kept).toHaveAttribute("title", "Kept in your collection · tap to remove");
+  await kept.click();
+  await expect(keep).toHaveAttribute("title", "Keep this line");
+  await expect(status).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Keep this line" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(0);
 });
 
 test("the band opens the creator and Save returns to the guide showing Kept on", async ({ page, next }) => {
@@ -50,7 +54,7 @@ test("the band opens the creator and Save returns to the guide showing Kept on",
   await signIn(page);
   await openGuide(page, code);
   await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.getByRole("button", { name: "Your keepsake card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness\/keepsake\?from=guide/);
   await page.getByRole("button", { name: "Save Web Card" }).click();

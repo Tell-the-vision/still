@@ -4,16 +4,19 @@ import { trpcCall } from "./support/api";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 import { openGuide } from "./support/reach";
 
-test("a saved sentence stays saved after reload and can no longer be pressed", async ({ page, next }) => {
+test("a saved sentence stays saved after reload and can be unkept on the guide", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
   await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.reload();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Remove this line" }).click();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(0);
 });
 
 test("a guest is asked to log in", async ({ page }) => {
@@ -35,10 +38,10 @@ test("a failed save shows Retry and a retry saves it", async ({ page, next }) =>
   await page.route(/scrap\.upsert/, failing);
   await page.getByRole("button", { name: "Keep this line" }).first().click();
   await expect(page.getByText("Couldn't keep this line.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(0);
   await page.unroute(/scrap\.upsert/, failing);
   await page.getByRole("button", { name: "Retry" }).click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
 });
 
 test("saving is idempotent, concurrent-safe and rejects another exhibition's sentence", async ({ page, next }) => {

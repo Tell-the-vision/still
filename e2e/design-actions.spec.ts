@@ -23,10 +23,10 @@ test("Creator: the selected template button is filled and swaps on click", async
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
   await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
-  await page.getByRole("link", { name: "Create web card" }).click();
+  await page.getByRole("link", { name: "Make your card" }).click();
   const sentence = page.getByRole("radio", { name: "Sentence" });
   const cover = page.getByRole("radio", { name: "Cover" });
   await expect(sentence).toHaveCSS("background-color", "rgb(0, 0, 0)");
