@@ -1,23 +1,28 @@
 import { Text as RNText, StyleSheet, type TextProps } from "react-native";
-import { colors, fontFamily } from "./theme";
+import { colors, fontFamily, type } from "./theme";
 
-export type TextVariant = "display" | "title" | "body" | "label" | "secondary";
+export type TextVariant = keyof typeof type;
+const headings: TextVariant[] = ["display", "headline", "title", "subhead"];
+const uppercase: TextVariant[] = ["eyebrow", "caption"];
+const grayByDefault: TextVariant[] = ["secondary", "eyebrow", "caption"];
 
-export function Text({ variant = "body", style, ...props }: TextProps & { variant?: TextVariant }) {
+type Props = TextProps & { variant?: TextVariant; tone?: "primary" | "secondary" };
+
+export function Text({ variant = "body", tone, style, ...props }: Props) {
+  const { face, size, line } = type[variant];
+  const secondary = (tone ?? (grayByDefault.includes(variant) ? "secondary" : "primary")) === "secondary";
   return (
     <RNText
-      role={variant === "title" ? "heading" : undefined}
+      role={headings.includes(variant) ? "heading" : undefined}
       maxFontSizeMultiplier={variant === "display" ? 1.5 : undefined}
-      style={[styles[variant], style]}
+      style={[
+        { fontFamily: fontFamily[face], fontSize: size, lineHeight: line, color: secondary ? colors.gray : colors.black },
+        uppercase.includes(variant) && styles.uppercase,
+        style,
+      ]}
       {...props}
     />
   );
 }
 
-const styles = StyleSheet.create({
-  display: { fontFamily: fontFamily.display, fontSize: 40, letterSpacing: 8, color: colors.black },
-  title: { fontFamily: fontFamily.display, fontSize: 24, color: colors.black },
-  body: { fontFamily: fontFamily.body, fontSize: 16, color: colors.black },
-  label: { fontFamily: fontFamily.bodyMedium, fontSize: 14, letterSpacing: 1, color: colors.black },
-  secondary: { fontFamily: fontFamily.body, fontSize: 14, color: colors.gray },
-});
+const styles = StyleSheet.create({ uppercase: { textTransform: "uppercase" } });

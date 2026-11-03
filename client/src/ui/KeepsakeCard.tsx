@@ -33,7 +33,7 @@ export function KeepsakeCard({ card, templateId, width = cardTokens.width }: { c
         borderWidth: cardTokens.borderWidth,
       }}
     >
-      <Wordmark />
+      <Wordmark size="card" />
       <Text variant="title">{exhibition.title}</Text>
       <Text variant="secondary">{`${exhibition.venue.name} · ${exhibition.venue.city}`}</Text>
       <Text variant="secondary">{`${exhibition.startDate} – ${exhibition.endDate}`}</Text>
