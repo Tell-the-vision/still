@@ -5,8 +5,8 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, type RefObject } from "react";
 import { View, type HostInstance } from "react-native";
 import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
-import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
+import { TextAction } from "../../ui/TextAction";
 import { Text } from "../../ui/Text";
 import { savePendingAction } from "../auth/pending-action";
 import { useMe } from "../auth/use-me";
@@ -57,15 +57,10 @@ export function SentenceAction({ code, sentence }: Props) {
     router.push({ pathname: "/login", params: { returnTo: `/e/${code}` } });
   };
   const renderControl = () => {
-    if (!me) return <Button label={scrapStrings.loginRequired} variant="secondary" onPress={() => void loginThenSave()} />;
+    if (!me) return <TextAction variant="label" label={scrapStrings.loginRequired} onPress={() => void loginThenSave()} />;
     if (saved.has(sentence.sentenceId)) return <Text variant="secondary">{scrapStrings.saved}</Text>;
-    if (isError) return (
-      <>
-        <Notice message={scrapStrings.saveFailed} error />
-        <Button label={scrapStrings.retry} variant="secondary" onPress={save} />
-      </>
-    );
-    return <Button label={scrapStrings.save} variant="secondary" disabled={isPending} onPress={save} />;
+    if (isError) return <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: save }} />;
+    return <TextAction variant="label" label={scrapStrings.save} disabled={isPending} onPress={save} />;
   };
   return <View ref={viewRef}>{renderControl()}</View>;
 }

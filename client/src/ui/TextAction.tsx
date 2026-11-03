@@ -7,7 +7,7 @@ import { focusRing, spacing } from "./theme";
 
 type Props = {
   label: string;
-  variant?: Extract<TextVariant, "action" | "secondary" | "subhead">;
+  variant?: Extract<TextVariant, "action" | "secondary" | "subhead" | "label">;
   tone?: "primary" | "secondary";
   mark?: ComponentProps<typeof Mark>["shape"];
   leading?: string;
