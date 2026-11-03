@@ -7,8 +7,16 @@ test("No audio saved in Account hides the playlist on the Guide and persists", a
   await stubGoogle(page);
   await signIn(page);
   await page.getByRole("link", { name: "ACCOUNT" }).click();
-  await page.getByRole("button", { name: "No audio" }).click();
-  await expect(page.getByRole("button", { name: "No audio" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("link", { name: "Audio settings" }).click();
+  await expect(page.getByRole("heading", { name: "Audio." })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "No audio" }).click();
+  await expect(page.getByRole("radio", { name: "No audio" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "No audio" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("link", { name: "ACCOUNT" }).first().click();
+  await expect(page).toHaveURL(/\/account$/);
   await page.goto("/");
   await page.getByRole("link", { name: "QR Scan" }).click();
   await page.getByRole("button", { name: "Enter Exhibition URL" }).click();

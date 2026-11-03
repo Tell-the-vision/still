@@ -2,7 +2,7 @@ import { track } from "../lib/analytics";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { AudioSettings } from "../features/audio/AudioSettings";
+import { audioStrings } from "../features/audio/strings";
 import { LinkedAccounts } from "../features/account/LinkedAccounts";
 import { PolicyLinks } from "../features/account/PolicyLinks";
 import { accountStrings } from "../features/account/strings";
@@ -15,6 +15,7 @@ import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
 import { Section } from "../ui/Section";
 import { Text } from "../ui/Text";
+import { TextAction } from "../ui/TextAction";
 import { spacing } from "../ui/theme";
 
 const providerNames: Record<string, string> = { GOOGLE: "GOOGLE" };
@@ -56,7 +57,7 @@ export default function Account() {
           <LinkedAccounts />
         </Section>
         <Section label={accountStrings.preferences}>
-          <AudioSettings />
+          <TextAction href="/account/audio" label={audioStrings.settingsLink} trailing="→" />
         </Section>
         <Section label={accountStrings.about}>
           <Text>{accountStrings.tagline}</Text>
