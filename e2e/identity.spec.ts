@@ -7,7 +7,7 @@ test("ACCOUNT lists the linked Google identity and opens policy links in a new t
   await stubGoogle(page);
   await signIn(page);
   await page.getByRole("link", { name: "ACCOUNT" }).click();
-  await expect(page.getByRole("heading", { name: "LINKED ACCOUNTS" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Unlink" })).toBeVisible();
   await expect(page.getByText(user.email, { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("target", "_blank");
 });

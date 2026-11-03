@@ -9,7 +9,7 @@ test("Account uses kit headings, hides the button arrow from screen readers, and
   await page.getByRole("link", { name: "ACCOUNT" }).click();
   await expect(page.getByRole("button", { name: "Log out", exact: true })).toBeVisible();
   await expect(page.getByText("Log out", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "PREFERENCES" })).toBeVisible();
+  for (const eyebrow of ["PREFERENCES", "LINKED ACCOUNTS", "ABOUT STILL", "GOOGLE"]) await expect(page.getByText(eyebrow, { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Delete account", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Delete account" })).toBeVisible();
 });
@@ -53,4 +53,21 @@ test("Linked accounts and policy links have room between them", async ({ page, n
   const policyGap = privacy.y - (terms.y + terms.height);
   const actionGap = remove.y - (logOut.y + logOut.height);
   expect(Math.abs(actionGap - policyGap)).toBeLessThanOrEqual(2);
+});
+
+test("Account fits a phone: Log out scrolls fully above the tab bar and Unlink is a 44px target", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await page.getByRole("link", { name: "ACCOUNT" }).click();
+  const remove = page.getByRole("button", { name: "Delete account", exact: true });
+  await remove.scrollIntoViewIfNeeded();
+  const bar = await page.getByRole("navigation", { name: "Main" }).boundingBox();
+  const last = await remove.boundingBox();
+  if (!bar || !last) throw new Error("not rendered");
+  expect(last.y + last.height).toBeLessThanOrEqual(bar.y);
+  const unlink = await page.getByRole("button", { name: "Unlink" }).locator("..").boundingBox();
+  expect(unlink?.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: "/tmp/still-qa/account/after/phone-account.png" });
 });
