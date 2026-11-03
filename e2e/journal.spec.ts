@@ -87,7 +87,8 @@ test("saving from Archive Detail returns there with Saved shown", async ({ page,
   await page.getByRole("textbox", { name: "Journal" }).fill("From archive.");
   await page.getByRole("button", { name: "Save Journal" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
-  await expect(page.getByText("From archive.")).toBeVisible();
+  // The guide stays mounted under Archive Detail, so check the visible copy.
+  await expect(page.getByText("From archive.").last()).toBeVisible();
   await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
 });
 

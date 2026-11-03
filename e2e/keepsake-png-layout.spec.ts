@@ -49,7 +49,7 @@ async function downloadWithCoverCard(page: Page, next: Parameters<typeof stubGoo
   await trpcCall(page, "journal.upsert", { code: "with-cover", content: "Quiet light.", audioType: null, revision: null });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "With Cover", exact: true }).click();
-  await page.getByRole("link", { name: "Create web card" }).click();
+  await page.getByRole("link", { name: "Make your card" }).click();
   await page.getByRole("radio", { name: "Cover" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/with-cover$/);

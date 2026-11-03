@@ -22,7 +22,7 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
 
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
-  await page.getByRole("link", { name: "Create web card" }).click();
+  await page.getByRole("link", { name: "Make your card" }).click();
   await expect(page.getByRole("radio", { name: "Sentence" })).toHaveAttribute("aria-checked", "true");
   const cardBox = await page.getByLabel("Web card", { exact: true }).boundingBox();
   const captionBox = await page.getByLabel("Web card", { exact: true }).getByText("SEOUL / 2026").boundingBox();
@@ -37,17 +37,17 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText("Quiet light.");
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
-  await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText("Quiet light.");
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).toContainText("Quiet light.");
   const first = await getKeepsake(page);
   const sentence = first.card.sentences[0].content;
-  await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText(sentence);
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).toContainText(sentence);
 
-  await page.getByRole("link", { name: "Edit web card" }).click();
+  await page.getByRole("link", { name: "Edit card" }).click();
   await page.getByRole("radio", { name: "Cover" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
-  await expect(page.getByLabel("Web card", { exact: true }).last()).not.toContainText("Quiet light.");
-  await expect(page.getByLabel("Web card", { exact: true }).last()).not.toContainText(sentence);
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).not.toContainText("Quiet light.");
+  await expect(page.getByLabel("Your keepsake card", { exact: true }).last()).not.toContainText(sentence);
   expect((await getKeepsake(page)).createdAt).toBe(first.createdAt);
 });
 

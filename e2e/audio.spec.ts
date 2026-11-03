@@ -3,7 +3,7 @@ import { openGuide } from "./support/reach";
 
 test("the guide offers only the playlist link, below the cover and above the keepsake", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
-  const link = page.getByRole("link", { name: "Playlist on Spotify" });
+  const link = page.getByRole("link", { name: /^Listen to .+ on Spotify$/ });
   await expect(link).toHaveAttribute("href", /^https:\/\/open\.spotify\.com\//);
   await expect(link).toHaveAttribute("target", "_blank");
   await expect(page.getByText("LISTENING")).toHaveCount(0);

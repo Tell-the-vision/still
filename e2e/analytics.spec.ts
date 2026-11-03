@@ -52,7 +52,7 @@ test("record events carry codes and ids, never journal text", async ({ page, nex
   await page.getByRole("button", { name: "Keep this line" }).first().click();
   await expect.poll(async () => (await dataLayer(page)).map((e) => e.event)).toContain("scrap_save");
   const popup = page.waitForEvent("popup");
-  await page.getByRole("link", { name: "Playlist on Spotify" }).click();
+  await page.getByRole("link", { name: /^Listen to .+ on Spotify$/ }).click();
   await (await popup).close();
 
   for (const [text, event, link] of [["Quiet light.", "journal_create", "Write a journal"], ["Quiet light, softer.", "journal_update", "Your journal"]]) {
