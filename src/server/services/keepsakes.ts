@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { KEEPSAKE_TEMPLATES, templateDefaults, type keepsakeUpsertInput } from "@still/shared/keepsake";
 import { db } from "../db/client";
 import { archives, digitalKeepsakes, journals, scraps } from "../db/schema";
+import { issueTicket } from "../media/keepsake-ticket";
 import { publicImageUrl } from "../media/public-url";
 import { AppError } from "../trpc/init";
 import { ensureArchive, findExhibition } from "./archives";
@@ -13,6 +14,11 @@ const pick = ({ altText, width, height }: { altText: string | null; width: numbe
 type KeepsakeContent = { version: 1; sentences: { sentenceId: string; content: string }[]; journalExcerpt: string | null };
 
 // The SPEC §7.3 representation. The exhibition and cover are read live, never snapshotted.
+function stillOrigin() {
+  if (!process.env.STILL_ORIGIN) throw new Error("STILL_ORIGIN is not set");
+  return process.env.STILL_ORIGIN;
+}
+
 export async function getKeepsake(userId: string, code: string) {
   const exhibition = await findExhibition(code);
   const archive = await db.query.archives.findFirst({
@@ -22,6 +28,7 @@ export async function getKeepsake(userId: string, code: string) {
   if (!archive?.keepsake) return null;
   const { keepsake, exhibition: live } = archive;
   const { sentences, journalExcerpt } = keepsake.contentData as KeepsakeContent;
+  const { ticket, expiresAt } = issueTicket({ userId, archiveId: archive.id, updatedAt: keepsake.updatedAt.toISOString() });
   return {
     templateId: keepsake.templateId,
     card: {
@@ -30,7 +37,7 @@ export async function getKeepsake(userId: string, code: string) {
       sentences,
       journalExcerpt,
     },
-    png: null,
+    png: { url: `${stillOrigin()}/api/media/keepsake?ticket=${ticket}`, expiresAt: expiresAt.toISOString() },
     createdAt: keepsake.createdAt.toISOString(),
     updatedAt: keepsake.updatedAt.toISOString(),
   };

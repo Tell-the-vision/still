@@ -8,12 +8,17 @@ import { Notice } from "../../ui/Notice";
 import { Section } from "../../ui/Section";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
+import { DownloadPng } from "./DownloadPng";
 import { keepsakeStrings } from "./strings";
 
 // The web card on Archive Detail: the saved card, or an empty note, plus the way to the creator.
 export function KeepsakeSection({ code }: { code: string }) {
   const trpc = useTRPC();
-  const { data: keepsake } = useQuery(trpc.keepsake.get.queryOptions({ code }));
+  const { data: keepsake } = useQuery({
+    ...trpc.keepsake.get.queryOptions({ code }),
+    // SPEC §11.10: refetch a minute before the signed PNG URL expires.
+    refetchInterval: ({ state }) => (state.data ? Math.max(Date.parse(state.data.png.expiresAt) - 60_000 - Date.now(), 1000) : false),
+  });
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const remove = useMutation(
@@ -41,6 +46,7 @@ export function KeepsakeSection({ code }: { code: string }) {
     <Section label={keepsakeStrings.present}>
       <Stack>
         <KeepsakeCard card={keepsake.card} templateId={keepsake.templateId} />
+        <DownloadPng url={keepsake.png.url} />
         <Button label={keepsakeStrings.edit} trailing="→" href={href} />
         <Button label={keepsakeStrings.delete} variant="secondary" onPress={() => setConfirming(true)} />
         {remove.isError && <Notice error message={keepsakeStrings.deleteFailed} />}

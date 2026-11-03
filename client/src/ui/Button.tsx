@@ -4,20 +4,21 @@ import { Pressable, StyleSheet } from "react-native";
 import { Text } from "./Text";
 import { colors, focusRing } from "./theme";
 
-type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean; trailing?: string; selected?: boolean } & (
+type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean; trailing?: string; selected?: boolean; download?: boolean } & (
   | { href: Href; onPress?: undefined }
   | { onPress: () => void; href?: undefined }
 );
 
 // Renders a link when given `href`, otherwise a button. Both show a focus ring on web.
-// `trailing` is a decorative suffix (e.g. an arrow) hidden from screen readers.
-export function Button({ label, variant = "primary", href, onPress, disabled = false, trailing, selected }: Props) {
+// `download` (web) saves the linked file. `trailing` is a decorative suffix (e.g. an arrow) hidden from screen readers.
+export function Button({ label, variant = "primary", href, onPress, disabled = false, trailing, selected, download }: Props) {
   const primary = variant === "primary";
   const [focused, setFocused] = useState(false);
   // Tracked as state because a style function would break `Link asChild`.
   const [pressed, setPressed] = useState(false);
   const pressable = (
     <Pressable
+      {...(download && { hrefAttrs: { download: "" } })}
       accessibilityRole={href === undefined ? "button" : "link"}
       accessibilityLabel={label}
       accessibilityState={selected === undefined ? undefined : { selected }}

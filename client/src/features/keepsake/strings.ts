@@ -18,4 +18,12 @@ export const keepsakeStrings = {
   excerptHeading: "Excerpt",
   save: "Save Web Card",
   failed: "Couldn't save. Your selection is kept.",
+  png: {
+    download: "Download PNG",
+    share: "Share PNG",
+    saveToPhotos: "Save to Photos",
+    longPressHint: "Press and hold the image to save it.",
+    retry: "Try again",
+    failed: "Couldn't get the PNG.",
+  },
 };
