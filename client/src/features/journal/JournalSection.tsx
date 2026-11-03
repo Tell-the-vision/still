@@ -9,6 +9,7 @@ import { Notice } from "../../ui/Notice";
 import { Section } from "../../ui/Section";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
+import { TextAction } from "../../ui/TextAction";
 import { useDraft } from "./drafts";
 import { journalSectionStrings as strings } from "./strings";
 
@@ -35,20 +36,20 @@ export function JournalSection({ code }: { code: string }) {
   const href = `/e/${code}/journal` as const;
   if (journal === null) {
     return (
-      <Section label={strings.absent}>
-        <Button label={strings.write} trailing="→" href={href} />
+      <Section labelVariant="row" label={strings.absent}>
+        <TextAction label={strings.write} trailing="→" href={href} />
       </Section>
     );
   }
   return (
-    <Section label={strings.present}>
+    <Section labelVariant="row" label={strings.present}>
       <Stack>
         <Text numberOfLines={3}>{journal.content}</Text>
-        <Button label={strings.edit} trailing="→" href={href} />
-        <Button label={strings.delete} variant="secondary" onPress={() => setConfirming(true)} />
+        <TextAction label={strings.edit} trailing="→" href={href} />
+        <TextAction label={strings.delete} tone="secondary" onPress={() => setConfirming(true)} />
         {remove.isError && <Notice error message={strings.failed} />}
       </Stack>
-      <Dialog visible={confirming} onClose={() => setConfirming(false)} label={strings.delete}>
+      <Dialog visible={confirming} onClose={() => setConfirming(false)} label={strings.delete} body={strings.dialogBody}>
         <Button label={strings.confirm} onPress={() => remove.mutate({ code })} />
         <Button label={strings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
       </Dialog>

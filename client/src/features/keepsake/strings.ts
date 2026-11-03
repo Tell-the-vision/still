@@ -1,10 +1,11 @@
 export const keepsakeStrings = {
   none: "00 web card",
-  present: "01 web card",
+  present: "01 web card · PNG download",
   empty: "No web card yet.",
   create: "Create web card",
   edit: "Edit web card",
   delete: "Delete web card",
+  dialogBody: "You can make a new one anytime.",
   confirm: "Delete",
   cancel: "Cancel",
   deleteFailed: "Couldn't delete the web card.",

@@ -21,6 +21,7 @@ test("a saved journal shows in Detail, where it can be deleted", async ({ page, 
   await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", "/e/forms-of-stillness/journal");
 
   await page.getByRole("button", { name: "Delete journal" }).click();
+  await expect(page.getByRole("dialog", { name: "Delete journal" })).toContainText("Your saved sentences and web card stay.");
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByText("Quiet light.")).toBeVisible();
 

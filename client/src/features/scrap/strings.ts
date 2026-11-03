@@ -6,5 +6,5 @@ export const scrapStrings = {
   loginRequired: "Login Required",
   unsave: "Unsave",
   unsaveFailed: "Couldn't unsave. Retry.",
-  savedCount: (total: number) => `${String(total).padStart(2, "0")} saved guide sentences`,
+  savedCount: (total: number) => `${String(total).padStart(2, "0")} saved guide sentence${total === 1 ? "" : "s"}`,
 };

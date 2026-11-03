@@ -17,6 +17,9 @@ test("a saved web card downloads as a signed PNG", async ({ page, next }) => {
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness" }).click();
 
+  const box = await page.getByLabel("Web card", { exact: true }).boundingBox();
+  expect((box?.x ?? 0) + (box?.width ?? Infinity)).toBeLessThanOrEqual((page.viewportSize()?.width ?? 0) - 24);
+
   const downloading = page.waitForEvent("download");
   await page.getByText("Download PNG").click();
   const path = await (await downloading).path();

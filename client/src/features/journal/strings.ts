@@ -22,6 +22,7 @@ export const journalSectionStrings = {
   edit: "Edit",
   write: "Write a journal",
   delete: "Delete journal",
+  dialogBody: "Your saved sentences and web card stay.",
   cancel: "Cancel",
   confirm: "Delete",
   failed: "Couldn't delete the journal.",

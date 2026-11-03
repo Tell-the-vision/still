@@ -1,11 +1,11 @@
 import { track } from "../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
-import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
 import { Section } from "../../ui/Section";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
+import { TextAction } from "../../ui/TextAction";
 import { scrapStrings } from "./strings";
 
 // One saved sentence; its unsave shares the save's mutation scope so both are serialized.
@@ -35,8 +35,10 @@ function SavedSentence({ code, scrap }: { code: string; scrap: { sentenceId: str
   return (
     <Stack>
       {isError && <Notice message={scrapStrings.unsaveFailed} error />}
-      <Text>{scrap.content}</Text>
-      <Button label={scrapStrings.unsave} variant="secondary" onPress={() => mutate({ code, sentenceId: scrap.sentenceId })} />
+      <Text variant="quote">{scrap.content}</Text>
+      <Stack direction="row">
+        <TextAction label={scrapStrings.unsave} tone="secondary" onPress={() => mutate({ code, sentenceId: scrap.sentenceId })} />
+      </Stack>
     </Stack>
   );
 }
@@ -46,7 +48,7 @@ export function ScrapSection({ code }: { code: string }) {
   const trpc = useTRPC();
   const { data: scraps = [] } = useQuery(trpc.scrap.list.queryOptions({ code }));
   return (
-    <Section label={scrapStrings.savedCount(scraps.length)}>
+    <Section labelVariant="row" label={scrapStrings.savedCount(scraps.length)}>
       <Stack>
         {scraps.map((scrap) => (
           <SavedSentence key={scrap.sentenceId} code={code} scrap={scrap} />

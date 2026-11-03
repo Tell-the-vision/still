@@ -27,6 +27,6 @@ test("deleting the web card keeps the saved sentences and the journal", async ({
   await page.getByRole("button", { name: "Delete web card" }).click();
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page.getByText("No web card yet.").last()).toBeVisible();
-  await expect(page.getByText("01 saved guide sentences").last()).toBeVisible();
+  await expect(page.getByText("01 saved guide sentence").last()).toBeVisible();
   await expect(page.getByText("01 journal · editable").last()).toBeVisible();
 });

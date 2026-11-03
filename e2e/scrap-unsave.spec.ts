@@ -15,8 +15,9 @@ test("a saved sentence is unsaved from Archive Detail and can be saved again", a
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness" }).click();
-  await expect(page.getByRole("heading", { name: "01 saved guide sentences" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "01 saved guide sentence" })).toBeVisible();
   await expect(page.getByText(sentenceText)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Unsave" })).toHaveCSS("border-top-width", "0px");
   await page.getByRole("button", { name: "Unsave" }).click();
   await expect(page.getByRole("heading", { name: "00 saved guide sentences" })).toBeVisible();
   await openGuide(page, "forms-of-stillness");
