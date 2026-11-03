@@ -76,9 +76,9 @@ export default function Journal() {
   useEffect(() => {
     if (!done) return;
     announce(journalStrings.announce);
-    // Pushed from the guide or Detail: go back to that screen. A deep link has no history to return to.
-    if (from && router.canGoBack()) router.back();
-    else router.replace(from === "archive" ? `/archive/${code}` : `/e/${code}`);
+    // Saving always lands on this exhibition's Archive Detail; from there, going back is the same place.
+    if (from === "archive" && router.canGoBack()) router.back();
+    else router.replace(`/archive/${code}`);
   }, [done, from, code, router]);
 
   const [audioType, setAudioType] =

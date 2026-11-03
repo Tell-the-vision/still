@@ -37,7 +37,7 @@ test("collection groups are separated and the journal excerpt is small", async (
   const saved = page.waitForResponse(/journal\.upsert/);
   await page.getByRole("button", { name: "Save Journal" }).click();
   await saved;
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   await page.goto("/archive/forms-of-stillness");
   const mark = await page.getByRole("button", { name: "Remove this line" }).boundingBox();
   const journal = await page.getByRole("heading", { name: "Journal", exact: true }).boundingBox();

@@ -19,14 +19,14 @@ test("a signed-in visitor writes a journal, then edits it", async ({ page, next 
 
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
   await page.goto("/e/forms-of-stillness/journal");
   await expect(page.getByRole("textbox", { name: "Journal" })).toHaveValue("Quiet light.");
 
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light, softer.");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   await page.goto("/e/forms-of-stillness/journal");
   await expect(page.getByRole("textbox", { name: "Journal" })).toHaveValue("Quiet light, softer.");
 });
@@ -52,14 +52,14 @@ test("a stale save shows the conflict notice, then succeeds", async ({ page, nex
   await expect(other.getByRole("textbox", { name: "Journal" })).toBeVisible();
   await page.getByRole("textbox", { name: "Journal" }).fill("A");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
 
   await other.getByRole("textbox", { name: "Journal" }).fill("B");
   await other.getByRole("button", { name: "Save Journal" }).click();
   await expect(other.getByText("This journal was changed on another device.")).toBeVisible();
   await expect(other.getByRole("textbox", { name: "Journal" })).toHaveValue("B");
   await other.getByRole("button", { name: "Save Journal" }).click();
-  await expect(other).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(other).toHaveURL(/\/archive\/forms-of-stillness$/);
   await other.goto("/e/forms-of-stillness/journal");
   await expect(other.getByRole("textbox", { name: "Journal" })).toHaveValue("B");
 });
@@ -92,7 +92,7 @@ test("saving from Archive Detail returns there with Saved shown", async ({ page,
   await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
 });
 
-test("saving from the guide link returns to the guide", async ({ page, next }) => {
+test("saving from the guide link lands on Archive Detail", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
@@ -100,14 +100,7 @@ test("saving from the guide link returns to the guide", async ({ page, next }) =
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("From guide.");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
-  await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
-
-  // Back goes to Home, not to a second copy of the guide.
-  await page.goBack();
-  await expect(page).toHaveURL(/\/scan/);
-  await page.goForward();
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
 
   // No saved time for a guest.

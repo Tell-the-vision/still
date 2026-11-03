@@ -11,7 +11,7 @@ test("a saved journal shows in Detail, where it can be deleted", async ({ page, 
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
 
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
