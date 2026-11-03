@@ -3,11 +3,12 @@ import { useRouter } from "expo-router";
 import { View } from "react-native";
 import { keptDate } from "../../lib/dates";
 import { Button } from "../../ui/Button";
-import { KeepsakeThumb } from "../../ui/KeepsakeThumb";
+import { KeepsakeThumb, THUMB_SCALE, thumbHeight } from "../../ui/KeepsakeThumb";
 import { Notice } from "../../ui/Notice";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { colors, spacing } from "../../ui/theme";
+import { useWide } from "../../ui/useWide";
 import { keepsakeStrings as strings } from "./strings";
 import { useGuideKeepsake } from "./useGuideKeepsake";
 
@@ -20,6 +21,9 @@ const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }: Props) {
   const router = useRouter();
   const k = useGuideKeepsake(code, exhibition);
+  // Desktop: a larger card, and the panel hugs its content instead of stretching the column.
+  const wide = useWide();
+  const scale = wide ? 0.7 : THUMB_SCALE;
   const creator = `/archive/${code}/keepsake?from=${where}` as const;
   const open = () => {
     track("keepsake_open", { exhibition_code: code, source: where === "guide" ? "guide_band" : "archive" });
@@ -64,9 +68,9 @@ export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }
   }
 
   return (
-    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "stretch", alignSelf: "center", width: "100%", borderWidth: 1, borderColor: colors.black, padding: spacing.gap }}>
-      <KeepsakeThumb card={k.card} templateId={k.templateId} placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined} entering={k.entering} onPress={open} />
-      <View style={{ flex: 1, gap: spacing.tight, minHeight: 77, justifyContent: "space-between" }}>
+    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "stretch", alignSelf: wide ? "flex-start" : "center", width: wide ? undefined : "100%", minWidth: wide ? 480 : undefined, borderWidth: 1, borderColor: colors.black, padding: spacing.gap }}>
+      <KeepsakeThumb scale={scale} card={k.card} templateId={k.templateId} placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined} entering={k.entering} onPress={open} />
+      <View style={{ flex: 1, gap: spacing.tight, minHeight: thumbHeight(scale), justifyContent: "space-between" }}>
         <View style={{ gap: spacing.tight }}>
           <Text variant="subhead">{strings.band}</Text>
           <View accessibilityLiveRegion="polite" style={{ alignItems: "flex-start" }}>{status}</View>

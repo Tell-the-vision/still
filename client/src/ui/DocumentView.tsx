@@ -22,7 +22,7 @@ export function DocumentView({
       {document?.blocks.map((block, i) => {
         switch (block.type) {
           case "heading":
-            return <Text key={i} variant="subhead">{block.text}</Text>;
+            return <Text key={i} variant="subhead" style={i > 0 ? { marginTop: spacing.section - spacing.tight } : undefined}>{block.text}</Text>;
           case "paragraph":
             return <Text key={i}>{block.text}</Text>;
           case "image":

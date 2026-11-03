@@ -88,7 +88,7 @@ function JournalLink({ code }: { code: string }) {
   const { data: journal } = useQuery(trpc.journal.get.queryOptions({ code }, { enabled: !!me }));
   const savedLabel = useSavedLabel(code);
   return (
-    <View style={{ alignItems: "center", gap: spacing.tight, paddingVertical: spacing.section / 2 }}>
+    <View style={{ alignItems: "center", gap: spacing.tight, }}>
       <TextAction label={journal ? guideStrings.yourJournal : guideStrings.writeJournal} trailing="→" variant="subhead" href={`/e/${code}/journal?from=guide`} />
       {savedLabel && <Text variant="secondary">{savedLabel}</Text>}
     </View>

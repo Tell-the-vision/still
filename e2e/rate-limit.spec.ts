@@ -1,4 +1,6 @@
 import { expect, test } from "next/experimental/testmode/playwright";
+import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
+import { openGuide } from "./support/reach";
 
 test("the auth route answers 429 past the per-IP limit, per address", async ({ page, request }) => {
   await page.goto("/");
@@ -24,4 +26,28 @@ test("a body over 100 KB is refused with 413", async ({ page }) => {
     return res.status;
   });
   expect(status).toBe(413);
+});
+
+test("a signed-in reader stays signed in on the guide after hammering the API", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await page.goto("/");
+  const statuses = await page.evaluate(async () => {
+    const out: number[] = [];
+    for (let i = 0; i < 150; i++) out.push((await fetch("/api/trpc/me.get", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status);
+    return out;
+  });
+  expect([...new Set(statuses)]).toEqual([200]);
+  await openGuide(page, "forms-of-stillness");
+  await expect(page.getByRole("button", { name: "Keep this line" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Keep this line" }).first().click();
+  await expect(page).not.toHaveURL(/login/);
+});
+
+test("the guide ends with the journal link below the last rule", async ({ page }) => {
+  await openGuide(page, "forms-of-stillness");
+  const link = page.getByRole("link", { name: /Write a journal|Your journal/ });
+  await link.scrollIntoViewIfNeeded();
+  await expect(link).toBeInViewport();
 });
