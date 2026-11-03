@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { Fragment, useState } from "react";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { authStrings } from "../auth/strings";
 import { useGoogleAuthCode } from "../auth/use-google-auth";
 import { STALE_TIME, useTRPC } from "../../lib/trpc";
@@ -11,6 +11,7 @@ import { Notice } from "../../ui/Notice";
 import { Rule } from "../../ui/Rule";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
+import { spacing } from "../../ui/theme";
 import { TextAction } from "../../ui/TextAction";
 import { accountStrings } from "./strings";
 
@@ -59,11 +60,12 @@ export function LinkedAccounts() {
       {data?.map((identity, index) => (
         <Fragment key={identity.id}>
           {index > 0 ? <Rule tight /> : null}
-          <Stack gap="tight">
-            <Text variant="caption">{accountStrings.provider}</Text>
-            <Text variant="action">{identity.email}</Text>
-            <TextAction label={accountStrings.unlink} variant="secondary" onPress={() => setConfirmingId(identity.id)} />
-          </Stack>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.gap }}>
+            <Text variant="action" numberOfLines={1} ellipsizeMode="middle" style={{ flexShrink: 1 }}>{identity.email}</Text>
+            <View style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "flex-end" }}>
+              <TextAction label={accountStrings.unlink} variant="secondary" onPress={() => setConfirmingId(identity.id)} />
+            </View>
+          </View>
         </Fragment>
       ))}
       <TextAction label={accountStrings.linkAnother} leading="＋" disabled={link.isPending || (Platform.OS !== "web" && !google.ready)} onPress={startLink} />
