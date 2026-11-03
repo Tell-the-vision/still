@@ -1,7 +1,8 @@
 import { Pool } from 'pg';
+import { databaseUrl } from './url';
 
 // Wipes the database. Refuses to touch anything that is not a STILL database.
-const url = new URL(process.env.DATABASE_URL ?? 'postgres://localhost:5432/still');
+const url = new URL(databaseUrl());
 const name = url.pathname.slice(1);
 if (!name.startsWith('still')) {
   throw new Error(`Refusing to reset database "${name}": name must start with "still"`);

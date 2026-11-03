@@ -1,4 +1,5 @@
 import { defineConfig } from 'drizzle-kit';
+import { databaseUrl } from './url';
 
 export default defineConfig({
   dialect: 'postgresql',
@@ -6,6 +7,6 @@ export default defineConfig({
   out: './src/server/db/migrations',
   casing: 'snake_case',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://localhost:5432/still',
+    url: databaseUrl(),
   },
 });
