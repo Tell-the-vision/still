@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../../../server/db/client";
 import { archives } from "../../../../server/db/schema";
 import { renderKeepsakePng } from "../../../../server/media/keepsake-png";
+import { publicImageUrl } from "../../../../server/media/public-url";
 import { verifyTicket } from "../../../../server/media/keepsake-ticket";
 
 // SPEC §7.3: the ticket is a bearer link, so it is never logged.
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
   if (!payload) return new Response(null, { status: 403 });
   const archive = await db.query.archives.findFirst({
     where: eq(archives.id, payload.archiveId),
-    with: { keepsake: true, exhibition: { with: { venue: true } } },
+    with: { keepsake: true, exhibition: { with: { venue: true, coverImage: true } } },
   });
   if (!archive?.keepsake) return new Response(null, { status: 404 });
   if (archive.userId !== payload.userId || archive.keepsake.updatedAt.toISOString() !== payload.updatedAt) {
@@ -20,7 +21,8 @@ export async function GET(req: Request) {
     sentences: { sentenceId: string; content: string }[];
     journalExcerpt: string | null;
   };
-  const image = renderKeepsakePng({ exhibition: archive.exhibition, sentences, journalExcerpt }, archive.keepsake.templateId);
+  const { coverImage } = archive.exhibition;
+  const image = await renderKeepsakePng({ exhibition: archive.exhibition, sentences, journalExcerpt, image: coverImage && { url: publicImageUrl(coverImage.objectKey) } }, archive.keepsake.templateId);
   const seconds = Math.max(0, Math.floor((payload.exp - Date.now()) / 1000));
   return new Response(image.body, {
     headers: {
