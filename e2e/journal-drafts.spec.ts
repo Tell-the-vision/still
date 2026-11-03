@@ -33,6 +33,9 @@ test("a guest's journal is saved after login and consent", async ({ page, next }
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  await expect(page.getByRole("status").filter({ hasText: "Journal saved." })).toHaveCount(1);
+  await page.goBack();
+  await expect(page.getByRole("textbox", { name: "Journal" })).toHaveCount(0);
   await page.goto("/e/forms-of-stillness/journal");
   await page.reload();
   await expect(page.getByRole("textbox", { name: "Journal" })).toHaveValue("Guest words");
