@@ -5,7 +5,6 @@ import { useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Notice } from "../../ui/Notice";
-import { Section } from "../../ui/Section";
 import { Stack } from "../../ui/Stack";
 import { TextAction } from "../../ui/TextAction";
 import { DownloadPng } from "./DownloadPng";
@@ -31,11 +30,10 @@ export function KeepsakeSection({ code, exhibition }: { code: string; exhibition
   );
   if (keepsake === undefined) return null;
   return (
-    <Section labelVariant="row" label={keepsakeStrings.section}>
-      <Stack>
+    <Stack>
         <KeepsakePresence code={code} exhibition={exhibition} hasGuide where="archive" />
         {keepsake && (
-          <Stack direction="row" gap="section">
+          <Stack direction="row" gap="section" justify="center">
             <DownloadPng code={code} url={keepsake.png.url} />
             <TextAction label={keepsakeStrings.delete} tone="secondary" onPress={() => setConfirming(true)} />
           </Stack>
@@ -45,7 +43,6 @@ export function KeepsakeSection({ code, exhibition }: { code: string; exhibition
           <Button label={keepsakeStrings.confirm} disabled={remove.isPending} onPress={() => remove.mutate({ code })} />
           <Button label={keepsakeStrings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
         </Dialog>
-      </Stack>
-    </Section>
+    </Stack>
   );
 }

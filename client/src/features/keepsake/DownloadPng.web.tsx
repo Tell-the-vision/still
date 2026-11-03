@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
 import { Stack } from "../../ui/Stack";
-import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { keepsakeStrings } from "./strings";
 
@@ -37,10 +36,7 @@ export function DownloadPng({ url, code }: { url: string; code: string }) {
           onPress={() => file && navigator.share({ files: [file] }).catch(() => undefined)}
         />
       ) : (
-        <>
-          <Text variant="secondary">{strings.longPressHint}</Text>
-          <img src={url} alt="" style={{ width: "100%" }} />
-        </>
+        null
       )}
       {failed && (
         <>

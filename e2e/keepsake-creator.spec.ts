@@ -28,8 +28,8 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   const captionBox = await page.getByLabel("Web card", { exact: true }).getByText("SEOUL / 2026").boundingBox();
   expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0) - ((captionBox?.y ?? 0) + (captionBox?.height ?? 0))).toBeLessThanOrEqual(24);
   const headingBox = await page.getByRole("heading", { name: "Keep this moment." }).boundingBox();
-  const eyebrowBox = await page.getByText("DIGITAL KEEPSAKE / WEB CARD").boundingBox();
-  expect(headingBox?.y).toBeLessThan(eyebrowBox?.y ?? 0);
+  await expect(page.getByText("DIGITAL KEEPSAKE / WEB CARD")).toHaveCount(0);
+  expect(headingBox?.y).toBeLessThan(cardBox?.y ?? 0);
   const saveBox = await page.getByRole("button", { name: "Save Web Card" }).boundingBox();
   expect(cardBox?.y).toBeLessThan(saveBox?.y ?? 0);
   await expect(page.getByRole("button", { name: "Download PNG" })).toHaveAttribute("aria-disabled", "true");
@@ -187,7 +187,7 @@ test("Reflection takes one sentence", async ({ page, next }) => {
   await page.getByRole("checkbox", { name: scraps[0].content }).click();
   await page.getByRole("checkbox", { name: scraps[1].content }).click();
   await page.getByRole("radio", { name: "Reflection" }).click();
-  await expect(page.getByText("1 of 1 chosen.")).toBeVisible();
+  await expect(page.getByText("1 of 1 chosen.")).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: scraps[0].content })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("checkbox", { name: scraps[1].content })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("checkbox", { name: scraps[1].content })).toBeDisabled();
