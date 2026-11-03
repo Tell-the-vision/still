@@ -17,7 +17,7 @@ export default defineConfig({
       args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
     },
   },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  projects: [{ name: "chromium", use: { browserName: "chromium", viewport: { width: 390, height: 844 } } }],
   webServer: {
     command: "npm run e2e:server",
     port,

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { storedDocument } from "../../../shared/src/document";
 import { db } from "../db/client";
 import { exhibitions } from "../db/schema";
@@ -44,5 +44,38 @@ export function toExhibition(row: ExhibitionRow) {
       },
       ambienceEnabled: row.ambienceEnabled,
     },
+  };
+}
+
+export type ExhibitionScope = "ON_VIEW" | "ALL";
+
+// Exhibition dates are calendar dates in Korea, so "today" is the Asia/Seoul date (en-CA formats as YYYY-MM-DD).
+const seoulToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+
+export async function listPublishedExhibitions(scope: ExhibitionScope) {
+  const today = seoulToday();
+  const rows = await db.query.exhibitions.findMany({
+    where: and(
+      eq(exhibitions.status, "PUBLISHED"),
+      scope === "ON_VIEW" ? and(lte(exhibitions.startDate, today), gte(exhibitions.endDate, today)) : undefined,
+    ),
+    with: { venue: true, coverImage: true },
+    orderBy: [desc(exhibitions.startDate), exhibitions.title],
+  });
+  return {
+    items: rows.map((row) => ({
+      code: row.code,
+      title: row.title,
+      venue: { name: row.venue.name, city: row.venue.city },
+      startDate: row.startDate,
+      endDate: row.endDate,
+      coverImage: row.coverImage && {
+        url: publicImageUrl(row.coverImage.objectKey),
+        altText: row.coverImage.altText,
+        width: row.coverImage.width,
+        height: row.coverImage.height,
+      },
+      availability: row.startDate > today ? ("UPCOMING" as const) : row.endDate < today ? ("ENDED" as const) : ("ON_VIEW" as const),
+    })),
   };
 }

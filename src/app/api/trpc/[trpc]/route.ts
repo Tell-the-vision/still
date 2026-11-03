@@ -3,7 +3,7 @@ import { createContext } from "../../../../server/trpc/context";
 import { appRouter } from "../../../../server/trpc/root";
 
 const MAX_BODY_BYTES = 100 * 1024;
-const PUBLIC_PATHS = ["exhibition.get", "guide.get"];
+const PUBLIC_PATHS = ["exhibition.get", "exhibition.list", "guide.get"];
 const PUBLIC_CACHE = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400";
 
 async function handler(req: Request) {
