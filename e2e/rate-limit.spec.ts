@@ -28,21 +28,18 @@ test("a body over 100 KB is refused with 413", async ({ page }) => {
   expect(status).toBe(413);
 });
 
-test("a signed-in reader stays signed in on the guide after hammering the API", async ({ page, next }) => {
+test("a signed-in user past the per-user limit gets 429 on me.get and on personal procedures", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
   await page.goto("/");
-  const statuses = await page.evaluate(async () => {
-    const out: number[] = [];
-    for (let i = 0; i < 150; i++) out.push((await fetch("/api/trpc/me.get", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status);
-    return out;
-  });
-  expect([...new Set(statuses)]).toEqual([200]);
-  await openGuide(page, "forms-of-stillness");
-  await expect(page.getByRole("button", { name: "Keep this line" }).first()).toBeVisible();
-  await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page).not.toHaveURL(/login/);
+  const post = (procedure: string) =>
+    page.evaluate(async (name) => (await fetch(`/api/trpc/${name}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status, procedure);
+  const statuses: number[] = [];
+  for (let i = 0; i < 301; i++) statuses.push(await post("me.get"));
+  expect(statuses[0]).toBe(200);
+  expect(statuses).toContain(429);
+  expect(await post("scrap.list")).toBe(429);
 });
 
 test("the guide ends with the journal link below the last rule", async ({ page }) => {
