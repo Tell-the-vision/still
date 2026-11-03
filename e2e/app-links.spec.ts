@@ -16,7 +16,12 @@ test("a pasted full guide URL opens the guide", async ({ page, baseURL }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "QR Scan" }).click();
   await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
-  await page.getByLabel("Exhibition URL or code").fill(`${baseURL}/e/forms-of-stillness`);
-  await page.getByRole("button", { name: "Open" }).click();
+  const input = page.getByLabel("Exhibition URL or code");
+  await input.fill(`${baseURL}/e/forms-of-stillness`);
+  await expect(input).toHaveValue(`${baseURL}/e/forms-of-stillness`);
+  const open = page.getByRole("button", { name: "Open" });
+  await expect(open).toBeEnabled();
+  await open.click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page.getByRole("heading", { name: "Forms of Stillness" })).toBeVisible();
 });

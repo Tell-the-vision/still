@@ -39,5 +39,7 @@ test("Share hands exactly one PNG file to the share sheet", async ({ page, next 
 test("without file sharing, the image can be long-pressed to save", async ({ page, next }) => {
   await reachDetail(page, next);
   await expect(page.getByText("Press and hold the image to save it.")).toBeVisible();
-  await expect(page.locator("img[src*='/api/media/keepsake']")).toBeVisible();
+  const image = page.locator("img[src*='/api/media/keepsake']");
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
 });
