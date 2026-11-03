@@ -93,3 +93,22 @@ test("exactly one journal sound radio is checked at a time and pressing the chec
   await expect(ambience).toHaveAttribute("aria-checked", "false");
   await expect(hint).toBeVisible();
 });
+
+test("Ambience keeps playing while the visitor types in the journal", async ({ page }) => {
+  // Record the media elements the player creates (the browser is muted; playback still runs).
+  await page.addInitScript(() => {
+    const w = window as unknown as { __media: HTMLMediaElement[] };
+    w.__media = [];
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () { w.__media.push(this); return play.call(this); };
+  });
+  await openJournal(page, "quiet-rooms");
+  const toggle = page.getByRole("radio", { name: /Ambience/i });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("textbox", { name: "Journal" }).pressSequentially("Quiet light on the wall.", { delay: 30 });
+  await page.waitForTimeout(500);
+  const playing = await page.evaluate(() => (window as unknown as { __media: HTMLMediaElement[] }).__media.some((m) => !m.paused && m.loop));
+  expect(playing).toBe(true);
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+});
