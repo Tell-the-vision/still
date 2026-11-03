@@ -49,7 +49,6 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
         {base === "NONE" && <Text>{audioStrings.none}</Text>}
         {base !== "NONE" && <TextAction variant="secondary" label={audioStrings.none} active={muted} tone={muted ? "primary" : "secondary"} onPress={() => setMuted(!muted)} />}
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
-        {screen === "journal" && base === "AMBIENCE" && <Text variant="secondary">{audioStrings.journalCaption}</Text>}
       </Stack>
     </Section>
   );

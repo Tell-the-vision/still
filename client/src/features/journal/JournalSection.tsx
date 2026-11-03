@@ -11,6 +11,7 @@ import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { useDraft } from "./drafts";
+import { useSavedLabel } from "./last-saved";
 import { journalSectionStrings as strings } from "./strings";
 
 // Archive Detail section: the saved journal with Edit and Delete, or an invitation to write one.
@@ -19,6 +20,7 @@ export function JournalSection({ code }: { code: string }) {
   const queryClient = useQueryClient();
   const { data: journal } = useQuery(trpc.journal.get.queryOptions({ code }));
   const draft = useDraft(code, useMe()?.id ?? null);
+  const savedLabel = useSavedLabel(code);
   const [confirming, setConfirming] = useState(false);
   const remove = useMutation(
     trpc.journal.delete.mutationOptions({
@@ -33,7 +35,7 @@ export function JournalSection({ code }: { code: string }) {
     }),
   );
   if (journal === undefined) return null;
-  const href = `/e/${code}/journal` as const;
+  const href = `/e/${code}/journal?from=archive` as const;
   if (journal === null) {
     return (
       <Section labelVariant="row" label={strings.absent}>
@@ -45,6 +47,7 @@ export function JournalSection({ code }: { code: string }) {
     <Section labelVariant="row" label={strings.present}>
       <Stack>
         <Text variant="action" numberOfLines={3}>{journal.content}</Text>
+        {savedLabel && <Text variant="secondary">{savedLabel}</Text>}
         <TextAction label={strings.edit} trailing="→" href={href} />
         <TextAction label={strings.delete} tone="secondary" onPress={() => setConfirming(true)} />
         {remove.isError && <Notice error message={strings.failed} />}

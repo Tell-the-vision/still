@@ -9,7 +9,7 @@ test("Guide: hierarchy, commentary section and journal link", async ({ page }) =
   await expect(page.getByText("COMMENTARY GUIDE / COLLECT A LINE")).toBeVisible();
   await expect(page.getByText(/A room can hold its breath/)).toHaveCSS("font-family", /Montserrat/);
   await page.getByRole("link", { name: "Write a journal" }).click();
-  await expect(page).toHaveURL(/\/journal$/);
+  await expect(page).toHaveURL(/\/journal\?from=guide$/);
 });
 
 test("Guide: an unknown exhibition offers a way back to QR Scan", async ({ page }) => {

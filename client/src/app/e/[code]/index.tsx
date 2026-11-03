@@ -7,6 +7,7 @@ import { PendingActionRunner } from "../../../features/auth/PendingActionRunner"
 import { AudioArea } from "../../../features/audio/AudioArea";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
+import { useSavedLabel } from "../../../features/journal/last-saved";
 import { SentenceAction } from "../../../features/scrap/SentenceAction";
 import { track } from "../../../lib/analytics";
 import { STALE_TIME, useTRPC } from "../../../lib/trpc";
@@ -23,6 +24,7 @@ import { TextAction } from "../../../ui/TextAction";
 export default function ExhibitionGuide() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const trpc = useTRPC();
+  const savedLabel = useSavedLabel(code);
   const [exhibition, guide] = useQueries({
     queries: [
       { ...trpc.exhibition.get.queryOptions({ code }), staleTime: STALE_TIME.public },
@@ -49,7 +51,8 @@ export default function ExhibitionGuide() {
           <DocumentView document={guide.data.document} renderSentence={(b) => <SentenceAction code={code} sentence={b} />} />
         </Section>
         <Rule />
-        <TextAction label={guideStrings.writeJournal} trailing="→" variant="subhead" href={`/e/${code}/journal`} />
+        <TextAction label={guideStrings.writeJournal} trailing="→" variant="subhead" href={`/e/${code}/journal?from=guide`} />
+        {savedLabel && <Text variant="secondary">{savedLabel}</Text>}
       </Screen>
     );
   }

@@ -32,7 +32,8 @@ test("a guest's journal is saved after login and consent", async ({ page, next }
   await expect(page).toHaveURL(/\/login\?returnTo=/);
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await page.goto("/e/forms-of-stillness/journal");
   await page.reload();
   await expect(page.getByRole("textbox", { name: "Journal" })).toHaveValue("Guest words");
   expect((await trpcCall(page, "journal.get", { code: "forms-of-stillness" })).json.result.data).not.toBeNull();
