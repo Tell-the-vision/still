@@ -1,11 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { DeleteArchive } from "../../../features/archive/DeleteArchive";
 import { archiveStrings } from "../../../features/archive/strings";
 import { useRequireLogin } from "../../../features/auth/require-login";
 import { ScrapSection } from "../../../features/scrap/ScrapSection";
 import { JournalSection } from "../../../features/journal/JournalSection";
+import { announce } from "../../../features/journal/announce";
+import { journalStrings } from "../../../features/journal/strings";
 import { KeepsakeSection } from "../../../features/keepsake/KeepsakeSection";
 import { longDate, year } from "../../../lib/dates";
 import { useTRPC } from "../../../lib/trpc";
@@ -21,8 +24,15 @@ const BackLink = () => <TextAction label={archiveStrings.backLabel} accessibilit
 
 // Archive Detail 08: the exhibition summary, then one section per kind of personal record.
 export default function ArchiveDetail() {
-  const { code } = useLocalSearchParams<{ code: string }>();
+  const { code, saved } = useLocalSearchParams<{ code: string; saved?: string }>();
+  const router = useRouter();
   const me = useRequireLogin(`/archive/${code}`);
+  // Arriving from a journal save: announce once here, then clear the one-shot param.
+  useEffect(() => {
+    if (!saved) return;
+    announce(journalStrings.announce);
+    router.setParams({ saved: undefined });
+  }, [saved, router]);
   const trpc = useTRPC();
   const { data: archive, error, refetch } = useQuery(trpc.archive.get.queryOptions({ code }, { enabled: Boolean(me) }));
   const missing = archive === null || (error instanceof TRPCClientError && error.data?.code === "NOT_FOUND");
