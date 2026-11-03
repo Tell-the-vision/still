@@ -1,5 +1,5 @@
 import { expect, test } from "next/experimental/testmode/playwright";
-import { captureAuthorize, stubGoogle } from "./support/google";
+import { captureAuthorize, newUser, stubGoogle, stubGoogleToken } from "./support/google";
 
 test("Home -> Login -> Continue with Google starts OAuth with PKCE and an HttpOnly state cookie", async ({ page }) => {
   const captured = await captureAuthorize(page);
@@ -54,4 +54,13 @@ test("in-app browsers see a default-browser notice instead of the Google button"
 test("the start route rejects unknown providers and intents other than sign_in and link", async ({ request }) => {
   expect((await request.get("/api/auth/github?intent=sign_in", { maxRedirects: 0 })).status()).toBe(404);
   expect((await request.get("/api/auth/google?intent=merge", { maxRedirects: 0 })).status()).toBe(400);
+});
+
+test("an id_token signed by an unknown key is rejected", async ({ page, next }) => {
+  stubGoogleToken(next, newUser(), { forged: true });
+  await stubGoogle(page);
+  await page.goto("/");
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+  await expect(page.getByText("Sign-in failed. Try again.")).toBeVisible();
 });

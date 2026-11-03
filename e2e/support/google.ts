@@ -1,15 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { expect, type Page } from "@playwright/test";
+import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import type { NextFixture } from "next/experimental/testmode/playwright";
 
-// SPEC §2.8: server-side fetch stub. Answers Google's token endpoint with an unsigned id_token for `user`.
-export function stubGoogleToken(next: NextFixture, user: ReturnType<typeof newUser>) {
-  next.onFetch((request) => {
+const signingKey = generateKeyPair("RS256");
+
+async function signIdToken(user: ReturnType<typeof newUser>, privateKey: CryptoKey) {
+  const claims = { sub: user.sub, email: user.email, name: user.name };
+  return new SignJWT(claims).setProtectedHeader({ alg: "RS256", kid: "test-key" }).setIssuer("https://accounts.google.com").setAudience("test-google-web-id").setExpirationTime("1h").sign(privateKey);
+}
+
+// SPEC §2.8: server-side fetch stub. Answers Google's token endpoint with an id_token for `user` and its JWKS URL with the signing public key.
+// `forged` signs with a key Google never published.
+export function stubGoogleToken(next: NextFixture, user: ReturnType<typeof newUser>, { forged = false } = {}) {
+  next.onFetch(async (request) => {
+    if (request.url === "https://www.googleapis.com/oauth2/v3/certs") {
+      return Response.json({ keys: [{ ...(await exportJWK((await signingKey).publicKey)), kid: "test-key", alg: "RS256", use: "sig" }] });
+    }
     if (request.url !== "https://oauth2.googleapis.com/token") return undefined;
-    const claims = { iss: "https://accounts.google.com", aud: "test-google-web-id", sub: user.sub, email: user.email, name: user.name, exp: Math.floor(Date.now() / 1000) + 3600 };
-    const part = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
-    const idToken = `${part({ alg: "none" })}.${part(claims)}.`;
-    return Response.json({ id_token: idToken, refresh_token: "test-refresh", access_token: "test-access", expires_in: 3600 });
+    const privateKey = forged ? (await generateKeyPair("RS256")).privateKey : (await signingKey).privateKey;
+    return Response.json({ id_token: await signIdToken(user, privateKey), refresh_token: "test-refresh", access_token: "test-access", expires_in: 3600 });
   });
 }
 

@@ -36,7 +36,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
       clientId,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
     });
-    const profile = readIdToken(tokens.id_token, [clientId]);
+    const profile = await readIdToken(tokens.id_token, [clientId]);
     if (linking) {
       const session = await currentWebSession();
       if (!session) return redirectTo(stored.returnTo, failed);

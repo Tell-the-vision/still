@@ -1,4 +1,4 @@
-import { decodeJwt } from "jose";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 
 const GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"] as const;
@@ -25,14 +25,14 @@ export async function exchangeCode(input: { code: string; verifier: string; redi
   return (await res.json()) as { id_token: string; refresh_token?: string };
 }
 
-// The id_token arrives straight from Google's token endpoint over TLS, so the signature is not re-verified (SPEC §2.2).
-export function readIdToken(idToken: string, allowedAud: string[]) {
-  const parsed = idTokenClaims.safeParse(decodeJwt(idToken));
+const GOOGLE_JWKS_URL = new URL("https://www.googleapis.com/oauth2/v3/certs");
+
+// Verifies the id_token signature against Google's published keys, then issuer, audience and expiry (SPEC §2.2).
+export async function readIdToken(idToken: string, allowedAud: string[]) {
+  const { payload } = await jwtVerify(idToken, createRemoteJWKSet(GOOGLE_JWKS_URL), { issuer: [...GOOGLE_ISSUERS], audience: allowedAud });
+  const parsed = idTokenClaims.safeParse(payload);
   if (!parsed.success) throw new Error("Bad id_token claims");
   const claims = parsed.data;
-  const aud = [claims.aud].flat();
-  if (!aud.some((a) => allowedAud.includes(a))) throw new Error("Bad id_token audience");
-  if (claims.exp * 1000 < Date.now()) throw new Error("Expired id_token");
   return { subject: claims.sub, email: claims.email, displayName: claims.name };
 }
 
