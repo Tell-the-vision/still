@@ -1,7 +1,6 @@
 import { track } from "../lib/analytics";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
 import { audioStrings } from "../features/audio/strings";
 import { LinkedAccounts } from "../features/account/LinkedAccounts";
 import { PolicyLinks } from "../features/account/PolicyLinks";
@@ -13,10 +12,11 @@ import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
+import { Rule } from "../ui/Rule";
 import { Section } from "../ui/Section";
+import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
 import { TextAction } from "../ui/TextAction";
-import { spacing } from "../ui/theme";
 
 const providerNames: Record<string, string> = { GOOGLE: "GOOGLE" };
 
@@ -45,39 +45,41 @@ export default function Account() {
     track("account_delete", {});
     await leave();
   };
-  if (!me) return <Screen tabs headerRight>{null}</Screen>;
+  const title = <Text variant="headline">{accountStrings.title}</Text>;
+  if (!me) return <Screen tabs headerRight>{title}</Screen>;
   return (
     <Screen tabs headerRight>
-      <View style={styles.sections}>
+      <Stack>
+        {title}
         <Section label={accountStrings.signedInWith(providerNames[me.provider] ?? me.provider)}>
-          <Text>{me.displayName}</Text>
-          <Text>{me.email}</Text>
+          <Text variant="bodyStrong">{me.displayName}</Text>
+          <Text tone="secondary" numberOfLines={1} ellipsizeMode="middle">{me.email}</Text>
         </Section>
-        <Section label={accountStrings.linkedAccounts}>
-          <LinkedAccounts />
-        </Section>
+        <Rule />
         <Section label={accountStrings.preferences}>
           <TextAction href="/account/audio" label={audioStrings.settingsLink} trailing="→" />
         </Section>
+        <Rule />
+        <Section label={accountStrings.linkedAccounts}>
+          <LinkedAccounts />
+        </Section>
+        <Rule />
         <Section label={accountStrings.about}>
-          <Text>{accountStrings.tagline}</Text>
-          <Text>{accountStrings.aboutBody}</Text>
+          <Text variant="subhead">{accountStrings.tagline}</Text>
+          <Text tone="secondary">{accountStrings.aboutBody}</Text>
           <PolicyLinks />
         </Section>
+        <Rule />
         <Section label={accountStrings.account}>
-          <Button label={accountStrings.logOut} trailing="→" variant="secondary" disabled={signingOut} onPress={logOut} />
-          <Button label={accountStrings.deleteAccount} trailing="→" variant="secondary" disabled={deleteAccount.isPending} onPress={() => setConfirming(true)} />
+          <TextAction label={accountStrings.logOut} trailing="→" disabled={signingOut} onPress={logOut} />
+          <TextAction label={accountStrings.deleteAccount} trailing="→" tone="secondary" disabled={deleteAccount.isPending} onPress={() => setConfirming(true)} />
           {failed ? <Notice error message={accountStrings.deleteFailed} /> : null}
         </Section>
-      </View>
+      </Stack>
       <Dialog label={accountStrings.deleteDialogLabel} body={accountStrings.deleteWarning} visible={confirming} onClose={() => setConfirming(false)}>
-        <Button label={accountStrings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
         <Button label={accountStrings.delete} disabled={deleteAccount.isPending} onPress={confirmDelete} />
+        <Button label={accountStrings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
       </Dialog>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  sections: { flex: 1, gap: spacing.gap, paddingTop: spacing.gap },
-});

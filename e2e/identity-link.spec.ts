@@ -45,10 +45,10 @@ test("link a second account, unlink it, link again, then sign in as it", async (
   Object.assign(user, newUser());
   await linkAnother(page);
   await expect(page.getByText("Account linked.")).toBeVisible();
-  await expect(page.getByText(/^Google · /)).toHaveCount(2);
+  await expect(page.getByText("GOOGLE", { exact: true })).toHaveCount(2);
   await page.getByRole("button", { name: "Unlink" }).nth(1).click();
   await page.getByRole("dialog", { name: "Unlink account" }).getByRole("button", { name: "Unlink" }).click();
-  await expect(page.getByText(/^Google · /)).toHaveCount(1);
+  await expect(page.getByText("GOOGLE", { exact: true })).toHaveCount(1);
   await linkAnother(page);
   await expect(page.getByText("Account linked.")).toBeVisible();
   await page.getByRole("button", { name: "Log out" }).click();
@@ -74,7 +74,7 @@ test("a sub owned by another account is a conflict, your own sub already exists"
   Object.assign(user, owner);
   await linkAnother(page);
   await expect(page.getByText("That Google account belongs to another STILL account.")).toBeVisible();
-  await expect(page.getByText(/^Google · /)).toHaveCount(1);
+  await expect(page.getByText("GOOGLE", { exact: true })).toHaveCount(1);
 });
 
 test("two concurrent unlinks leave one identity", async ({ page, next }) => {
@@ -85,7 +85,7 @@ test("two concurrent unlinks leave one identity", async ({ page, next }) => {
   await page.getByRole("link", { name: "ACCOUNT" }).click();
   Object.assign(user, newUser());
   await linkAnother(page);
-  await expect(page.getByText(/^Google · /)).toHaveCount(2);
+  await expect(page.getByText("GOOGLE", { exact: true })).toHaveCount(2);
   const results = await Promise.all((await listIdentities(page)).map(({ id }) => trpcCall(page, "identity.delete", { identityId: id })));
   expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
   expect(results.find((r) => r.status === 409)?.json.error.data.appCode).toBe("LAST_IDENTITY");

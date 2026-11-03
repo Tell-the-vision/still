@@ -8,7 +8,7 @@ test("ACCOUNT lists the linked Google identity and opens policy links in a new t
   await signIn(page);
   await page.getByRole("link", { name: "ACCOUNT" }).click();
   await expect(page.getByRole("heading", { name: "LINKED ACCOUNTS" })).toBeVisible();
-  await expect(page.getByText(`Google · ${user.email}`)).toBeVisible();
+  await expect(page.getByText(user.email, { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("target", "_blank");
 });
 
@@ -18,7 +18,7 @@ test("Unlink can be cancelled, and the only identity cannot be unlinked", async 
   await stubGoogle(page);
   await signIn(page);
   await page.getByRole("link", { name: "ACCOUNT" }).click();
-  const row = page.getByText(`Google · ${user.email}`);
+  const row = page.getByText(user.email, { exact: true }).first();
   await page.getByRole("button", { name: "Unlink" }).first().click();
   await page.getByRole("dialog", { name: "Unlink account" }).getByRole("button", { name: "Cancel" }).click();
   await expect(row).toBeVisible();

@@ -8,7 +8,7 @@ test("signed in: ACCOUNT tab shows the email, Log out returns to guest Home and 
   await stubGoogle(page);
   await signIn(page);
   await page.getByRole("link", { name: "ACCOUNT" }).click();
-  await expect(page.getByText(user.email, { exact: true })).toBeVisible();
+  await expect(page.getByText(user.email, { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Art stays with you.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "https://policy.test.invalid/terms");
   await page.getByRole("button", { name: "Log out" }).click();
@@ -27,7 +27,7 @@ test("guest: ACCOUNT redirects to Login and returns to /account after Google", a
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
   await expect(page).toHaveURL(/\/account$/);
-  await expect(page.getByText(user.email, { exact: true })).toBeVisible();
+  await expect(page.getByText(user.email, { exact: true }).first()).toBeVisible();
 });
 
 async function openDeleteDialog(page: Page) {
@@ -53,7 +53,7 @@ test("Delete account revokes the Google token, returns to Home, and the same sub
   expect(revoked.join()).toContain("token=test-refresh");
   await signIn(page);
   await page.getByRole("link", { name: "ACCOUNT" }).click();
-  await expect(page.getByText(user.email, { exact: true })).toBeVisible();
+  await expect(page.getByText(user.email, { exact: true }).first()).toBeVisible();
 });
 
 test("Cancel keeps the account", async ({ page, next }) => {
@@ -63,5 +63,5 @@ test("Cancel keeps the account", async ({ page, next }) => {
   await signIn(page);
   await openDeleteDialog(page);
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByText(user.email, { exact: true })).toBeVisible();
+  await expect(page.getByText(user.email, { exact: true }).first()).toBeVisible();
 });

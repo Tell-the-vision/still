@@ -8,7 +8,9 @@ import { STALE_TIME, useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Notice } from "../../ui/Notice";
+import { Rule } from "../../ui/Rule";
 import { Text } from "../../ui/Text";
+import { TextAction } from "../../ui/TextAction";
 import { accountStrings } from "./strings";
 
 // Every Google identity linked to this user, each with an unlink action (SPEC §2.2 Linked accounts).
@@ -53,17 +55,19 @@ export function LinkedAccounts() {
     Platform.OS === "web" ? window.location.assign("/api/auth/google?" + new URLSearchParams({ intent: "link", returnTo: "/account" })) : linkNative();
   return (
     <>
-      {data?.map((identity) => (
+      {data?.map((identity, index) => (
         <Fragment key={identity.id}>
-          <Text>{accountStrings.identityRow("Google", identity.email)}</Text>
-          <Button label={accountStrings.unlink} variant="secondary" onPress={() => setConfirmingId(identity.id)} />
+          {index > 0 ? <Rule /> : null}
+          <Text variant="caption">{accountStrings.provider}</Text>
+          <Text variant="action">{identity.email}</Text>
+          <TextAction label={accountStrings.unlink} variant="secondary" onPress={() => setConfirmingId(identity.id)} />
         </Fragment>
       ))}
-      <Button label={accountStrings.linkAnother} trailing="→" variant="secondary" disabled={link.isPending || (Platform.OS !== "web" && !google.ready)} onPress={startLink} />
+      <TextAction label={accountStrings.linkAnother} leading="＋" disabled={link.isPending || (Platform.OS !== "web" && !google.ready)} onPress={startLink} />
       {error ? <Notice error message={error} /> : null}
-      <Dialog label={accountStrings.unlinkDialogLabel} body={accountStrings.unlinkWarning} visible={confirmingId !== null} onClose={() => setConfirmingId(null)}>
-        <Button label={accountStrings.cancel} variant="secondary" onPress={() => setConfirmingId(null)} />
+      <Dialog label={accountStrings.unlinkDialogLabel} body={accountStrings.unlinkWarning(data?.find((identity) => identity.id === confirmingId)?.email ?? null)} visible={confirmingId !== null} onClose={() => setConfirmingId(null)}>
         <Button label={accountStrings.unlink} disabled={unlink.isPending} onPress={confirm} />
+        <Button label={accountStrings.cancel} variant="secondary" onPress={() => setConfirmingId(null)} />
       </Dialog>
     </>
   );
