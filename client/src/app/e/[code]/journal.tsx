@@ -136,7 +136,7 @@ export default function Journal() {
     <Screen tabs>
       <Text variant="headline">{journalStrings.headline}</Text>
       {exhibition.data && (
-        <Text variant="eyebrow">{exhibition.data.title}</Text>
+        <Text variant="secondary">{exhibition.data.title}</Text>
       )}
       <Rule tight />
       <Text variant="lede">{journalStrings.subhead}</Text>

@@ -126,3 +126,18 @@ test("a guest's Save goes to login", async ({ page }) => {
   await page.getByRole("button", { name: "Save Journal" }).click();
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fe%2Fforms-of-stillness%2Fjournal/);
 });
+
+test("the journal has no decorative captions, shows the active sound and a single inset focus edge", async ({ page }) => {
+  await page.goto("/e/quiet-rooms/journal");
+  await expect(page.getByText("LISTENING")).toHaveCount(0);
+  await expect(page.getByText("QUIET ROOMS", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("radiogroup", { name: "Sound while writing" })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "No audio" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("radio", { name: "Pink noise" })).toHaveAttribute("aria-checked", "false");
+  const field = page.getByRole("textbox", { name: "Journal" });
+  await field.focus();
+  await expect(field).toHaveCSS("outline-offset", "-1px");
+  const box = await field.boundingBox();
+  const save = await page.getByRole("button", { name: "Save Journal" }).boundingBox();
+  expect(box && save && box.x >= save.x - 0.5).toBe(true);
+});

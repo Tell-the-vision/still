@@ -8,7 +8,7 @@ import { Notice } from "../../ui/Notice";
 import { audioStrings } from "./strings";
 
 // SPEC §6.1: Pink Noise plays only from this press and is Off on every mount, blur, unmount and background.
-export function PinkNoiseToggle({ code, forceOff, onPlay }: { code: string; forceOff: boolean; onPlay: () => void }) {
+export function PinkNoiseToggle({ code, forceOff, onPlay, onChange }: { code: string; forceOff: boolean; onPlay: () => void; onChange: (on: boolean) => void }) {
   const player = useAudioPlayer(require("../../../assets/audio/pink-noise.wav"));
   const [on, setOn] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -18,6 +18,7 @@ export function PinkNoiseToggle({ code, forceOff, onPlay }: { code: string; forc
     setOn(false);
   }, [player]);
 
+  useEffect(() => onChange(on), [on, onChange]);
   useEffect(() => {
     if (forceOff) stop();
   }, [forceOff, stop]);
