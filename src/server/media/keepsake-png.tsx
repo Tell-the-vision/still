@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { card as cardTheme, colors, fontSize, spacing } from "../../../client/src/ui/tokens";
 
 type Card = {
@@ -10,13 +11,20 @@ type Card = {
   image: { url: string } | null;
 };
 
+// The renderer (satori) decodes only PNG and JPEG, told apart by their first bytes.
+const isPng = (bytes: Buffer) => bytes[0] === 0x89 && bytes[1] === 0x50;
+const isJpeg = (bytes: Buffer) => bytes[0] === 0xff && bytes[1] === 0xd8;
+
 // SPEC §7.1: the cover is part of the PNG when it can be fetched; any failure means the no-image layout.
+// Other cover formats the import accepts (WebP) are converted to PNG first.
 async function fetchCover(url: string) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(3000) });
     if (!response.ok) return null;
-    const type = response.headers.get("content-type") ?? "image/png";
-    return `data:${type};base64,${Buffer.from(await response.arrayBuffer()).toString("base64")}`;
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (isJpeg(bytes)) return `data:image/jpeg;base64,${bytes.toString("base64")}`;
+    const png = isPng(bytes) ? bytes : await sharp(bytes).png().toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
   } catch {
     return null;
   }

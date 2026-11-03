@@ -8,6 +8,7 @@ import { openGuide } from "./support/reach";
 
 const code = "forms-of-stillness";
 const cover = readFileSync("e2e/fixtures/cover.png");
+const webpCover = readFileSync("e2e/fixtures/cover.webp");
 let coverless = 0; // set by the fallback test; the tests run serially
 test.describe.configure({ mode: "serial" });
 
@@ -65,6 +66,17 @@ test("a cover that cannot be fetched falls back to the no-image PNG", async ({ p
 test("a fetched cover is drawn into the PNG", async ({ page, next }) => {
   await page.route("https://media.test.invalid/**", (route) => route.fulfill({ path: "e2e/fixtures/cover.png" }));
   next.onFetch((request) => (request.url.startsWith("https://media.test.invalid/") ? new Response(cover) : undefined));
+  const png = await downloadWithCoverCard(page, next);
+  expect(png.readUInt32BE(16)).toBe(1080);
+  expect(png.length).not.toBe(coverless);
+});
+
+// Covers may be WebP (seed import allows it); the PNG renderer only decodes PNG and JPEG.
+test("a WebP cover is drawn into the PNG", async ({ page, next }) => {
+  await page.route("https://media.test.invalid/**", (route) => route.fulfill({ path: "e2e/fixtures/cover.webp" }));
+  next.onFetch((request) =>
+    request.url.startsWith("https://media.test.invalid/") ? new Response(webpCover, { headers: { "content-type": "image/webp" } }) : undefined,
+  );
   const png = await downloadWithCoverCard(page, next);
   expect(png.readUInt32BE(16)).toBe(1080);
   expect(png.length).not.toBe(coverless);
