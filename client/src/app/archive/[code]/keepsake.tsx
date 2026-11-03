@@ -13,15 +13,10 @@ import { Choice } from "../../../ui/Choice";
 import { KeepsakeCard } from "../../../ui/KeepsakeCard";
 import { Notice } from "../../../ui/Notice";
 import { Screen } from "../../../ui/Screen";
-import { Section } from "../../../ui/Section";
 import { Stack } from "../../../ui/Stack";
 import { Text } from "../../../ui/Text";
 import { TextAction } from "../../../ui/TextAction";
 import { card as cardTokens, spacing } from "../../../ui/theme";
-import { useWide } from "../../../ui/useWide";
-
-// Share of the window height the phone preview may take.
-const PHONE_PREVIEW_SHARE = 0.42;
 
 // Web card creator: pick a template, preview it live, save.
 export default function KeepsakeCreator() {
@@ -31,8 +26,7 @@ export default function KeepsakeCreator() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { width, height } = useWindowDimensions();
-  const wide = useWide();
+  const { width } = useWindowDimensions();
   const enabled = Boolean(me);
   const archiveQuery = useQuery(trpc.archive.get.queryOptions({ code }, { enabled }));
   const scrapsQuery = useQuery(trpc.scrap.list.queryOptions({ code }, { enabled }));
@@ -93,33 +87,28 @@ export default function KeepsakeCreator() {
   const paragraphs = (journal?.content ?? "").split("\n").filter((p) => p.trim() !== "");
   const toggleSentence = (id: string) => setSentenceIds(shownIds.includes(id) ? shownIds.filter((i) => i !== id) : [...shownIds, id]);
   const full = shownIds.length >= limit;
-  const countNote = limit === 1 ? (full ? strings.oneChosen : strings.chooseOne) : full ? strings.threeChosen : strings.chooseUpTo;
-  // On phones the whole card is scaled down like a thumbnail (not reflowed) so the layout choice shows in the first viewport.
+  // One rule for every artwork: the card is as wide as the column allows (up to its own width), centred.
   const drawnWidth = Math.min(width - 2 * spacing.gutter, cardTokens.width);
   const drawnHeight = drawnWidth / cardTokens.aspectRatio;
-  const scale = wide ? 1 : Math.min(1, (height * PHONE_PREVIEW_SHARE) / drawnHeight);
-  const previewWidth = drawnWidth * scale;
-  const previewHeight = drawnHeight * scale;
   return (
     <Screen tabs>
-      <Stack>
+      <Stack gap="section">
         <Text variant="headline">{strings.heading}</Text>
-        <Text variant="eyebrow">{strings.eyebrow}</Text>
-        <View style={{ width: previewWidth, height: previewHeight, overflow: "hidden", alignSelf: "center" }}>
-          <View style={{ width: drawnWidth, height: drawnHeight, transform: [{ scale }], transformOrigin: "top left" }}>
-            <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} />
-          </View>
+        <View style={{ width: drawnWidth, height: drawnHeight, alignSelf: "center" }}>
+          <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} />
         </View>
-        <Text variant="label">{strings.layoutLabel}</Text>
-        <Stack direction="row">
-          {strings.templates.map((t) => (
-            <Choice key={t.id} layout="tile" role="radio" label={t.label} selected={t.id === templateId} onPress={() => setPicked(t.id)} />
-          ))}
+        <Stack gap="inset">
+          <Text variant="label">{strings.layoutLabel}</Text>
+          <Stack direction="row">
+            {strings.templates.map((t) => (
+              <Choice key={t.id} layout="tile" role="radio" label={t.label} selected={t.id === templateId} onPress={() => setPicked(t.id)} />
+            ))}
+          </Stack>
         </Stack>
         {templateId !== "cover" && (
-          <Section label={strings.onTheCard}>
+          <Stack gap="inset">
+            <Text variant="label" role="heading">{strings.onTheCard}</Text>
             <Stack gap="inset">
-              <Text variant="secondary">{countNote}</Text>
               {scraps.map((s) => (
                 <Choice
                   key={s.sentenceId}
@@ -131,9 +120,11 @@ export default function KeepsakeCreator() {
                   onPress={() => toggleSentence(s.sentenceId)}
                 />
               ))}
-              {templateId === "reflection" && (
-                <>
-                  <Text variant="label">{strings.excerptHeading}</Text>
+            </Stack>
+            {templateId === "reflection" && (
+              <View style={{ marginTop: spacing.section - spacing.inset }}>
+                <Stack gap="inset">
+                  <Text variant="label" role="heading">{strings.excerptHeading}</Text>
                   {paragraphs.map((p) => {
                     // A paragraph longer than the card holds is offered as its start; "…" marks the cut.
                     const clipped = clipExcerpt(p);
@@ -147,18 +138,20 @@ export default function KeepsakeCreator() {
                       />
                     );
                   })}
-                </>
-              )}
-            </Stack>
-          </Section>
+                </Stack>
+              </View>
+            )}
+          </Stack>
         )}
         {save.isError && <Notice error message={strings.failed} />}
+        <Stack>
         <Button label={strings.save} onPress={() => save.mutate({ code, templateId, ...picks })} />
         {saved && !changed ? (
           <DownloadPng code={code} url={saved.png.url} />
         ) : (
           <TextAction label={strings.png.download} leading="↓" disabled onPress={() => undefined} />
         )}
+        </Stack>
       </Stack>
     </Screen>
   );

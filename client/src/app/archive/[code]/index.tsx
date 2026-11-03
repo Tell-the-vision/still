@@ -44,9 +44,9 @@ export default function ArchiveDetail() {
           {archive.exhibition.coverImage && <Artwork {...archive.exhibition.coverImage} />}
           <Rule />
           <Stack gap="section">
+            <KeepsakeSection code={code} exhibition={archive.exhibition} />
             <ScrapSection code={code} />
             <JournalSection code={code} />
-            <KeepsakeSection code={code} exhibition={archive.exhibition} />
           </Stack>
           <Rule />
           <Text variant="action">{archiveStrings.lastVisited(longDate(archive.lastVisitedAt))}</Text>
