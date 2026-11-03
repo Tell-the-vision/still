@@ -48,4 +48,9 @@ test("Linked accounts and policy links have room between them", async ({ page, n
   const terms = await box(page.getByRole("link", { name: /Terms of Service/ }));
   const privacy = await box(page.getByRole("link", { name: /Privacy Policy/ }));
   expect(privacy.y - (terms.y + terms.height)).toBeGreaterThanOrEqual(12);
+  const logOut = await box(page.getByRole("button", { name: "Log out", exact: true }));
+  const remove = await box(page.getByRole("button", { name: "Delete account", exact: true }));
+  const policyGap = privacy.y - (terms.y + terms.height);
+  const actionGap = remove.y - (logOut.y + logOut.height);
+  expect(Math.abs(actionGap - policyGap)).toBeLessThanOrEqual(2);
 });
