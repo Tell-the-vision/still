@@ -31,7 +31,7 @@ test("collection groups are separated and the journal excerpt is small", async (
   await signIn(page);
   await openGuide(page, "forms-of-stillness");
   await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   const saved = page.waitForResponse(/journal\.upsert/);

@@ -1,6 +1,8 @@
 export const scrapStrings = {
   keep: "Keep this line",
-  kept: "Kept",
+  remove: "Remove this line",
+  keptTitle: "Kept in your collection · tap to remove",
+  removeFailed: "Couldn't remove this line.",
   signInHint: "Sign in to keep this line.",
   saveFailed: "Couldn't keep this line.",
   retry: "Retry",

@@ -11,7 +11,7 @@ test("a guest scans, signs in, records, makes a web card, downloads the PNG and 
   await page.getByRole("button", { name: "Keep this line" }).first().click();
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
 
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");

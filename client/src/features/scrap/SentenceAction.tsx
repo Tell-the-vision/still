@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ExpandedBlock } from "@still/shared/document";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View, type HostInstance } from "react-native";
+import { Platform, Pressable, StyleSheet, View, type HostInstance } from "react-native";
 import { retryNetworkErrors, useTRPC } from "../../lib/trpc";
 import { Notice } from "../../ui/Notice";
 import { colors, focusRing, spacing } from "../../ui/theme";
@@ -17,7 +17,7 @@ export const sentenceViews = new Map<string, RefObject<HostInstance | null>>();
 
 type Props = { code: string; sentence: Extract<ExpandedBlock, { type: "sentence" }>; quote: ReactNode };
 
-// The quote with a mark beside it (SPEC §4.1): "+" keeps the line, a dot shows it is kept. Guests sign in first.
+// The quote with a mark beside it (SPEC §4.1): "+" keeps the line, a check shows it is kept and removes it again. Guests sign in first.
 export function SentenceAction({ code, sentence, quote }: Props) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -25,7 +25,7 @@ export function SentenceAction({ code, sentence, quote }: Props) {
   const me = useMe();
   const saved = useSavedSentences(code);
   const listKey = trpc.scrap.list.queryKey({ code });
-  const { mutate, isPending, isError } = useMutation(
+  const { mutate, isPending: saving, isError: saveError } = useMutation(
     trpc.scrap.upsert.mutationOptions({
       scope: { id: `scrap:${code}:${sentence.sentenceId}` },
       retry: retryNetworkErrors,
@@ -45,39 +45,68 @@ export function SentenceAction({ code, sentence, quote }: Props) {
         ]),
     }),
   );
+  const remove = useMutation(
+    trpc.scrap.delete.mutationOptions({
+      scope: { id: `scrap:${code}:${sentence.sentenceId}` },
+      retry: retryNetworkErrors,
+      onMutate: async () => {
+        await queryClient.cancelQueries({ queryKey: listKey });
+        const snapshot = queryClient.getQueryData(listKey);
+        queryClient.setQueryData(listKey, snapshot?.filter((scrap) => scrap.sentenceId !== sentence.sentenceId));
+        return { snapshot };
+      },
+      onSuccess: () => track("scrap_remove", { exhibition_code: code, sentence_id: sentence.sentenceId }),
+      onError: (_error, _input, context) => queryClient.setQueryData(listKey, context?.snapshot),
+      onSettled: () =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: trpc.scrap.pathKey() }),
+          queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() }),
+        ]),
+    }),
+  );
+  const kept = saved.has(sentence.sentenceId);
   const [focused, setFocused] = useState(false);
   const viewRef = useRef<HostInstance>(null);
   useEffect(() => {
     sentenceViews.set(sentence.sentenceId, viewRef);
     return () => void sentenceViews.delete(sentence.sentenceId);
   }, [sentence.sentenceId]);
+  // react-native-web drops `title`, so the tooltip is set on the DOM node.
+  const markRef = useRef<HostInstance>(null);
+  const tooltip = kept ? scrapStrings.keptTitle : scrapStrings.keep;
+  useEffect(() => {
+    if (Platform.OS === "web") (markRef.current as unknown as HTMLElement | null)?.setAttribute("title", tooltip);
+  }, [tooltip]);
   const save = () => mutate({ code, sentenceId: sentence.sentenceId });
   const loginThenSave = async () => {
     await savePendingAction({ kind: "SCRAP_SAVE", exhibitionCode: code, sentenceId: sentence.sentenceId });
     router.push({ pathname: "/login", params: { returnTo: `/e/${code}` } });
   };
-  const kept = saved.has(sentence.sentenceId);
-  const press = !me ? () => void loginThenSave() : kept ? undefined : save;
+  const unkeep = () => remove.mutate({ code, sentenceId: sentence.sentenceId });
+  const press = !me ? () => void loginThenSave() : kept ? unkeep : save;
+  const pending = saving || remove.isPending;
   return (
     <View ref={viewRef} style={{ gap: spacing.inset }}>
       <View style={styles.row}>
         <View style={styles.quote}>{quote}</View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={kept ? scrapStrings.kept : scrapStrings.keep}
+          accessibilityLabel={kept ? scrapStrings.remove : scrapStrings.keep}
+          ref={markRef}
           accessibilityHint={!me ? scrapStrings.signInHint : undefined}
-          aria-pressed={kept}
-          disabled={isPending}
+          accessibilityState={{ selected: kept, disabled: pending }}
+          disabled={pending}
           onPress={press}
           hitSlop={{ top: 13, bottom: 12, left: 10, right: 10 }}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          style={[styles.mark, isPending && styles.pending, focused && focusRing]}
+          style={[styles.mark, pending && styles.pending, focused && focusRing]}
         >
-          {kept ? <KeptDot /> : <Plus />}
+          {kept ? <Check /> : <Plus />}
         </Pressable>
       </View>
-      {isError && !kept && <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: save }} />}
+      {saveError && !kept && <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: save }} />}
+      {remove.isError && kept && <Notice message={scrapStrings.removeFailed} error action={{ label: scrapStrings.retry, onPress: unkeep }} />}
     </View>
   );
 }
@@ -92,16 +121,14 @@ function Plus() {
   );
 }
 
-// The plus turns into the dot with a short scale; reduced motion makes it instant.
-function KeptDot() {
-  const scale = useRef(new Animated.Value(0.4)).current;
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (reduced) return scale.setValue(1);
-      Animated.timing(scale, { toValue: 1, duration: 150, easing: Easing.out(Easing.exp), useNativeDriver: true }).start();
-    });
-  }, [scale]);
-  return <Animated.View aria-hidden style={[styles.box, styles.dot, { transform: [{ scale }] }]} />;
+// A checkmark from two 1px bars: a short stroke down to the right, a long one up to the right.
+function Check() {
+  return (
+    <View aria-hidden style={styles.box}>
+      <View style={[styles.bar, { width: 1, height: 5, left: 2, top: 5.5, transform: [{ rotate: "-45deg" }] }]} />
+      <View style={[styles.bar, { width: 1, height: 10, left: 7.5, top: 1, transform: [{ rotate: "40deg" }] }]} />
+    </View>
+  );
 }
 
 const MARK = 12;
@@ -113,5 +140,4 @@ const styles = StyleSheet.create({
   pending: { opacity: 0.4 },
   box: { width: MARK, height: MARK, alignItems: "center", justifyContent: "center" },
   bar: { position: "absolute", backgroundColor: colors.black },
-  dot: { backgroundColor: colors.black, borderRadius: MARK / 2 },
 });

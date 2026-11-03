@@ -7,7 +7,7 @@ import { KeepsakeThumb } from "../../ui/KeepsakeThumb";
 import { Notice } from "../../ui/Notice";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
-import { spacing } from "../../ui/theme";
+import { colors, spacing } from "../../ui/theme";
 import { keepsakeStrings as strings } from "./strings";
 import { useGuideKeepsake } from "./useGuideKeepsake";
 
@@ -63,15 +63,15 @@ export function KeepsakePresence({ code, exhibition, hasGuide }: Props) {
   }
 
   return (
-    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "flex-start" }}>
+    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "stretch", alignSelf: "center", width: "100%", borderWidth: 1, borderColor: colors.black, padding: spacing.gap }}>
       <KeepsakeThumb card={k.card} templateId={k.templateId} placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined} entering={k.entering} onPress={open} />
-      <View style={{ flex: 1, gap: spacing.tight, minHeight: 77 }}>
-        <Text variant="subhead">{strings.band}</Text>
-        {/* Loading keeps the room (17 + 8 + 52) and shows nothing, so the page does not jump. */}
-        <View accessibilityLiveRegion="polite" style={{ gap: spacing.tight, alignItems: "flex-start" }}>
-          {status}
-          {action}
+      <View style={{ flex: 1, gap: spacing.tight, minHeight: 77, justifyContent: "space-between" }}>
+        <View style={{ gap: spacing.tight }}>
+          <Text variant="subhead">{strings.band}</Text>
+          <View accessibilityLiveRegion="polite" style={{ alignItems: "flex-start" }}>{status}</View>
         </View>
+        {/* Content-width, level with the thumbnail's bottom edge. */}
+        <View style={{ alignSelf: "flex-start" }}>{action}</View>
       </View>
     </View>
   );

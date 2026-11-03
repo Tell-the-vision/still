@@ -12,9 +12,9 @@ test("a guest's save resumes after login and consent", async ({ page, next }) =>
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness/);
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.reload();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   expect((await trpcCall(page, "scrap.list", { code: "forms-of-stillness" })).json.result.data).toHaveLength(1);
 });
 
@@ -28,7 +28,7 @@ test("sign-in brings the guest back to the sentence they used", async ({ page, n
   await last.click();
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
-  await expect(page.getByRole("button", { name: "Kept" })).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Remove this line" })).toBeInViewport();
 });
 
 test("cancelling sign-in keeps the pending action for the next login", async ({ page, next }) => {
@@ -38,7 +38,7 @@ test("cancelling sign-in keeps the pending action for the next login", async ({ 
   await page.getByRole("button", { name: "Keep this line" }).first().click();
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await expect(page.getByText("Sign-in was cancelled.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(0);
   await stubGoogle(page);
   await page.getByRole("link", { name: "HOME" }).click();
   await page.getByRole("link", { name: "Login" }).click();
@@ -48,7 +48,7 @@ test("cancelling sign-in keeps the pending action for the next login", async ({ 
   await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await page.getByLabel("Exhibition URL or code").fill("forms-of-stillness");
   await page.getByRole("button", { name: "Open" }).click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
 });
 
 test("an action older than 30 minutes is dropped with a notice", async ({ page, next }) => {
@@ -61,5 +61,5 @@ test("an action older than 30 minutes is dropped with a notice", async ({ page, 
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
   await expect(page.getByText("Your earlier action expired. Please try again.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(0);
 });

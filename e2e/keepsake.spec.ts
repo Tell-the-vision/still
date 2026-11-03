@@ -12,7 +12,7 @@ test("a web card shows on Archive Detail once saved", async ({ page, next }) => 
   await signIn(page);
   await openGuide(page, code);
   await page.getByRole("button", { name: "Keep this line" }).first().click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await expect(page.getByText("No web card yet.")).toBeVisible();

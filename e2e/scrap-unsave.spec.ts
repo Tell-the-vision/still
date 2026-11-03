@@ -11,7 +11,7 @@ test("a saved sentence is unsaved from Archive Detail and can be saved again", a
   const saveButton = page.getByRole("button", { name: "Keep this line" }).first();
   const sentenceText = (await saveButton.locator("xpath=preceding::*[normalize-space(text())][1]").innerText()).replace(/[“”]/g, "").trim();
   await saveButton.click();
-  await expect(page.getByRole("button", { name: "Kept" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
