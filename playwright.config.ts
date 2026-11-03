@@ -14,7 +14,8 @@ export default defineConfig({
     baseURL: `http://localhost:${port}`,
     viewport: { width: 390, height: 844 },
     launchOptions: {
-      args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+      // Tests must never play sound (Pink Noise) through the machine's speakers.
+      args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--mute-audio"],
     },
   },
   projects: [{ name: "chromium", use: { browserName: "chromium", viewport: { width: 390, height: 844 } } }],
