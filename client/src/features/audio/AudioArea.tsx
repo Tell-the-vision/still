@@ -11,7 +11,7 @@ import { Stack } from "../../ui/Stack";
 import { spacing } from "../../ui/theme";
 import { View } from "react-native";
 import { displayMode, type Audio } from "./display-mode";
-import { PinkNoiseToggle } from "./PinkNoiseToggle";
+import { AmbienceToggle } from "./AmbienceToggle";
 import { audioStrings } from "./strings";
 
 type Props = { code: string; audio: Audio; screen: "guide" | "journal"; onModeChange?: (mode: ReturnType<typeof displayMode>) => void };
@@ -25,7 +25,7 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
   const choice = settings.data?.audioMode ?? "AUTO";
   const focused = useIsFocused();
   const [muted, setMuted] = useState(false);
-  const [pinkNoiseOn, setPinkNoiseOn] = useState(false);
+  const [ambienceOn, setAmbienceOn] = useState(false);
   const base = displayMode(choice, audio);
   const mode = muted ? "NONE" : base;
   useEffect(() => onModeChange?.(mode), [mode, onModeChange]);
@@ -48,8 +48,8 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
               }}
             />
           )}
-          {base === "AMBIENCE" && focused && <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} onChange={setPinkNoiseOn} />}
-          <Choice role="radio" label={audioStrings.none} selected={mode === "NONE" || (base === "AMBIENCE" && !pinkNoiseOn)} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
+          {base === "AMBIENCE" && focused && <AmbienceToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} onChange={setAmbienceOn} />}
+          <Choice role="radio" label={audioStrings.none} selected={mode === "NONE" || (base === "AMBIENCE" && !ambienceOn)} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
         </View>
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
       </Stack>

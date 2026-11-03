@@ -17,6 +17,6 @@ test("an ambience exhibition shows no audio on the guide", async ({ page }) => {
   await openGuide(page, "quiet-rooms");
   await expect(page.getByRole("heading", { name: "Quiet Rooms" })).toBeVisible();
   await expect(page.getByRole("link", { name: /^Playlist on/ })).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: /Pink noise/i })).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: /Ambience/i })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "No audio" })).toHaveCount(0);
 });

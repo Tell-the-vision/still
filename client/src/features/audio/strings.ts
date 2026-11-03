@@ -1,8 +1,8 @@
 export const audioStrings = {
   listen: { SPOTIFY: "EXTERNAL PLAYLIST · SPOTIFY", APPLE_MUSIC: "EXTERNAL PLAYLIST · APPLE MUSIC" },
   playlist: { SPOTIFY: "Playlist on Spotify", APPLE_MUSIC: "Playlist on Apple Music" },
-  pinkNoise: "Pink noise",
-  playFailed: "Couldn't play Pink Noise.",
+  ambience: "Ambience",
+  playFailed: "Couldn't play Ambience.",
   settingsLink: "Audio settings",
   back: "ACCOUNT",
   headline: "Audio.",
