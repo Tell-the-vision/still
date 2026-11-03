@@ -12,7 +12,6 @@ import {
 import { takeGuestDraft, useDraft } from "../../../features/journal/drafts";
 import { useMe } from "../../../features/auth/use-me";
 import { announce } from "../../../features/journal/announce";
-import { markJournalSaved } from "../../../features/journal/last-saved";
 import { journalStrings } from "../../../features/journal/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
@@ -56,7 +55,6 @@ export default function Journal() {
           });
         setDraft(null);
         drafts.discard();
-        markJournalSaved(code);
         setDone(true);
       },
       // The local text stays in the field; refetching gives the next save the new revision.
@@ -78,7 +76,9 @@ export default function Journal() {
   useEffect(() => {
     if (!done) return;
     announce(journalStrings.announce);
-    router.replace(from === "archive" ? `/archive/${code}` : `/e/${code}`);
+    // Pushed from the guide or Detail: go back to that screen. A deep link has no history to return to.
+    if (from && router.canGoBack()) router.back();
+    else router.replace(from === "archive" ? `/archive/${code}` : `/e/${code}`);
   }, [done, from, code, router]);
 
   const [audioType, setAudioType] =

@@ -18,6 +18,7 @@ test("a saved journal shows in Detail, where it can be deleted", async ({ page, 
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await expect(page.getByRole("heading", { name: "01 journal · editable" })).toBeVisible();
   await expect(page.getByText("Quiet light.")).toBeVisible();
+  await expect(page.getByText(/^Saved · \d\d:\d\d$/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", "/e/forms-of-stillness/journal?from=archive");
 
   await page.getByRole("button", { name: "Delete journal" }).click();
@@ -28,6 +29,7 @@ test("a saved journal shows in Detail, where it can be deleted", async ({ page, 
   await page.getByRole("button", { name: "Delete journal" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("heading", { name: "00 journal" })).toBeVisible();
+  await expect(page.getByText(/^Saved · /)).toHaveCount(0);
   await expect(page.getByText("Forms of Stillness", { exact: true }).last()).toBeVisible();
   expect((await trpcCall(page, "journal.get", { code: "forms-of-stillness" })).json.result.data).toBeNull();
 });

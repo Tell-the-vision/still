@@ -101,6 +101,21 @@ test("saving from the guide link returns to the guide", async ({ page, next }) =
   await page.getByRole("button", { name: "Save Journal" }).click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
   await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
+
+  // Back goes to Home, not to a second copy of the guide.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/scan/);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
+
+  // No saved time for a guest.
+  await page.getByRole("link", { name: "ACCOUNT" }).click();
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
+  await page.goto("/e/forms-of-stillness");
+  await expect(page.getByRole("link", { name: "Write a journal" })).toBeVisible();
+  await expect(page.getByText(/^Saved · /)).toHaveCount(0);
 });
 
 test("a guest's Save goes to login", async ({ page }) => {
