@@ -65,18 +65,19 @@ function Plain({ card, personal, caption }: LayoutProps) {
   );
 }
 
-// The whole cover, never cropped, over a blurred fill of itself, under a light veil; the text sits on it in white.
+// The cover fills the card under a dark veil; the text sits on it in white.
 function Overlay({ card, personal, caption }: LayoutProps) {
-  const cover = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
   return (
     <View style={{ flex: 1, backgroundColor: colors.black }}>
       {card.image && (
-        <>
-          <Image source={{ uri: card.image.url }} resizeMode="cover" blurRadius={24} aria-hidden style={cover} />
-          <Image source={{ uri: card.image.url }} accessibilityLabel={card.image.altText ?? undefined} resizeMode="contain" style={cover} />
-        </>
+        <Image
+          source={{ uri: card.image.url }}
+          accessibilityLabel={card.image.altText ?? undefined}
+          resizeMode="cover"
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        />
       )}
-      <View style={{ flex: 1, padding: spacing.gap, justifyContent: "space-between", backgroundColor: "rgba(0, 0, 0, 0.35)" }}>
+      <View style={{ flex: 1, padding: spacing.gap, justifyContent: "space-between", backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
         <Text variant="caption" style={white}>STILL</Text>
         <View style={{ gap: spacing.inset }}>
           {personal.map((text) => (
