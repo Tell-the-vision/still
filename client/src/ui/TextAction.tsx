@@ -38,7 +38,7 @@ export function TextAction({ label, accessibilityLabel, variant = "action", tone
       {...((download || target) && { hrefAttrs: { ...(download && { download: "" }), ...(target && { target, rel: "noopener noreferrer" }) } })}
       accessibilityRole={href === undefined ? "button" : "link"}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, selected: active }}
       aria-pressed={active}
       onPress={onPress}
       disabled={disabled}
