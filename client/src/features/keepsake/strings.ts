@@ -25,5 +25,6 @@ export const keepsakeStrings = {
     longPressHint: "Press and hold the image to save it.",
     retry: "Try again",
     failed: "Couldn't get the PNG.",
+    photosDenied: "Allow Photos access in Settings to save the PNG.",
   },
 };
