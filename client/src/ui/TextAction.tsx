@@ -13,12 +13,13 @@ type Props = {
   leading?: string;
   trailing?: string;
   disabled?: boolean;
+  active?: boolean;
   download?: boolean;
   target?: "_blank";
 } & ({ href: Href; onPress?: () => void } | { onPress: () => void; href?: undefined });
 
 // A borderless text action: a link with `href`, otherwise a button. `leading` and `trailing` are decorative glyphs.
-export function TextAction({ label, variant = "action", tone, mark, leading, trailing, href, onPress, disabled = false, download, target }: Props) {
+export function TextAction({ label, variant = "action", tone, mark, leading, trailing, href, onPress, disabled = false, active, download, target }: Props) {
   const [focused, setFocused] = useState(false);
   // Tracked as state because a style function would break `Link asChild`.
   const [pressed, setPressed] = useState(false);
@@ -35,6 +36,7 @@ export function TextAction({ label, variant = "action", tone, mark, leading, tra
       accessibilityRole={href === undefined ? "button" : "link"}
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
+      aria-pressed={active}
       onPress={onPress}
       disabled={disabled}
       hitSlop={12}

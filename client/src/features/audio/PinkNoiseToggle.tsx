@@ -2,17 +2,15 @@ import { track } from "../../lib/analytics";
 import { useFocusEffect } from "expo-router";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Pressable } from "react-native";
+import { AppState } from "react-native";
+import { Choice } from "../../ui/Choice";
 import { Notice } from "../../ui/Notice";
-import { Text } from "../../ui/Text";
-import { focusRing } from "../../ui/theme";
 import { audioStrings } from "./strings";
 
 // SPEC §6.1: Pink Noise plays only from this press and is Off on every mount, blur, unmount and background.
-export function PinkNoiseToggle({ code }: { code: string }) {
+export function PinkNoiseToggle({ code, forceOff, onPlay }: { code: string; forceOff: boolean; onPlay: () => void }) {
   const player = useAudioPlayer(require("../../../assets/audio/pink-noise.wav"));
   const [on, setOn] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const stop = useCallback(() => {
@@ -20,6 +18,9 @@ export function PinkNoiseToggle({ code }: { code: string }) {
     setOn(false);
   }, [player]);
 
+  useEffect(() => {
+    if (forceOff) stop();
+  }, [forceOff, stop]);
   useEffect(() => {
     player.loop = true;
   }, [player]);
@@ -45,6 +46,7 @@ export function PinkNoiseToggle({ code }: { code: string }) {
       });
       await player.play();
       setOn(true);
+      onPlay();
       track("ambience_on", { exhibition_code: code });
     } catch {
       setFailed(true);
@@ -54,18 +56,7 @@ export function PinkNoiseToggle({ code }: { code: string }) {
 
   return (
     <>
-      <Pressable
-        accessibilityRole="switch"
-        accessibilityLabel={audioStrings.pinkNoise}
-        accessibilityState={{ checked: on }}
-        aria-checked={on}
-        onPress={toggle}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={focused && focusRing}
-      >
-        <Text variant="label">{`${audioStrings.pinkNoise} · ${on ? audioStrings.on : audioStrings.off}`}</Text>
-      </Pressable>
+      <Choice role="switch" label={audioStrings.pinkNoise} selected={on} onPress={toggle} />
       {failed && <Notice error message={audioStrings.playFailed} />}
     </>
   );

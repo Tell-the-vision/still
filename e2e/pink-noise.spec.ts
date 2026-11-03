@@ -10,12 +10,13 @@ async function openJournal(page: Parameters<typeof openGuide>[0], code: string) 
 
 test("a guest turns Pink Noise on and off on the journal", async ({ page }) => {
   await openJournal(page, "quiet-rooms");
-  const toggle = page.getByRole("switch", { name: "Pink Noise" });
+  const toggle = page.getByRole("switch", { name: /Pink Noise/i });
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await expect(page.getByText("Couldn't play Pink Noise.")).toHaveCount(0);
-  await toggle.click();
+  await expect(toggle).toHaveCSS("background-color", "rgb(0, 0, 0)");
+  await page.getByRole("button", { name: "NO AUDIO" }).click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
 });
 
@@ -33,6 +34,6 @@ test("saving a journal records the AMBIENCE audioType", async ({ page, next }) =
 
 test("a playlist exhibition shows the Spotify link and no switch on the journal", async ({ page }) => {
   await openJournal(page, "forms-of-stillness");
-  await expect(page.getByRole("link", { name: "Listen on Spotify" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "EXTERNAL PLAYLIST · SPOTIFY" })).toBeVisible();
   await expect(page.getByRole("switch")).toHaveCount(0);
 });

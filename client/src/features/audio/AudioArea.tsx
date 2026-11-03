@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { STALE_TIME, useTRPC } from "../../lib/trpc";
 import { useMe } from "../auth/use-me";
-import { Button } from "../../ui/Button";
+import { Choice } from "../../ui/Choice";
 import { Section } from "../../ui/Section";
 import { Text } from "../../ui/Text";
-import { TextLink } from "../../ui/TextLink";
+import { Stack } from "../../ui/Stack";
+import { TextAction } from "../../ui/TextAction";
 import { displayMode, type Audio } from "./display-mode";
 import { PinkNoiseToggle } from "./PinkNoiseToggle";
 import { audioStrings } from "./strings";
@@ -21,32 +22,34 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
   const settings = useQuery(trpc.settings.get.queryOptions(undefined, { enabled: me !== null, staleTime: STALE_TIME.personal }));
   const choice = settings.data?.audioMode ?? "AUTO";
   const [muted, setMuted] = useState(false);
-  const mode = muted ? "NONE" : displayMode(choice, audio);
+  const base = displayMode(choice, audio);
+  const mode = muted ? "NONE" : base;
   useEffect(() => onModeChange?.(mode), [mode, onModeChange]);
-  if (!mode) return null;
+  if (!base) return null;
   const playlist = audio.playlist;
-  const noAudio = <Button label={audioStrings.none} variant="secondary" onPress={() => setMuted(true)} />;
   return (
     <Section label={audioStrings.section}>
-      {mode === "EXTERNAL" && playlist && (
-        <>
-          <TextLink href={playlist.url} target="_blank" onPress={() => track("audio_external_click", { provider: playlist.provider, exhibition_code: code })} label={playlist.provider === "SPOTIFY" ? audioStrings.listen.SPOTIFY : audioStrings.listen.APPLE_MUSIC} />
-          {noAudio}
-        </>
-      )}
-      {mode === "AMBIENCE" && (
-        <>
-          <Text>{audioStrings.ambience}</Text>
-          {screen === "journal" ? <PinkNoiseToggle code={code} /> : <Text variant="secondary">{audioStrings.ambienceHint}</Text>}
-          {noAudio}
-        </>
-      )}
-      {mode === "NONE" && (
-        <>
-          <Text>{audioStrings.none}</Text>
-          <Text variant="secondary">{audioStrings.noneHint}</Text>
-        </>
-      )}
+      <Stack gap="tight">
+        {base === "EXTERNAL" && playlist && (
+          <Choice
+            role="button"
+            href={playlist.url}
+            target="_blank"
+            selected={!muted}
+            label={playlist.provider === "SPOTIFY" ? audioStrings.listen.SPOTIFY : audioStrings.listen.APPLE_MUSIC}
+            onPress={() => {
+              setMuted(false);
+              track("audio_external_click", { provider: playlist.provider, exhibition_code: code });
+            }}
+          />
+        )}
+        {base === "AMBIENCE" && (screen === "journal" ? <PinkNoiseToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} /> : <Text>{audioStrings.ambience}</Text>)}
+        {base === "AMBIENCE" && screen === "guide" && <Text variant="secondary">{audioStrings.ambienceHint}</Text>}
+        {base === "NONE" && <Text>{audioStrings.none}</Text>}
+        {base !== "NONE" && <TextAction variant="secondary" label={audioStrings.none} active={muted} tone={muted ? "primary" : "secondary"} onPress={() => setMuted(!muted)} />}
+        {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
+        {screen === "journal" && <Text variant="secondary">{audioStrings.journalCaption}</Text>}
+      </Stack>
     </Section>
   );
 }
