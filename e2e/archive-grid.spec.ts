@@ -41,13 +41,14 @@ test("an empty archive points to QR Scan", async ({ page, next }) => {
 });
 
 test("on desktop the archive grid has uses the wide column", async ({ page, next }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
+  // Desktop web has no QR entry points, so the visit happens on the phone viewport first.
   const upserted = page.waitForResponse(/archive\.upsert/);
   await openGuide(page, "forms-of-stillness");
   await upserted;
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/archive");
   const card = page.getByRole("link", { name: "Forms of Stillness" });
   const box = await card.boundingBox();
