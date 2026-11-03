@@ -38,8 +38,7 @@ export function DeleteArchive({ code }: { code: string }) {
     <>
       <Button label={archiveStrings.delete} trailing="→" variant="secondary" disabled={remove.isPending} onPress={() => setConfirming(true)} />
       {failed ? <Notice error message={archiveStrings.deleteFailed} /> : null}
-      <Dialog label={archiveStrings.delete} visible={confirming} onClose={() => setConfirming(false)}>
-        <Text>{archiveStrings.deleteWarning}</Text>
+      <Dialog label={archiveStrings.delete} body={archiveStrings.deleteWarning} visible={confirming} onClose={() => setConfirming(false)}>
         <Button label={archiveStrings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
         <Button label={archiveStrings.confirmDelete} onPress={confirm} />
       </Dialog>

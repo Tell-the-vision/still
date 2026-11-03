@@ -61,8 +61,7 @@ export function LinkedAccounts() {
       ))}
       <Button label={accountStrings.linkAnother} trailing="→" variant="secondary" disabled={link.isPending || (Platform.OS !== "web" && !google.ready)} onPress={startLink} />
       {error ? <Notice error message={error} /> : null}
-      <Dialog label={accountStrings.unlinkDialogLabel} visible={confirmingId !== null} onClose={() => setConfirmingId(null)}>
-        <Text>{accountStrings.unlinkWarning}</Text>
+      <Dialog label={accountStrings.unlinkDialogLabel} body={accountStrings.unlinkWarning} visible={confirmingId !== null} onClose={() => setConfirmingId(null)}>
         <Button label={accountStrings.cancel} variant="secondary" onPress={() => setConfirmingId(null)} />
         <Button label={accountStrings.unlink} disabled={unlink.isPending} onPress={confirm} />
       </Dialog>

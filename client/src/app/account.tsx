@@ -69,8 +69,7 @@ export default function Account() {
           {failed ? <Notice error message={accountStrings.deleteFailed} /> : null}
         </Section>
       </View>
-      <Dialog label={accountStrings.deleteDialogLabel} visible={confirming} onClose={() => setConfirming(false)}>
-        <Text>{accountStrings.deleteWarning}</Text>
+      <Dialog label={accountStrings.deleteDialogLabel} body={accountStrings.deleteWarning} visible={confirming} onClose={() => setConfirming(false)}>
         <Button label={accountStrings.cancel} variant="secondary" onPress={() => setConfirming(false)} />
         <Button label={accountStrings.delete} disabled={deleteAccount.isPending} onPress={confirmDelete} />
       </Dialog>

@@ -1,4 +1,5 @@
 import { View } from "react-native";
+import { longRange } from "../../lib/dates";
 import { Artwork } from "../../ui/Artwork";
 import { Text } from "../../ui/Text";
 
@@ -16,7 +17,7 @@ export function GuideHeader({ title, venue, startDate, endDate, coverImage }: Pr
       {coverImage && <Artwork {...coverImage} />}
       <Text variant="title">{title}</Text>
       <Text variant="secondary">{`${venue.name} · ${venue.city}`}</Text>
-      <Text variant="secondary">{`${startDate} – ${endDate}`}</Text>
+      <Text variant="secondary">{longRange(startDate, endDate)}</Text>
     </View>
   );
 }

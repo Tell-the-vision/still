@@ -100,8 +100,7 @@ export default function Journal() {
       {isNetworkError && <Button label={journalStrings.retry} variant="secondary" onPress={submit} />}
       {appCode === "REVISION_MISMATCH" && <Notice message={journalStrings.conflict} />}
       {saved && <Notice message={journalStrings.saved} />}
-      <Dialog visible={!!leave} onClose={() => setLeave(null)} label={journalStrings.leaveLabel}>
-        <Text>{journalStrings.leaveBody}</Text>
+      <Dialog visible={!!leave} onClose={() => setLeave(null)} label={journalStrings.leaveLabel} body={journalStrings.leaveBody}>
         <Button label={journalStrings.stay} onPress={() => setLeave(null)} />
         <Button
           label={journalStrings.leave}
