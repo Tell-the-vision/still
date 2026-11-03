@@ -17,7 +17,7 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   const card = page.getByRole("link", { name: "Forms of Stillness" });
   await expect(card).toHaveCSS("border-top-width", "1px");
   await expect(card).toContainText(/· 2026/);
-  await expect(card.locator("> *").first()).toHaveCSS("background-color", "rgb(0, 0, 0)");
+  await expect(card.locator("> *").first()).toHaveCSS("background-color", "rgb(237, 237, 237)");
 });
 
 test("an empty archive points to QR Scan", async ({ page, next }) => {

@@ -47,7 +47,10 @@ export function CurrentExhibition() {
           <TextAction label={homeStrings.viewAll} trailing="→" variant="secondary" tone="primary" href="/archive" />
         </Stack>
       </Section>
-      <TextAction label={homeStrings.scan} href="/scan" variant="secondary" tone="primary" />
+      <Stack direction="row" align="center" justify="space-between">
+        <Text variant="eyebrow">{homeStrings.scanAnother}</Text>
+        <TextAction label={homeStrings.scan} trailing="→" variant="secondary" tone="primary" href="/scan" />
+      </Stack>
     </>
   );
 }

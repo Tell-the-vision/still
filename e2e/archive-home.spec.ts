@@ -62,3 +62,14 @@ test("the archive row right-aligns View all", async ({ page, next }) => {
   const box = await page.getByRole("link", { name: /View all/ }).boundingBox();
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThanOrEqual(300);
 });
+
+test("Home has a scan-another row whose QR Scan opens /scan", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await visit(page, "forms-of-stillness");
+  await page.goto("/");
+  await expect(page.getByText("SCAN ANOTHER EXHIBITION")).toBeVisible();
+  await page.getByRole("link", { name: /QR Scan/ }).click();
+  await expect(page).toHaveURL(/\/scan$/);
+});
