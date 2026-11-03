@@ -104,7 +104,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,
@@ -255,7 +255,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,
@@ -405,7 +405,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,
@@ -555,7 +555,7 @@ const pkg: ContentPackage = {
           }
         ]
       },
-      "startDate": "2026-09-01",
+      "startDate": "2026-01-01",
       "endDate": "2030-12-31",
       "status": "PUBLISHED",
       "ambienceEnabled": true,
