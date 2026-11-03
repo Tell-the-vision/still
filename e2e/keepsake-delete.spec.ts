@@ -12,7 +12,9 @@ test("deleting the keepsake keeps the kept lines and the journal", async ({ page
   await page.getByRole("link", { name: "Write a journal" }).click();
   await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
   await page.getByRole("button", { name: "Save Journal" }).click();
+  // Saving returns to the guide, whose footer shows the time.
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
+  await expect(page.getByText(/^Saved · \d\d:\d\d$/).last()).toBeVisible();
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   await page.getByRole("link", { name: "Make your card" }).click();

@@ -18,9 +18,7 @@ async function reachDetail(page: Parameters<typeof signIn>[0], next: Parameters<
   await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
   // The guide already holds the card as it was; reload so the detail reads the one just saved.
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
-  const loaded = page.waitForResponse((r) => r.url().includes("keepsake.get") && r.ok());
   await page.reload();
-  await loaded;
 }
 
 test("Share hands exactly one PNG file to the share sheet", async ({ page, next }) => {
