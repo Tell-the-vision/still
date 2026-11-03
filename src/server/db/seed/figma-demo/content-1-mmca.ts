@@ -33,7 +33,7 @@ const pkg: ContentPackage = {
     exhibitionFromBoard({
       code: "damien-hirst",
       venueCode: "mmca-seoul",
-      title: "데이미언 허스트",
+      title: "데미언 허스트",
       about: "Damien Hirst. MMCA Seoul, B1 Galleries 3, 4, 5, 2F MMCA Studio and Seoul Box.",
       startDate: "2026-03-20",
       endDate: "2027-02-28", // Board: 2026-06-28 (ended); extended so it shows as on view.
