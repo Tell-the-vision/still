@@ -33,6 +33,7 @@ export const keepsakeStrings = {
   ],
   excerptHeading: "Excerpt",
   save: "Save Web Card",
+  saving: "Keeping…",
   failed: "Couldn't save. Your selection is kept.",
   png: {
     download: "Download PNG",

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { templateDefaults } from "@still/shared/keepsake";
 import { useTRPC } from "../../lib/trpc";
 import { useMe } from "../auth/use-me";
@@ -26,16 +26,16 @@ export function useGuideKeepsake(code: string, exhibition: Exhibition) {
   const saved = useQuery(keepsakeQueryOptions(trpc, code, enabled));
   const queries = [scraps, journal, saved];
 
-  // The line kept most recently in this visit, so the card can let it in.
-  const known = useRef<Set<string> | undefined>(undefined);
-  const [entering, setEntering] = useState<string>();
-  useEffect(() => {
-    if (!scraps.data) return;
-    const ids = new Set(scraps.data.map((s) => s.sentenceId));
-    const added = known.current && scraps.data.find((s) => !known.current?.has(s.sentenceId));
-    known.current = ids;
-    if (added) setEntering(added.sentenceId);
-  }, [scraps.data]);
+  // The line kept most recently in this visit, so the card can let it in. Worked out while rendering,
+  // so the new line already knows to ink when it mounts (an effect would run after it had appeared).
+  const [visit, setVisit] = useState<{ lines: typeof scraps.data; entering?: string }>({ lines: scraps.data });
+  let entering = visit.entering;
+  if (scraps.data !== visit.lines) {
+    const before = visit.lines;
+    const added = before && scraps.data?.find((s) => !before.some((b) => b.sentenceId === s.sentenceId));
+    entering = added ? added.sentenceId : entering;
+    setVisit({ lines: scraps.data, entering });
+  }
 
   const base = { code, entering, retry: () => queries.filter((q) => q.isError).forEach((q) => void q.refetch()) };
   const cover = { exhibition, image: exhibition.coverImage };

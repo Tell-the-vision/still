@@ -14,10 +14,10 @@ export function useFitScale(max = 1) {
   return { onLayout, scale: Math.min(width / cardTokens.width, max) };
 }
 
-type CardProps = Pick<ComponentProps<typeof KeepsakeCard>, "card" | "templateId" | "placeholder" | "entering">;
+type CardProps = Pick<ComponentProps<typeof KeepsakeCard>, "card" | "templateId" | "placeholder" | "entering" | "develop">;
 
-// A non-interactive miniature for use inside another link (the archive grid).
-export function KeepsakeMini({ scale, ...card }: CardProps & { scale: number }) {
+// A non-interactive miniature for use inside another link (the archive grid). It never moves.
+export function KeepsakeMini({ scale, ...card }: Omit<CardProps, "develop" | "entering"> & { scale: number }) {
   if (scale <= 0) return null;
   return (
     <View aria-hidden pointerEvents="none" style={{ width: cardTokens.width * scale, height: thumbHeight(scale), overflow: "hidden" }}>
