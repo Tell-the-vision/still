@@ -6,12 +6,14 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("Enter in the field opens the guide", async ({ page }) => {
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await page.getByLabel("Exhibition URL or code").fill("forms-of-stillness");
   await page.getByLabel("Exhibition URL or code").press("Enter");
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
 });
 
-test("the field uses the body font and the title is a heading", async ({ page }) => {
+test("the field uses the body font and the headline is a heading", async ({ page }) => {
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await expect(page.getByLabel("Exhibition URL or code")).toHaveCSS("font-family", /DMSans/);
-  await expect(page.getByRole("heading", { name: "QR Scan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Scan to enter." })).toBeVisible();
 });

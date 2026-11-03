@@ -1,5 +1,9 @@
 export const entryStrings = {
-  title: "QR Scan",
+  headline: "Scan to enter.",
+  headlineHint: "Point your camera at the exhibition QR code.",
+  trouble: "Having trouble?",
+  troubleHint: "You can also open an exhibition link directly.",
+  enterUrl: "Enter Exhibition URL",
   inputLabel: "Exhibition URL or code",
   viewfinder: "QR code viewfinder",
   open: "Open",

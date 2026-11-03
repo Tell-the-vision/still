@@ -1,7 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useIsFocused, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
 import { parseExhibitionTarget } from "@still/shared/entry";
 import { useUserState } from "../features/auth/use-me";
 import { track } from "../lib/analytics";
@@ -9,9 +8,10 @@ import { entryStrings } from "../features/entry/strings";
 import { Button } from "../ui/Button";
 import { Notice } from "../ui/Notice";
 import { Screen } from "../ui/Screen";
+import { Stack } from "../ui/Stack";
 import { Text } from "../ui/Text";
 import { TextField } from "../ui/TextField";
-import { spacing } from "../ui/theme";
+import { Viewfinder } from "../ui/Viewfinder";
 
 const stillOrigin =
   process.env.EXPO_OS === "web" ? window.location.origin : (process.env.EXPO_PUBLIC_STILL_ORIGIN ?? "");
@@ -20,6 +20,7 @@ const stillOrigin =
 export default function Scan() {
   const router = useRouter();
   const [value, setValue] = useState("");
+  const [entering, setEntering] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const focused = useIsFocused();
@@ -48,38 +49,49 @@ export default function Scan() {
   }
 
   const cameraOn = permission?.granted === true && focused;
+  const showField = entering || (permission !== null && !permission.granted);
 
   return (
     <Screen tabs>
-      <View style={styles.body}>
-        {cameraOn && (
-          <CameraView
-            style={styles.camera}
-            accessibilityLabel={entryStrings.viewfinder}
-            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-            onBarcodeScanned={({ data }) => onScanned(data)}
-            onMountError={() => setNotice(entryStrings.readFailed)}
-          />
-        )}
+      <Stack gap="section">
+        <Stack gap="tight">
+          <Text variant="headline">{entryStrings.headline}</Text>
+          <Text variant="secondary">{entryStrings.headlineHint}</Text>
+        </Stack>
+        <Viewfinder label={entryStrings.viewfinder}>
+          {cameraOn && (
+            <CameraView
+              style={{ flex: 1 }}
+              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+              onBarcodeScanned={({ data }) => onScanned(data)}
+              onMountError={() => setNotice(entryStrings.readFailed)}
+            />
+          )}
+        </Viewfinder>
         {permission && !permission.granted && <Notice message={entryStrings.cameraOff} />}
-        <Text variant="label" role="heading">{entryStrings.title}</Text>
-        <TextField
-          label={entryStrings.inputLabel}
-          value={value}
-          onChangeText={setValue}
-          onSubmit={() => openTarget(value)}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-        />
-        <Button label={entryStrings.open} onPress={() => openTarget(value)} />
-        {notice && <Notice message={notice} error />}
-      </View>
+        <Stack gap="tight">
+          <Text variant="label">{entryStrings.trouble}</Text>
+          <Text variant="secondary">{entryStrings.troubleHint}</Text>
+        </Stack>
+        {showField ? (
+          <Stack gap="gap">
+            <TextField
+              label={entryStrings.inputLabel}
+              value={value}
+              onChangeText={setValue}
+              onSubmit={() => openTarget(value)}
+              autoFocus={entering}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            <Button label={entryStrings.open} variant="secondary" onPress={() => openTarget(value)} />
+            {notice && <Notice message={notice} error />}
+          </Stack>
+        ) : (
+          <Button label={entryStrings.enterUrl} onPress={() => setEntering(true)} />
+        )}
+      </Stack>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  body: { flex: 1, justifyContent: "center", gap: spacing.gap },
-  camera: { aspectRatio: 1, width: "100%" },
-});

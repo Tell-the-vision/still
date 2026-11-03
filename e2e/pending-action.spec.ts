@@ -45,6 +45,7 @@ test("cancelling sign-in keeps the pending action for the next login", async ({ 
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Agree" }).click();
   await page.getByRole("link", { name: "QR Scan" }).click();
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await page.getByLabel("Exhibition URL or code").fill("forms-of-stillness");
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);

@@ -45,3 +45,6 @@ export const fontFamily = {
   body: stack("DMSans_400Regular"),
   bodyMedium: stack("DMSans_500Medium"),
 };
+
+// QR viewfinder corner brackets (Figma 03).
+export const viewfinder = { bracketLength: 42, bracketThickness: 3, bracketInset: 30 };

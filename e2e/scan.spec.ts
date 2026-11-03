@@ -11,6 +11,7 @@ test("foreign URLs and junk are rejected without navigating", async ({ page }) =
   await page.goto("/");
   await page.getByRole("link", { name: "QR Scan" }).click();
   await expect(page.getByRole("navigation")).toBeVisible();
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await submit(page, "https://evil.example/e/forms-of-stillness");
   await expect(page.getByText("STILL 전시 QR이 아닙니다")).toBeVisible();
   await expect(page).toHaveURL(/\/scan$/);
@@ -41,4 +42,17 @@ test("with camera permission the viewfinder shows", async ({ browser }) => {
   await page.getByRole("link", { name: "QR Scan" }).click();
   await expect(page.locator("video")).toBeVisible();
   await context.close();
+});
+
+test("guest sees the scanner and reveals URL entry on request", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "QR Scan" }).click();
+  await expect(page.getByRole("heading", { name: "Scan to enter." })).toBeVisible();
+  await expect(page.getByLabel("QR code viewfinder")).toBeVisible();
+  await expect(page.getByLabel("Exhibition URL or code")).toHaveCount(0);
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
+  await expect(page.getByLabel("Exhibition URL or code")).toBeFocused();
+  await page.getByLabel("Exhibition URL or code").fill("forms-of-stillness");
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page.getByRole("heading", { name: "Forms of Stillness" })).toBeVisible();
 });

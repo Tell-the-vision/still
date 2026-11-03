@@ -15,6 +15,7 @@ test("AASA and assetlinks are served as JSON", async ({ request }) => {
 test("a pasted full guide URL opens the guide", async ({ page, baseURL }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "QR Scan" }).click();
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await page.getByLabel("Exhibition URL or code").fill(`${baseURL}/e/forms-of-stillness`);
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);

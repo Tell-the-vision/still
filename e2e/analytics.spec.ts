@@ -25,6 +25,7 @@ test("entry events reach the data layer, and login_success carries no email", as
   await captureDataLayer(page);
   await page.goto("/");
   await page.getByRole("link", { name: "QR Scan" }).click();
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
   await page.getByRole("textbox").fill("forms-of-stillness");
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
