@@ -15,12 +15,14 @@ type Props = {
   trailing?: string;
   disabled?: boolean;
   active?: boolean;
+  // A radio reports `active` as checked instead of pressed.
+  role?: "radio";
   download?: boolean;
   target?: "_blank";
 } & ({ href: Href; onPress?: () => void } | { onPress: () => void; href?: undefined });
 
 // A borderless text action: a link with `href`, otherwise a button. `leading` and `trailing` are decorative glyphs.
-export function TextAction({ label, accessibilityLabel, variant = "action", tone, mark, leading, trailing, href, onPress, disabled = false, active, download, target }: Props) {
+export function TextAction({ label, accessibilityLabel, variant = "action", tone, mark, leading, trailing, href, onPress, disabled = false, active, role, download, target }: Props) {
   const [focused, setFocused] = useState(false);
   // Tracked as state because a style function would break `Link asChild`.
   const [pressed, setPressed] = useState(false);
@@ -36,10 +38,11 @@ export function TextAction({ label, accessibilityLabel, variant = "action", tone
   const pressable = (
     <Pressable
       {...((download || target) && { hrefAttrs: { ...(download && { download: "" }), ...(target && { target, rel: "noopener noreferrer" }) } })}
-      accessibilityRole={href === undefined ? "button" : "link"}
+      accessibilityRole={role ?? (href === undefined ? "button" : "link")}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled, selected: active }}
-      aria-pressed={active}
+      accessibilityState={role === "radio" ? { disabled, checked: active } : { disabled, selected: active }}
+      aria-pressed={role === "radio" ? undefined : active}
+      aria-checked={role === "radio" ? active : undefined}
       onPress={onPress}
       disabled={disabled}
       hitSlop={12}

@@ -55,7 +55,9 @@ test("the band opens the creator and Save returns to the guide showing Kept on",
   await openGuide(page, code);
   await page.getByRole("button", { name: "Keep this line" }).first().click();
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
-  await page.getByRole("button", { name: "Your keepsake card" }).click();
+  const thumb = page.getByRole("button", { name: "Your keepsake card", exact: true });
+  await expect(page.getByText("Shows the card at full size.")).toHaveCount(0);
+  await thumb.click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness\/keepsake\?from=guide/);
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(new RegExp(`/e/${code}$`));

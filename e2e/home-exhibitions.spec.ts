@@ -21,7 +21,7 @@ test("Home lists exhibitions on view, not drafts or past ones", async ({ page, n
 test("ALL shows more exhibitions and the choice survives a reload", async ({ page, next }) => {
   await signedInHome(page, next);
   const group = page.getByRole("radiogroup", { name: "Show exhibitions" });
-  await group.getByRole("button", { name: "ALL" }).click();
+  await group.getByRole("radio", { name: "ALL" }).click();
   await expect(page.getByRole("link", { name: /Ended · Busan Gallery/ })).toBeVisible();
   await expect(page.getByText("Draft Preview")).toHaveCount(0);
   await page.reload();
@@ -58,10 +58,10 @@ test("exhibition.list uses a short public cache without a long stale window", as
 test("the ON VIEW/ALL control exposes its selected state", async ({ page, next }) => {
   await signedInHome(page, next);
   const group = page.getByRole("radiogroup", { name: "Show exhibitions" });
-  await expect(group.getByRole("button", { name: "ON VIEW" })).toHaveAttribute("aria-pressed", "true");
-  await expect(group.getByRole("button", { name: "ALL" })).toHaveAttribute("aria-pressed", "false");
-  await group.getByRole("button", { name: "ALL" }).click();
-  await expect(group.getByRole("button", { name: "ALL" })).toHaveAttribute("aria-pressed", "true");
+  await expect(group.getByRole("radio", { name: "ON VIEW" })).toHaveAttribute("aria-checked", "true");
+  await expect(group.getByRole("radio", { name: "ALL" })).toHaveAttribute("aria-checked", "false");
+  await group.getByRole("radio", { name: "ALL" }).click();
+  await expect(group.getByRole("radio", { name: "ALL" })).toHaveAttribute("aria-checked", "true");
 });
 
 test.describe("desktop guest", () => {

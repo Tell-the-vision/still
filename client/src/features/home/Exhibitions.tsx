@@ -47,7 +47,7 @@ export function Exhibitions() {
       <Stack direction="row" align="center">
         <View role="radiogroup" aria-label={homeStrings.filterLabel} style={{ flexDirection: "row", gap: spacing.section }}>
           {([["ON_VIEW", homeStrings.onView], ["ALL", homeStrings.all]] as const).map(([value, label]) => (
-            <TextAction key={value} label={label} variant="label" tone={scope === value ? "primary" : "secondary"} active={scope === value} onPress={() => choose(value)} />
+            <TextAction key={value} label={label} variant="label" tone={scope === value ? "primary" : "secondary"} active={scope === value} role="radio" onPress={() => choose(value)} />
           ))}
         </View>
       </Stack>
