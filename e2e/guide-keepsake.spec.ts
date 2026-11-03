@@ -75,3 +75,21 @@ test("the journal link ends the page, is centred and leads to the journal", asyn
   await link.click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness\/journal\?from=guide$/);
 });
+
+test.describe("desktop", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("the keepsake panel spans the same column as the listen row", async ({ page }) => {
+    await page.goto(`/e/${code}`);
+    const row = await page.getByRole("link", { name: /^Listen to .* on Spotify$/ }).boundingBox();
+    // The panel is the bordered box that holds the "Your keepsake" heading.
+    const panel = await page.getByText("Your keepsake", { exact: true }).evaluate((el) => {
+      let node: Element | null = el;
+      while (node && getComputedStyle(node).borderTopWidth !== "1px") node = node.parentElement;
+      const b = node!.getBoundingClientRect();
+      return { x: b.x, right: b.right };
+    });
+    expect(Math.abs(panel.x - row!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(panel.right - (row!.x + row!.width))).toBeLessThanOrEqual(1);
+  });
+});
