@@ -29,6 +29,6 @@ test("deleting the keepsake keeps the kept lines and the journal", async ({ page
   await page.getByRole("button", { name: "Delete keepsake" }).click();
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("link", { name: "Make your card" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Journal", exact: true })).toBeVisible();
 });

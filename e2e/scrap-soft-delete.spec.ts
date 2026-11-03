@@ -28,6 +28,6 @@ test("a saved sentence survives the exhibition re-import that removes it", async
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.locator(`a[href="/archive/soft-delete"]`).click();
-  await expect(page.getByRole("heading", { name: "Kept lines · 01" })).toBeVisible();
-  await expect(page.getByText("This line will be removed.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kept lines" })).toBeVisible();
+  await expect(page.getByText("This line will be removed.").first()).toBeVisible();
 });

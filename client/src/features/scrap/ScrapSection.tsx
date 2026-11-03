@@ -37,7 +37,7 @@ export function ScrapSection({ code }: { code: string }) {
   const seen = useShownLines(scraps);
   const keptIds = new Set(scraps.map((scrap) => scrap.sentenceId));
   return (
-    <Section labelVariant="row" label={scrapStrings.keptHeading(scraps.length)}>
+    <Section labelVariant="row" label={scrapStrings.keptHeading()}>
       <Stack>
         {seen.map((line) => (
           <KeptLine key={line.sentenceId} code={code} line={line} kept={keptIds.has(line.sentenceId)} />
