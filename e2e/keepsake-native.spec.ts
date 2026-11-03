@@ -15,8 +15,10 @@ test("the signed PNG url downloads without any auth header", async ({ page, next
   await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
   await trpcCall(page, "keepsake.upsert", { code, templateId: "sentence", sentenceIds: ["00000000-0000-4000-8000-000000000001"] });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
-  await expect(page.getByText("Download PNG")).toBeVisible();
+  const loaded = page.waitForResponse((r) => r.url().includes("keepsake.get") && r.ok());
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
+  await loaded;
+  await expect(page.getByText("Download PNG", { exact: true })).toBeVisible();
 
   const { json } = await trpcCall(page, "keepsake.get", { code });
   const anonymous = await playwright.request.newContext();

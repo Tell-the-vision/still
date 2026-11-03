@@ -15,7 +15,9 @@ test("a saved web card downloads as a signed PNG", async ({ page, next }) => {
   await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
   await trpcCall(page, "keepsake.upsert", { code, templateId: "sentence", sentenceIds: ["00000000-0000-4000-8000-000000000001"] });
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
-  await page.getByRole("link", { name: "Forms of Stillness" }).click();
+  const loaded = page.waitForResponse((r) => r.url().includes("keepsake.get") && r.ok());
+  await page.getByRole("link", { name: "Forms of Stillness", exact: true }).click();
+  await loaded;
 
   const box = await page.getByLabel("Web card", { exact: true }).boundingBox();
   expect((box?.x ?? 0) + (box?.width ?? Infinity)).toBeLessThanOrEqual((page.viewportSize()?.width ?? 0) - 24);
