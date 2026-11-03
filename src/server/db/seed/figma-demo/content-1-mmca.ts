@@ -31,7 +31,7 @@ const pkg: ContentPackage = {
       title: "데이미언 허스트",
       about: "Damien Hirst. MMCA Seoul, B1 Galleries 3, 4, 5, 2F MMCA Studio and Seoul Box.",
       startDate: "2026-03-20",
-      endDate: "2026-06-28",
+      endDate: "2027-02-28", // Board: 2026-06-28 (ended); extended so it shows as on view.
       sentences: [
         "끝을 마주할 때, 우리는 삶의 모양을 더 선명하게 바라본다.",
         "과학은 생명을 설명하고, 믿음은 삶의 의미를 묻는다.",

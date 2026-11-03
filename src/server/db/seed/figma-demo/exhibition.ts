@@ -21,7 +21,8 @@ const uuid = (group: "8000" | "a000", n: number) => `00000000-0000-4000-${group}
 
 export function exhibitionFromBoard(b: Board): ContentPackage["exhibitions"][number] {
   const sentences = b.sentences.map((content, i) => ({ id: uuid("8000", b.idBase + 1 + i), content }));
-  const coverId = uuid("a000", b.idBase + 1);
+  // A changed image file needs a new id: +1 was the first, square cover; +3 is the 4:5 one.
+  const coverId = uuid("a000", b.idBase + 3);
   const detailId = uuid("a000", b.idBase + 2);
   const images = `src/server/db/seed/figma-demo/images/${b.code}`;
   return {
@@ -45,7 +46,7 @@ export function exhibitionFromBoard(b: Board): ContentPackage["exhibitions"][num
     playlist: null,
     sentences,
     images: [
-      { id: coverId, file: `${images}/cover.webp`, altText: b.coverAlt, width: 1200, height: 1200 },
+      { id: coverId, file: `${images}/cover.webp`, altText: b.coverAlt, width: 1200, height: 1500 },
       { id: detailId, file: `${images}/detail-1.webp`, altText: b.detailAlt, width: 1032, height: 990 },
     ],
     cover: 0,
