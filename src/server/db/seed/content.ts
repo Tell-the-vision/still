@@ -51,7 +51,7 @@ const exhibition = (
     description: describe(`About ${title}.`),
     guide: guideOf(list),
     startDate: "2026-01-01",
-    endDate: "2026-12-31",
+    endDate: "2030-12-31",
     status: "PUBLISHED",
     ambienceEnabled: true,
     playlist: null,

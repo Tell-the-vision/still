@@ -46,3 +46,34 @@ test("exhibition.list is public, cacheable and filtered by scope", async ({ requ
   expect(all.find((i: { code: string }) => i.code === "past-light").availability).toBe("ENDED");
   expect(all.map((i: { code: string }) => i.code)).not.toContain("draft-preview");
 });
+
+test("exhibition.list uses a short public cache without a long stale window", async ({ request }) => {
+  const list = await request.get(`/api/trpc/exhibition.list?input=${encodeURIComponent(JSON.stringify({}))}`);
+  const cache = list.headers()["cache-control"];
+  expect(cache).toContain("public");
+  expect(cache).toContain("s-maxage=300");
+  expect(cache).not.toContain("stale-while-revalidate");
+});
+
+test("the ON VIEW/ALL control exposes its selected state", async ({ page, next }) => {
+  await signedInHome(page, next);
+  const group = page.getByRole("radiogroup", { name: "Show exhibitions" });
+  await expect(group.getByRole("button", { name: "ON VIEW" })).toHaveAttribute("aria-pressed", "true");
+  await expect(group.getByRole("button", { name: "ALL" })).toHaveAttribute("aria-pressed", "false");
+  await group.getByRole("button", { name: "ALL" }).click();
+  await expect(group.getByRole("button", { name: "ALL" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test.describe("desktop guest", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("Home lists exhibitions under Login and an item opens its guide", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
+    await expect(page.getByRole("radiogroup", { name: "Show exhibitions" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Forms of Stillness/ })).toBeVisible();
+    await page.screenshot({ path: "/tmp/still-shots/home-review/guest-desktop-home.png" });
+    await page.getByRole("link", { name: /Quiet Rooms/ }).click();
+    await expect(page).toHaveURL(/\/e\/quiet-rooms$/);
+  });
+});

@@ -11,7 +11,7 @@ const pkg: ContentPackage = {
       description: { version: 1, blocks: [] },
       guide: null,
       startDate: "2026-01-01",
-      endDate: "2026-12-31",
+      endDate: "2030-12-31",
       status: "PUBLISHED",
       ambienceEnabled: false,
       playlist: null,

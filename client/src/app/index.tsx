@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { View } from "react-native";
 import { useMe, useUserState } from "../features/auth/use-me";
 import { track } from "../lib/analytics";
 import { Exhibitions } from "../features/home/Exhibitions";
@@ -33,13 +34,18 @@ export default function Home() {
     );
   }
   return (
-    <Screen header={false}>
+    <Screen header={false} width={wide ? "wide" : undefined}>
       <Stack centered gap="section">
         <Wordmark size="hero" />
         <Stack gap="section" align="flex-start">
           <TextAction label={homeStrings.login} href="/login?returnTo=/" variant="subhead" mark="square" />
           {!wide && <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="circle" />}
         </Stack>
+        {wide && (
+          <View style={{ alignSelf: "stretch" }}>
+            <Exhibitions />
+          </View>
+        )}
       </Stack>
     </Screen>
   );
