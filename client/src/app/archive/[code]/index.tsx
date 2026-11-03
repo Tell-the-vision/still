@@ -49,8 +49,7 @@ export default function ArchiveDetail() {
             <KeepsakeSection code={code} exhibition={archive.exhibition} />
           </Stack>
           <Rule />
-          <Text variant="caption">{archiveStrings.lastVisited}</Text>
-          <Text variant="action">{longDate(archive.lastVisitedAt)}</Text>
+          <Text variant="action">{archiveStrings.lastVisited(longDate(archive.lastVisitedAt))}</Text>
           <Text variant="label">{archiveStrings.actions}</Text>
           <DeleteArchive code={code} title={archive.exhibition.title} />
         </Stack>

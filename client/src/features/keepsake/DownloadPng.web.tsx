@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
 import { Stack } from "../../ui/Stack";
+import { useWide } from "../../ui/useWide";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { keepsakeStrings } from "./strings";
@@ -15,6 +16,7 @@ export function DownloadPng({ url, code }: { url: string; code: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
+  const wide = useWide();
   const canShareFiles = navigator.canShare?.({ files: [new File([], "still.png", { type: "image/png" })] }) === true;
 
   useEffect(() => {
@@ -36,10 +38,10 @@ export function DownloadPng({ url, code }: { url: string; code: string }) {
           disabled={file === null}
           onPress={() => file && navigator.share({ files: [file] }).catch(() => undefined)}
         />
-      ) : (
+      ) : wide ? null : (
         <>
           <Text variant="secondary">{strings.longPressHint}</Text>
-          <img src={url} alt="" style={{ width: "100%" }} />
+          <img src={url} alt="" style={{ width: "100%", maxWidth: "100%" }} />
         </>
       )}
       {failed && (

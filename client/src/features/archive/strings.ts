@@ -7,7 +7,7 @@ export const archiveStrings = {
   retry: "Retry",
   backLabel: "MY ARCHIVE",
   backName: "Back to My Archive",
-  lastVisited: "LAST VISITED",
+  lastVisited: (date: string) => `Last visited ${date}`,
   actions: "Archive actions",
   missingTitle: "Nothing here.",
   missing: "This archive doesn't exist or was deleted.",
