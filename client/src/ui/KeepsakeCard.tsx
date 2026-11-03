@@ -34,13 +34,12 @@ export function KeepsakeCard({ card, templateId, width = cardTokens.width }: { c
       }}
     >
       <Wordmark size="card" />
-      <Text variant="title">{exhibition.title}</Text>
-      <Text variant="secondary">{`${exhibition.venue.name} · ${exhibition.venue.city}`}</Text>
-      <Text variant="secondary">{`${exhibition.startDate} – ${exhibition.endDate}`}</Text>
       {image && <Artwork {...image} />}
+      <Text variant="title">{exhibition.title}</Text>
       {personal.map((text) => (
-        <Text key={text}>{text}</Text>
+        <Text key={text} variant="secondary">{text}</Text>
       ))}
+      <Text variant="caption">{`${exhibition.venue.city} / ${exhibition.startDate.slice(0, 4)}`}</Text>
     </View>
   );
 }

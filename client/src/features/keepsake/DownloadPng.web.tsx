@@ -4,6 +4,7 @@ import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
 import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
+import { TextAction } from "../../ui/TextAction";
 import { keepsakeStrings } from "./strings";
 
 const strings = keepsakeStrings.png;
@@ -27,7 +28,7 @@ export function DownloadPng({ url, code }: { url: string; code: string }) {
 
   return (
     <Stack>
-      <Button label={strings.download} variant="secondary" href={url} download onPress={() => track("keepsake_png_download", { exhibition_code: code })} />
+      <TextAction label={strings.download} leading="↓" href={url} download onPress={() => track("keepsake_png_download", { exhibition_code: code })} />
       {canShareFiles ? (
         <Button
           label={strings.share}

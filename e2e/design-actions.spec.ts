@@ -27,8 +27,8 @@ test("Creator: the selected template button is filled and swaps on click", async
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness" }).click();
   await page.getByRole("link", { name: "Create web card" }).click();
-  const sentence = page.getByRole("button", { name: "Sentence" });
-  const cover = page.getByRole("button", { name: "Cover" });
+  const sentence = page.getByRole("radio", { name: "Sentence" });
+  const cover = page.getByRole("radio", { name: "Cover" });
   await expect(sentence).toHaveCSS("background-color", "rgb(0, 0, 0)");
   await expect(cover).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await cover.click();

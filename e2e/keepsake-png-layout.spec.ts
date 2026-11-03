@@ -46,7 +46,7 @@ async function downloadWithCoverCard(page: Page, next: Parameters<typeof stubGoo
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "With Cover" }).click();
   await page.getByRole("link", { name: "Create web card" }).click();
-  await page.getByRole("button", { name: "Cover" }).click();
+  await page.getByRole("radio", { name: "Cover" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/with-cover$/);
   const downloading = page.waitForEvent("download");

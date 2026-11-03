@@ -21,7 +21,12 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await page.getByRole("link", { name: "Forms of Stillness" }).click();
   await page.getByRole("link", { name: "Create web card" }).click();
-  await page.getByRole("button", { name: "Reflection" }).click();
+  await expect(page.getByRole("radio", { name: "Sentence" })).toHaveAttribute("aria-checked", "true");
+  const cardBox = await page.getByLabel("Web card", { exact: true }).boundingBox();
+  const saveBox = await page.getByRole("button", { name: "Save Web Card" }).boundingBox();
+  expect(cardBox?.y).toBeLessThan(saveBox?.y ?? 0);
+  await expect(page.getByRole("button", { name: "Download PNG" })).toHaveAttribute("aria-disabled", "true");
+  await page.getByRole("radio", { name: "Reflection" }).click();
   await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText("Quiet light.");
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
@@ -31,7 +36,7 @@ test("a visitor creates a web card, then edits it", async ({ page, next }) => {
   await expect(page.getByLabel("Web card", { exact: true }).last()).toContainText(sentence);
 
   await page.getByRole("link", { name: "Edit web card" }).click();
-  await page.getByRole("button", { name: "Cover" }).click();
+  await page.getByRole("radio", { name: "Cover" }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   await expect(page.getByLabel("Web card", { exact: true }).last()).not.toContainText("Quiet light.");
@@ -51,9 +56,10 @@ test("a visitor picks sentences and an excerpt; the server checks the excerpt", 
   const scraps = (await trpcCall(page, "scrap.list", { code })).json.result.data as { content: string }[];
 
   await page.goto(`/archive/${code}/keepsake`);
-  await page.getByRole("button", { name: "Reflection" }).click();
-  await page.getByRole("button", { name: scraps[1].content }).click();
-  await page.getByRole("button", { name: "Second paragraph." }).click();
+  await page.getByRole("radio", { name: "Reflection" }).click();
+  await page.getByRole("checkbox", { name: scraps[1].content }).click();
+  await expect(page.getByRole("checkbox", { name: scraps[1].content })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "Second paragraph." }).click();
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
   const card = (await getKeepsake(page)).card;
@@ -71,3 +77,13 @@ test("a visitor picks sentences and an excerpt; the server checks the excerpt", 
 });
 
 const getKeepsake = async (page: Page) => (await trpcCall(page, "keepsake.get", { code })).json.result.data;
+
+test("a failed load shows a Retry notice", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await page.route(/keepsake\.get/, (route) => route.fulfill({ status: 500, json: [{ error: { message: "boom", code: -32603, data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 } } }] }));
+  await page.goto(`/archive/${code}/keepsake`);
+  await expect(page.getByText("Couldn't load the web card.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+});
