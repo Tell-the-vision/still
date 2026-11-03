@@ -20,5 +20,6 @@ RUN npm run build
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# Apply migrations and the idempotent content import, then serve.
-CMD ["sh", "-c", "npm run db:migrate && npm run db:seed && exec npx next start -H 0.0.0.0 -p 3000"]
+# Apply migrations, then serve. Content is imported by hand (npm run db:seed
+# in the container terminal), never on deploy.
+CMD ["sh", "-c", "npm run db:migrate && exec npx next start -H 0.0.0.0 -p 3000"]
