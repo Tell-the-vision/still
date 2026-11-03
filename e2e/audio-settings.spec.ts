@@ -12,7 +12,7 @@ test("No audio saved in Account hides the playlist on the Guide and persists", a
   await expect(page.getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("radio", { name: "No audio" }).click();
   await expect(page.getByRole("radio", { name: "No audio" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await expect(page.getByText("Saved")).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("radio", { name: "No audio" })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("link", { name: "ACCOUNT" }).first().click();

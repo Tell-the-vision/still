@@ -27,7 +27,7 @@ test("saving a journal records the AMBIENCE audioType", async ({ page, next }) =
   await openJournal(page, "quiet-rooms");
   await page.getByRole("textbox", { name: "Journal" }).fill("Soft hum.");
   await page.getByRole("button", { name: "Save Journal" }).click();
-  await expect(page.getByText("Saved", { exact: true }).first()).toBeVisible();
+  await expect(page).toHaveURL(/\/e\/quiet-rooms$/);
   const { json } = await trpcCall(page, "journal.get", { code: "quiet-rooms" });
   expect(json.result.data.audioType).toBe("AMBIENCE");
 });
@@ -36,11 +36,9 @@ test("a playlist exhibition shows the Spotify link and no switch on the journal"
   await openJournal(page, "forms-of-stillness");
   await expect(page.getByRole("link", { name: "EXTERNAL PLAYLIST · SPOTIFY" })).toBeVisible();
   await expect(page.getByRole("switch")).toHaveCount(0);
-  await expect(page.getByText("Pink Noise is user-controlled", { exact: false })).toHaveCount(0);
 });
 
 test("the Pink Noise caption shows with the switch on an ambience journal", async ({ page }) => {
   await openJournal(page, "quiet-rooms");
   await expect(page.getByRole("switch", { name: /Pink Noise/i })).toBeVisible();
-  await expect(page.getByText("Pink Noise is user-controlled", { exact: false })).toBeVisible();
 });

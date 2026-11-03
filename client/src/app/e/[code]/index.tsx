@@ -9,6 +9,7 @@ import { useMe } from "../../../features/auth/use-me";
 import { KeepsakePresence } from "../../../features/keepsake/KeepsakePresence";
 import { GuideHeader } from "../../../features/guide/GuideHeader";
 import { guideStrings } from "../../../features/guide/strings";
+import { useSavedLabel } from "../../../features/journal/last-saved";
 import { SentenceAction } from "../../../features/scrap/SentenceAction";
 import { track } from "../../../lib/analytics";
 import { STALE_TIME, useTRPC } from "../../../lib/trpc";
@@ -85,9 +86,11 @@ function JournalLink({ code }: { code: string }) {
   const trpc = useTRPC();
   const me = useMe();
   const { data: journal } = useQuery(trpc.journal.get.queryOptions({ code }, { enabled: !!me }));
+  const savedLabel = useSavedLabel(code);
   return (
-    <View style={{ alignItems: "center", paddingVertical: spacing.section / 2 }}>
+    <View style={{ alignItems: "center", gap: spacing.tight, paddingVertical: spacing.section / 2 }}>
       <TextAction label={journal ? guideStrings.yourJournal : guideStrings.writeJournal} trailing="→" variant="subhead" href={`/e/${code}/journal?from=guide`} />
+      {savedLabel && <Text variant="secondary">{savedLabel}</Text>}
     </View>
   );
 }

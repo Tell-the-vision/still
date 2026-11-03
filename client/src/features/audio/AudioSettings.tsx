@@ -17,7 +17,20 @@ export function AudioSettings() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { data } = useQuery(trpc.settings.get.queryOptions(undefined, { staleTime: STALE_TIME.personal }));
-  const update = useMutation(trpc.settings.update.mutationOptions({ onSuccess: (r) => queryClient.setQueryData(trpc.settings.get.queryKey(), r) }));
+  const key = trpc.settings.get.queryKey();
+  // The choice moves at once and rolls back if saving fails.
+  const update = useMutation(
+    trpc.settings.update.mutationOptions({
+      onMutate: async (input) => {
+        await queryClient.cancelQueries({ queryKey: key });
+        const previous = queryClient.getQueryData(key);
+        queryClient.setQueryData(key, (old) => (old ? { ...old, ...input } : old));
+        return { previous };
+      },
+      onError: (_error, _input, context) => queryClient.setQueryData(key, context?.previous),
+      onSuccess: (r) => queryClient.setQueryData(key, r),
+    }),
+  );
   return (
     <View style={styles.list}>
       {options.map(({ mode, label, hint }) => (
@@ -26,7 +39,6 @@ export function AudioSettings() {
           <Text variant="secondary">{hint}</Text>
         </View>
       ))}
-      {update.isSuccess ? <Notice message={audioStrings.saved} /> : null}
       {update.isError ? <Notice error message={audioStrings.saveFailed} /> : null}
     </View>
   );

@@ -11,9 +11,7 @@ export const audioStrings = {
   automaticHint: "Play the exhibition's playlist or ambience when offered.",
   silent: "No audio",
   silentHint: "Start every exhibition in silence.",
-  saved: "Saved",
   saveFailed: "Couldn't save your choice.",
   none: "NO AUDIO",
   noneHint: "Music already playing in other apps won't stop.",
-  journalCaption: "Pink Noise is user-controlled. Default: Off.",
 };
