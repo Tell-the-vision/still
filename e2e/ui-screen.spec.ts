@@ -47,7 +47,7 @@ test("signed-in Home keeps its sections together and the header rule clears the 
   await upserted;
   await page.goto("/");
   const tagline = await page.getByText("Your experiences, kept in one place.").boundingBox();
-  const next_ = await page.getByText("EXHIBITIONS", { exact: true }).boundingBox();
+  const next_ = await page.getByRole("button", { name: "ON VIEW" }).boundingBox();
   expect((next_?.y ?? Infinity) - ((tagline?.y ?? 0) + (tagline?.height ?? 0))).toBeLessThanOrEqual(48);
   const wordmark = await page.getByText("STILL.", { exact: true }).boundingBox();
   const ruleY = await page.getByText("STILL.", { exact: true }).evaluate((el) => {
@@ -58,9 +58,9 @@ test("signed-in Home keeps its sections together and the header rule clears the 
   expect(ruleY - ((wordmark?.y ?? 0) + (wordmark?.height ?? 0))).toBeGreaterThanOrEqual(16);
 });
 
-test("guest Home still centres the wordmark", async ({ page }) => {
+test("guest Home has the signed-in chrome: header wordmark, rule and exhibitions", async ({ page }) => {
   await page.goto("/");
-  const box = await page.getByText("STILL.", { exact: true }).boundingBox();
-  const height = page.viewportSize()?.height ?? 0;
-  expect(Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - height / 2)).toBeLessThanOrEqual(height * 0.15);
+  await expect(page.getByRole("link", { name: "STILL, home" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ON VIEW" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Forms of Stillness/ })).toBeVisible();
 });

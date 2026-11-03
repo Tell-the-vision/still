@@ -11,7 +11,7 @@ import { Pressable } from "react-native";
 import { Wordmark } from "./Wordmark";
 import { colors, focusRing, rule, spacing } from "./theme";
 
-type Props = { children: ReactNode; header?: boolean; tabs?: boolean; scroll?: boolean; width?: "reading" | "wide" };
+type Props = { children: ReactNode; header?: boolean; tabs?: boolean; scroll?: boolean; width?: "reading" | "wide"; headerEnd?: ReactNode };
 
 // Lets a child scroll its own position into view, e.g. after a login round trip (SPEC §2.2 Sign in 8).
 export const ScreenScrollContext = createContext<RefObject<ScrollViewInstance | null> | null>(null);
@@ -24,7 +24,7 @@ const WIDE_MAX_WIDTH = { reading: 720, wide: 1144 } as const;
 // `header` (default on) shows the wordmark over a rule; the wordmark links Home. On desktop web `tabs` render in the header;
 // `tabs` shows the bottom tab bar.
 // `scroll={false}` is for screens that bring their own list (a FlatList must not nest in a ScrollView).
-export function Screen({ children, header = true, tabs = false, scroll = true, width = "reading" }: Props) {
+export function Screen({ children, header = true, tabs = false, scroll = true, width = "reading", headerEnd }: Props) {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const wide = useWide();
   const canScan = useCanScan() && usePathname() !== "/scan";
@@ -44,6 +44,7 @@ export function Screen({ children, header = true, tabs = false, scroll = true, w
               </Link>
               <View style={styles.headerRight}>
                 {tabs && wide && <BottomNav placement="header" />}
+                {headerEnd}
                 {canScan && <QrScanLink />}
               </View>
             </View>
