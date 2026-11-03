@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Text } from "./Text";
 import { colors, control, focusRing, spacing } from "./theme";
+import { focusVisible } from "./focusVisible";
 
 type Props = { label: string; variant?: "primary" | "secondary"; disabled?: boolean; trailing?: string; selected?: boolean; download?: boolean } & (
   | { href: Href; onPress?: () => void }
@@ -28,7 +29,7 @@ export function Button({ label, variant = "primary", href, onPress, disabled = f
       disabled={disabled}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onFocus={() => setFocused(true)}
+      onFocus={() => setFocused(focusVisible())}
       onBlur={() => setFocused(false)}
       // Flattened because `Link asChild` forwards the style prop untouched.
       style={StyleSheet.flatten([styles.base, primary ? styles.primary : styles.secondary, focused && styles.focus, pressed && styles.pressed, disabled && styles.disabled])}

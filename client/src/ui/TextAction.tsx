@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Mark } from "./Mark";
 import { Text, type TextVariant } from "./Text";
 import { focusRing, spacing } from "./theme";
+import { focusVisible } from "./focusVisible";
 
 type Props = {
   label: string;
@@ -48,7 +49,7 @@ export function TextAction({ label, accessibilityLabel, variant = "action", tone
       hitSlop={12}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onFocus={() => setFocused(true)}
+      onFocus={() => setFocused(focusVisible())}
       onBlur={() => setFocused(false)}
       // Flattened because `Link asChild` forwards the style prop untouched.
       style={StyleSheet.flatten([focused && focusRing, pressed && styles.pressed])}

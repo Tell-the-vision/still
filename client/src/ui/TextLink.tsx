@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { Text } from "./Text";
 import { colors } from "./theme";
+import { focusVisible } from "./focusVisible";
 
 type Props = { href: Href; label: string; style?: StyleProp<ViewStyle>; selected?: boolean; variant?: "label" | "secondary" | "eyebrow" | "action" | "caption"; tone?: "primary" | "secondary"; target?: "_blank"; onPress?: () => void };
 
@@ -20,7 +21,7 @@ export function TextLink({ href, label, style, selected = false, variant = "labe
         aria-current={selected ? "page" : undefined}
         onPress={onPress}
         hitSlop={12}
-        onFocus={() => setFocused(true)}
+        onFocus={() => setFocused(focusVisible())}
         onBlur={() => setFocused(false)}
         // Flattened because `Link asChild` forwards the style prop untouched.
         style={StyleSheet.flatten([style, focused && styles.focus])}
