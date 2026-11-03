@@ -5,7 +5,7 @@ test("Guide: hierarchy, commentary section and journal link", async ({ page }) =
   await openGuide(page, "forms-of-stillness");
   await expect(page.getByText("EXHIBITION / 2026")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Forms of Stillness" })).toHaveCSS("font-size", "38px");
-  await expect(page.getByText("About the exhibition")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "About the exhibition" })).toHaveCSS("font-size", "18px");
   await expect(page.getByText("COMMENTARY GUIDE / COLLECT A LINE")).toBeVisible();
   await expect(page.getByText(/A room can hold its breath/)).toHaveCSS("font-family", /Montserrat/);
   await page.getByRole("link", { name: "Write a journal" }).click();
