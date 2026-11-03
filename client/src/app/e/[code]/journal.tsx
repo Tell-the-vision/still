@@ -11,7 +11,6 @@ import {
 } from "../../../features/auth/pending-action";
 import { takeGuestDraft, useDraft } from "../../../features/journal/drafts";
 import { useMe } from "../../../features/auth/use-me";
-import { announce } from "../../../features/journal/announce";
 import { journalStrings } from "../../../features/journal/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { Button } from "../../../ui/Button";
@@ -75,10 +74,11 @@ export default function Journal() {
 
   useEffect(() => {
     if (!done) return;
-    announce(journalStrings.announce);
     // Saving always lands on this exhibition's Archive Detail; from there, going back is the same place.
+    // dismissTo pops any journal screens (e.g. the one left under /login) so Back never reopens the editor.
+    // Archive Detail announces the save, since the screen change would cut an announcement made here.
     if (from === "archive" && router.canGoBack()) router.back();
-    else router.replace(`/archive/${code}`);
+    else router.dismissTo(`/archive/${code}?saved=1`);
   }, [done, from, code, router]);
 
   const [audioType, setAudioType] =

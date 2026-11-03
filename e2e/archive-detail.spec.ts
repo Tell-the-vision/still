@@ -63,6 +63,7 @@ test("Archive Detail leads with the keepsake card, which opens the editor", asyn
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
   await page.goto("/archive/forms-of-stillness");
   const card = page.getByRole("button", { name: "Your keepsake card — edit" });
+  await expect(page.getByText("Shows the card at full size.")).toHaveCount(0);
   const kept = (await trpcCall(page, "scrap.list", { code: "forms-of-stillness" })).json.result.data[0].content;
   await expect(card).toContainText("Forms of Stillness");
   await expect(card).toContainText(kept);

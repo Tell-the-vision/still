@@ -1,5 +1,8 @@
 export const keepsakeStrings = {
   band: "Your keepsake",
+  thumbLabel: "Your keepsake card",
+  thumbEditLabel: "Your keepsake card — edit",
+  thumbHint: "Opens the card editor.",
   placeholder: "Lines you keep appear here.",
   guestStatus: "This visit, on one card.",
   signIn: "Sign in to keep lines",

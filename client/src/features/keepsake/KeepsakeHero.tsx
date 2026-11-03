@@ -25,8 +25,8 @@ export function KeepsakeHero({ code, exhibition }: { code: string; exhibition: P
           templateId={k.templateId}
           placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined}
           entering={k.entering}
-          accessibilityLabel="Your keepsake card — edit"
-          accessibilityHint="Opens the card editor."
+          accessibilityLabel={strings.thumbEditLabel}
+          accessibilityHint={strings.thumbHint}
           onPress={open}
         />
       )}

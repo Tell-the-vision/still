@@ -55,7 +55,9 @@ test("the band opens the creator and Save returns to the guide showing Kept on",
   await openGuide(page, code);
   await page.getByRole("button", { name: "Keep this line" }).first().click();
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
-  await page.getByRole("button", { name: "Your keepsake card" }).click();
+  const thumb = page.getByRole("button", { name: "Your keepsake card", exact: true });
+  await expect(page.getByText("Shows the card at full size.")).toHaveCount(0);
+  await thumb.click();
   await expect(page).toHaveURL(/\/archive\/forms-of-stillness\/keepsake\?from=guide/);
   await page.getByRole("button", { name: "Save Web Card" }).click();
   await expect(page).toHaveURL(new RegExp(`/e/${code}$`));
@@ -72,4 +74,22 @@ test("the journal link ends the page, is centred and leads to the journal", asyn
   expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - width / 2)).toBeLessThanOrEqual(24);
   await link.click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness\/journal\?from=guide$/);
+});
+
+test.describe("desktop", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("the keepsake panel spans the same column as the listen row", async ({ page }) => {
+    await page.goto(`/e/${code}`);
+    const row = await page.getByRole("link", { name: /^Listen to .* on Spotify$/ }).boundingBox();
+    // The panel is the bordered box that holds the "Your keepsake" heading.
+    const panel = await page.getByText("Your keepsake", { exact: true }).evaluate((el) => {
+      let node: Element | null = el;
+      while (node && getComputedStyle(node).borderTopWidth !== "1px") node = node.parentElement;
+      const b = node!.getBoundingClientRect();
+      return { x: b.x, right: b.right };
+    });
+    expect(Math.abs(panel.x - row!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(panel.right - (row!.x + row!.width))).toBeLessThanOrEqual(1);
+  });
 });

@@ -25,6 +25,8 @@ test("saving a journal records the AMBIENCE audioType", async ({ page, next }) =
   await stubGoogle(page);
   await signIn(page);
   await openJournal(page, "quiet-rooms");
+  await page.getByRole("radio", { name: "Ambience" }).click();
+  await expect(page.getByRole("radio", { name: "Ambience" })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("textbox", { name: "Journal" }).fill("Soft hum.");
   await page.getByRole("button", { name: "Save Journal" }).click();
   // Saving lands on Archive Detail.
@@ -54,6 +56,8 @@ test("the journal sound options are one aligned radio group and the hint follows
   const [a, b] = [await ambience.boundingBox(), await none.boundingBox()];
   expect(a && b && a.x === b.x && a.width === b.width).toBe(true);
   await expect(none).toHaveCSS("border-top-width", "1px");
+  await expect(hint).toBeVisible();
+  await ambience.click();
   await expect(hint).toHaveCount(0);
   await none.click();
   await expect(none).toHaveAttribute("aria-checked", "true");
@@ -65,4 +69,27 @@ test("the journal sound options are one aligned radio group and the hint follows
   await ambience.click();
   await expect(ambience).toHaveAttribute("aria-checked", "true");
   await expect(hint).toHaveCount(0);
+});
+
+test("exactly one journal sound radio is checked at a time and pressing the checked one keeps it", async ({ page }) => {
+  await openJournal(page, "quiet-rooms");
+  const ambience = page.getByRole("radio", { name: "Ambience" });
+  const none = page.getByRole("radio", { name: "No audio" });
+  const hint = page.getByText("Music already playing in other apps won't stop.");
+  await expect(none).toHaveAttribute("aria-checked", "true");
+  await expect(ambience).toHaveAttribute("aria-checked", "false");
+  await expect(hint).toBeVisible();
+  await none.click();
+  await expect(none).toHaveAttribute("aria-checked", "true");
+  await ambience.click();
+  await expect(ambience).toHaveAttribute("aria-checked", "true");
+  await expect(none).toHaveAttribute("aria-checked", "false");
+  await expect(hint).toHaveCount(0);
+  await ambience.click();
+  await expect(ambience).toHaveAttribute("aria-checked", "true");
+  await expect(none).toHaveAttribute("aria-checked", "false");
+  await none.click();
+  await expect(none).toHaveAttribute("aria-checked", "true");
+  await expect(ambience).toHaveAttribute("aria-checked", "false");
+  await expect(hint).toBeVisible();
 });

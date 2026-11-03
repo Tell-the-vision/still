@@ -77,9 +77,10 @@ export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }
     );
   }
 
+  // The panel always spans the full column, so its edges line up with the listen row and the rules.
   return (
-    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "stretch", alignSelf: wide ? "flex-start" : "center", width: wide ? undefined : "100%", minWidth: wide ? 480 : undefined, borderWidth: 1, borderColor: colors.black, padding: spacing.gap }}>
-      <KeepsakeThumb scale={scale} card={k.card} templateId={k.templateId} placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined} entering={k.entering} onPress={open} />
+    <View style={{ flexDirection: "row", gap: spacing.gap, alignItems: "stretch", alignSelf: "stretch", borderWidth: 1, borderColor: colors.black, padding: spacing.gap }}>
+      <KeepsakeThumb scale={scale} card={k.card} templateId={k.templateId} placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined} entering={k.entering} accessibilityLabel={strings.thumbLabel} accessibilityHint={strings.thumbHint} onPress={open} />
       <View style={{ flex: 1, gap: spacing.tight, minHeight: thumbHeight(scale), justifyContent: "space-between" }}>
         <View style={{ gap: spacing.tight }}>
           <Text variant="subhead">{strings.band}</Text>
