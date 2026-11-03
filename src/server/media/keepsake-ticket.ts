@@ -7,9 +7,12 @@ const BUCKET_MS = 10 * 60_000;
 const payloadSchema = z.object({ userId: z.string(), archiveId: z.string(), updatedAt: z.string(), exp: z.number() });
 type Payload = z.infer<typeof payloadSchema>;
 
-const secret = process.env.KEEPSAKE_TICKET_SECRET;
-if (!secret) throw new Error("KEEPSAKE_TICKET_SECRET is not set");
-const sign = (body: string) => createHmac("sha256", secret).update(body).digest();
+// Read on use, not on import: `next build` loads route modules without runtime secrets.
+const sign = (body: string) => {
+  const secret = process.env.KEEPSAKE_TICKET_SECRET;
+  if (!secret) throw new Error("KEEPSAKE_TICKET_SECRET is not set");
+  return createHmac("sha256", secret).update(body).digest();
+};
 
 // SPEC §7.3: `exp` rounds up to a bucket so repeated reads in one bucket yield the same URL.
 export function issueTicket({ userId, archiveId, updatedAt }: Omit<Payload, "exp">) {
