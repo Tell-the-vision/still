@@ -18,7 +18,10 @@ test("Home shows the current exhibition and opens its guide", async ({ page, nex
   await visit(page, "forms-of-stillness");
   await page.goto("/");
   await expect(page.getByText("Forms of Stillness")).toBeVisible();
-  await expect(page.getByText("1 saved exhibitions")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back." })).toHaveCSS("font-size", "32px");
+  await expect(page.getByText("CONTINUE EXPLORING")).toBeVisible();
+  await expect(page.getByText("01", { exact: true })).toBeVisible();
+  await expect(page.getByText("saved exhibition", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Open Exhibition Guide" }).click();
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);
 });

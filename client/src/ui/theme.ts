@@ -6,6 +6,7 @@ export { card, colors, fontSize, spacing } from "./tokens";
 
 export const control = { height: 52, row: 42, tile: 56 };
 export const rule = 1;
+export const mark = { square: 20, circle: 22 };
 
 // Figma type scale (size / line height). Display faces are Montserrat, text faces DM Sans.
 export const type = {

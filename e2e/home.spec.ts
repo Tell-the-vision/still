@@ -3,6 +3,7 @@ import { expect, test } from "next/experimental/testmode/playwright";
 test("home shows the wordmark and entry links, and QR Scan navigates", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("STILL.", { exact: true })).toBeVisible();
+  await expect(page.getByText("STILL.", { exact: true })).toHaveCSS("font-size", "30px");
   await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
   await expect(page.getByRole("navigation")).toHaveCount(0);
   await page.getByRole("link", { name: "QR Scan" }).click();

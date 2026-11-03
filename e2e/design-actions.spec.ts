@@ -2,7 +2,7 @@ import { expect, test } from "next/experimental/testmode/playwright";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
 import { openGuide } from "./support/reach";
 
-test("Home: View all is a borderless text action; QR Scan fills the column", async ({ page, next }) => {
+test("Home: View all and QR Scan are borderless text actions", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
   await signIn(page);
@@ -12,10 +12,7 @@ test("Home: View all is a borderless text action; QR Scan fills the column", asy
   await page.goto("/");
   const viewAll = page.getByRole("link", { name: "View all" });
   await expect(viewAll).toHaveCSS("border-top-width", "0px");
-  const scan = await page.getByRole("link", { name: "QR Scan" }).boundingBox();
-  const column = await page.getByRole("link", { name: "Open Exhibition Guide" }).boundingBox();
-  expect(scan?.height).toBeGreaterThanOrEqual(52);
-  expect(Math.abs((scan?.width ?? 0) - (column?.width ?? -1))).toBeLessThanOrEqual(1);
+  await expect(page.getByRole("link", { name: "QR Scan" })).toHaveCSS("border-top-width", "0px");
   await viewAll.click();
   await expect(page.getByText("My Archive").first()).toBeVisible();
 });

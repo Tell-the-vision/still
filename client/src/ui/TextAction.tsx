@@ -1,13 +1,15 @@
 import { Link, type Href } from "expo-router";
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { Mark } from "./Mark";
 import { Text, type TextVariant } from "./Text";
-import { focusRing } from "./theme";
+import { focusRing, spacing } from "./theme";
 
 type Props = {
   label: string;
-  variant?: Extract<TextVariant, "action" | "secondary">;
+  variant?: Extract<TextVariant, "action" | "secondary" | "subhead">;
   tone?: "primary" | "secondary";
+  mark?: ComponentProps<typeof Mark>["shape"];
   leading?: string;
   trailing?: string;
   disabled?: boolean;
@@ -16,7 +18,7 @@ type Props = {
 } & ({ href: Href; onPress?: () => void } | { onPress: () => void; href?: undefined });
 
 // A borderless text action: a link with `href`, otherwise a button. `leading` and `trailing` are decorative glyphs.
-export function TextAction({ label, variant = "action", tone, leading, trailing, href, onPress, disabled = false, download, target }: Props) {
+export function TextAction({ label, variant = "action", tone, mark, leading, trailing, href, onPress, disabled = false, download, target }: Props) {
   const [focused, setFocused] = useState(false);
   // Tracked as state because a style function would break `Link asChild`.
   const [pressed, setPressed] = useState(false);
@@ -44,6 +46,7 @@ export function TextAction({ label, variant = "action", tone, leading, trailing,
       style={StyleSheet.flatten([focused && focusRing, pressed && styles.pressed])}
     >
       <View style={styles.row}>
+        {mark ? <Mark shape={mark} /> : null}
         {leading ? glyph(`${leading} `) : null}
         <Text variant={variant} tone={color}>
           {label}
@@ -56,6 +59,6 @@ export function TextAction({ label, variant = "action", tone, leading, trailing,
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row" },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.inset },
   pressed: { opacity: 0.6 },
 });
