@@ -5,16 +5,6 @@ STILL은 관람객의 기억이 머무는 공간을 지향합니다.
 
 [SPEC](https://github.com/Tell-the-vision/PRD/blob/main/docs/SPEC.md) · [AGENTS.md](./AGENTS.md)
 
-<table align="center">
-  <tr>
-    <td align="center"><img src=".github/readme/02-home.png" width="140" alt="Home" /><br /><sub>Home</sub></td>
-    <td align="center"><img src=".github/readme/04-exhibition-guide.png" width="140" alt="Exhibition Guide" /><br /><sub>Exhibition Guide</sub></td>
-    <td align="center"><img src=".github/readme/05-journal.png" width="140" alt="Journal" /><br /><sub>Journal</sub></td>
-    <td align="center"><img src=".github/readme/06-keepsake-view.png" width="140" alt="Keepsake" /><br /><sub>Keepsake</sub></td>
-    <td align="center"><img src=".github/readme/07-archive.png" width="140" alt="Archive" /><br /><sub>Archive</sub></td>
-  </tr>
-</table>
-
 ## 제품 컨셉
 
 **QR/URL → Exhibition Guide(로그인 시 Archive 등록) → Scrap · Journal → Archive Detail → Digital Keepsake(PNG)**
@@ -55,5 +45,8 @@ Audio(External Playlist / Pink Noise / NO AUDIO, P1)는 Guide와 Journal에 있�
 
 ```bash
 npm install
-npm run dev
+createdb still
+npm run db:reset   # drop, migrate, seed
+npm run dev        # export the Expo web build, then start Next
+E2E_PORT=3100 E2E_DB=still_e2e npm run e2e   # createdb still_e2e first
 ```
