@@ -1,7 +1,7 @@
 import { track } from "../../lib/analytics";
 import { useQuery } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { STALE_TIME, useTRPC } from "../../lib/trpc";
 import { useMe } from "../auth/use-me";
 import { Choice } from "../../ui/Choice";
@@ -24,10 +24,13 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
   const settings = useQuery(trpc.settings.get.queryOptions(undefined, { enabled: me !== null, staleTime: STALE_TIME.personal }));
   const choice = settings.data?.audioMode ?? "AUTO";
   const focused = useIsFocused();
-  const [muted, setMuted] = useState(false);
-  const [ambienceOn, setAmbienceOn] = useState(false);
+  // The one selection: PLAY is the offered audio, NONE is silence. Until the user picks, Ambience is off and a playlist is on.
+  const [picked, setPicked] = useState<"PLAY" | "NONE" | null>(null);
   const base = displayMode(choice, audio);
-  const mode = muted ? "NONE" : base;
+  const sound = picked ?? (base === "EXTERNAL" ? "PLAY" : "NONE");
+  const mode = sound === "NONE" ? "NONE" : base;
+  const play = useCallback(() => setPicked("PLAY"), []);
+  const silence = useCallback(() => setPicked("NONE"), []);
   useEffect(() => onModeChange?.(mode), [mode, onModeChange]);
   if (!base) return null;
   const playlist = audio.playlist;
@@ -40,16 +43,16 @@ export function AudioArea({ code, audio, screen, onModeChange }: Props) {
               role="button"
               href={playlist.url}
               target="_blank"
-              selected={!muted}
+              selected={sound === "PLAY"}
               label={playlist.provider === "SPOTIFY" ? audioStrings.listen.SPOTIFY : audioStrings.listen.APPLE_MUSIC}
               onPress={() => {
-                setMuted(false);
+                play();
                 track("audio_external_click", { provider: playlist.provider, exhibition_code: code });
               }}
             />
           )}
-          {base === "AMBIENCE" && focused && <AmbienceToggle code={code} forceOff={muted} onPlay={() => setMuted(false)} onChange={setAmbienceOn} />}
-          <Choice role="radio" label={audioStrings.none} selected={mode === "NONE" || (base === "AMBIENCE" && !ambienceOn)} onPress={() => setMuted(base === "NONE" ? false : !muted)} />
+          {base === "AMBIENCE" && focused && <AmbienceToggle code={code} selected={sound === "PLAY"} onSelect={play} onStop={silence} />}
+          <Choice role="radio" label={audioStrings.none} selected={sound === "NONE"} onPress={silence} />
         </View>
         {mode === "NONE" && <Text variant="secondary">{audioStrings.noneHint}</Text>}
       </Stack>
