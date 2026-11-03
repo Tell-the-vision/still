@@ -2,7 +2,7 @@ import { track } from "../../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { useWindowDimensions } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { clipExcerpt, sentenceLimit, templateDefaults } from "@still/shared/keepsake";
 import { useRequireLogin } from "../../../features/auth/require-login";
 import { keepsakeStrings as strings } from "../../../features/keepsake/strings";
@@ -18,6 +18,10 @@ import { Stack } from "../../../ui/Stack";
 import { Text } from "../../../ui/Text";
 import { TextAction } from "../../../ui/TextAction";
 import { card as cardTokens, spacing } from "../../../ui/theme";
+import { useWide } from "../../../ui/useWide";
+
+// Share of the window height the phone preview may take.
+const PHONE_PREVIEW_SHARE = 0.42;
 
 // Web card creator: pick a template, preview it live, save.
 export default function KeepsakeCreator() {
@@ -27,7 +31,8 @@ export default function KeepsakeCreator() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const wide = useWide();
   const enabled = Boolean(me);
   const archiveQuery = useQuery(trpc.archive.get.queryOptions({ code }, { enabled }));
   const scrapsQuery = useQuery(trpc.scrap.list.queryOptions({ code }, { enabled }));
@@ -88,12 +93,22 @@ export default function KeepsakeCreator() {
   const toggleSentence = (id: string) => setSentenceIds(shownIds.includes(id) ? shownIds.filter((i) => i !== id) : [...shownIds, id]);
   const full = shownIds.length >= limit;
   const countNote = limit === 1 ? (full ? strings.oneChosen : strings.chooseOne) : full ? strings.threeChosen : strings.chooseUpTo;
+  // On phones the whole card is scaled down like a thumbnail (not reflowed) so the layout choice shows in the first viewport.
+  const drawnWidth = Math.min(width - 2 * spacing.gutter, cardTokens.width);
+  const drawnHeight = drawnWidth / cardTokens.aspectRatio;
+  const scale = wide ? 1 : Math.min(1, (height * PHONE_PREVIEW_SHARE) / drawnHeight);
+  const previewWidth = drawnWidth * scale;
+  const previewHeight = drawnHeight * scale;
   return (
     <Screen tabs>
       <Stack>
         <Text variant="headline">{strings.heading}</Text>
         <Text variant="eyebrow">{strings.eyebrow}</Text>
-        <KeepsakeCard card={card} templateId={templateId} width={Math.min(width - 2 * spacing.gutter, cardTokens.width)} />
+        <View style={{ width: previewWidth, height: previewHeight, overflow: "hidden", alignSelf: "center" }}>
+          <View style={{ width: drawnWidth, height: drawnHeight, transform: [{ scale }], transformOrigin: "top left" }}>
+            <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} />
+          </View>
+        </View>
         <Text variant="label">{strings.layoutLabel}</Text>
         <Stack direction="row">
           {strings.templates.map((t) => (

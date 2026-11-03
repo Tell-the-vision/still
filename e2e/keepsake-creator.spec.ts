@@ -196,3 +196,17 @@ test("Reflection takes one sentence", async ({ page, next }) => {
   await trpcCall(page, "keepsake.upsert", { code, templateId: "reflection", sentenceIds: [id(1), id(2)] });
   expect((await getKeepsake(page)).card.sentences).toHaveLength(1);
 });
+
+test("on a phone the layout choice is visible without scrolling", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await openGuide(page, code);
+  await trpcCall(page, "scrap.upsert", { code, sentenceId: "00000000-0000-4000-8000-000000000001" });
+  await trpcCall(page, "journal.upsert", { code, content: "Quiet light.", audioType: null, revision: null });
+  await page.goto(`/archive/${code}/keepsake`);
+  await expect(page.getByText("Choose a layout", { exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("radio", { name: "Sentence" })).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: "/tmp/still-shots/creator/creator-390.png" });
+});
