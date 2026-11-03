@@ -2,6 +2,7 @@ import { Link, type Href } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { colors, focusRing, rule, spacing } from "./theme";
+import { focusVisible } from "./focusVisible";
 
 // A link cell for grids: a 1px black outline around its content, or bare when the content draws its own frame.
 export function Tile({ href, label, framed = true, children }: { href: Href; label: string; framed?: boolean; children: ReactNode }) {
@@ -11,7 +12,7 @@ export function Tile({ href, label, framed = true, children }: { href: Href; lab
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={label}
-        onFocus={() => setFocused(true)}
+        onFocus={() => setFocused(focusVisible())}
         onBlur={() => setFocused(false)}
         // Flattened because `Link asChild` forwards the style prop untouched.
         style={StyleSheet.flatten([styles.tile, framed && styles.framed, focused && focusRing])}

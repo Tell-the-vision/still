@@ -23,11 +23,26 @@ test("the tab bar marks the current tab and the ARCHIVE tab shows a focus ring",
   const account = page.getByRole("link", { name: "ACCOUNT" });
   const archive = page.getByRole("link", { name: "ARCHIVE", exact: true });
   await expect(home).toHaveAttribute("aria-current", "page");
+  // Keyboard focus shows the ring.
+  await page.keyboard.press("Shift");
   await archive.focus();
   await expect(archive).toHaveCSS("outline-style", "solid");
   await account.click();
   await expect(account).toHaveAttribute("aria-current", "page");
   await expect(home).not.toHaveAttribute("aria-current", "page");
+});
+
+test.describe("phone touch", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("tapping a tab leaves no focus ring behind", async ({ page, next }) => {
+    stubGoogleToken(next, newUser());
+    await stubGoogle(page);
+    await signIn(page);
+    await page.getByRole("link", { name: "ARCHIVE", exact: true }).tap();
+    await expect(page).toHaveURL(/\/archive$/);
+    await expect(page.getByRole("link", { name: "ARCHIVE", exact: true })).not.toHaveCSS("outline-style", "solid");
+  });
 });
 
 test("on a wide window a reading screen stays within 720px", async ({ page }) => {
