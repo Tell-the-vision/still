@@ -2,7 +2,7 @@ import { Text as RNText, StyleSheet, type TextProps } from "react-native";
 import { colors, fontFamily, type } from "./theme";
 
 export type TextVariant = keyof typeof type;
-const headings: TextVariant[] = ["display", "headline", "title", "subhead"];
+const headings: TextVariant[] = ["display", "headline", "title", "subhead", "lede"];
 const uppercase: TextVariant[] = ["eyebrow", "caption"];
 const grayByDefault: TextVariant[] = ["secondary", "eyebrow", "caption"];
 

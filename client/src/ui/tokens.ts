@@ -11,6 +11,7 @@ export const type = {
   headline: { face: "display", size: 32, line: 42 },
   title: { face: "display", size: 22, line: 29 },
   subhead: { face: "display", size: 18, line: 23.9 },
+  lede: { face: "display", size: 14, line: 18.6 },
   numeral: { face: "display", size: 36, line: 48 },
   quote: { face: "display", size: 14, line: 18.6 },
   body: { face: "body", size: 16, line: 24 },

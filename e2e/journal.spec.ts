@@ -11,6 +11,8 @@ test("a signed-in visitor writes a journal, then edits it", async ({ page, next 
   await expect(page).toHaveURL(/\/e\/forms-of-stillness\/journal$/);
   await expect(page.getByRole("heading", { name: "Your journal." })).toHaveCSS("font-size", "32px");
   await expect(page.getByText("Forms of Stillness", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText("Your one journal for this exhibition.")).toHaveCSS("font-size", "14px");
+  await expect(page.getByRole("button", { name: "Save Journal" })).toBeInViewport({ ratio: 1 });
   const field = page.getByRole("textbox", { name: "Journal" });
   expect((await field.boundingBox())?.height).toBeGreaterThanOrEqual(300);
   await expect(field).toHaveAttribute("placeholder", /^Write and revisit your thoughts here\./);
