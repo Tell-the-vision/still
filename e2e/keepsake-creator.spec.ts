@@ -78,6 +78,38 @@ test("a visitor picks sentences and an excerpt; the server checks the excerpt", 
 
 const getKeepsake = async (page: Page) => (await trpcCall(page, "keepsake.get", { code })).json.result.data;
 
+test("editing a web card starts from the saved picks", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await openGuide(page, code);
+  const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  await trpcCall(page, "scrap.upsert", { code, sentenceId: id(1) });
+  await trpcCall(page, "scrap.upsert", { code, sentenceId: id(2) });
+  await trpcCall(page, "journal.upsert", { code, content: "First paragraph.\nSecond paragraph.", audioType: null, revision: null });
+  const scraps = (await trpcCall(page, "scrap.list", { code })).json.result.data as { sentenceId: string; content: string }[];
+  // Not the default: the default is the first saved sentence.
+  await trpcCall(page, "keepsake.upsert", { code, templateId: "sentence", sentenceIds: [scraps[1].sentenceId] });
+
+  await page.goto(`/archive/${code}/keepsake`);
+  await expect(page.getByRole("checkbox", { name: scraps[1].content })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("checkbox", { name: scraps[0].content })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("link", { name: "Download PNG" })).toBeVisible();
+
+  // Changing only the layout keeps the picked sentence.
+  await page.getByRole("radio", { name: "Reflection" }).click();
+  await page.getByRole("radio", { name: "Second paragraph." }).click();
+  await page.getByRole("button", { name: "Save Web Card" }).click();
+  await expect(page).toHaveURL(/\/archive\/forms-of-stillness$/);
+  const card = (await getKeepsake(page)).card;
+  expect(card.sentences.map((s: { content: string }) => s.content)).toEqual([scraps[1].content]);
+  expect(card.journalExcerpt).toBe("Second paragraph.");
+
+  // Reopening shows the saved excerpt as picked.
+  await page.goto(`/archive/${code}/keepsake`);
+  await expect(page.getByRole("radio", { name: "Second paragraph." })).toHaveAttribute("aria-checked", "true");
+});
+
 test("a failed load shows a Retry notice", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);

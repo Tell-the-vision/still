@@ -37,10 +37,11 @@ export default function KeepsakeCreator() {
   const { data: journal } = journalQuery;
   const { data: saved } = savedQuery;
   const failed = [archiveQuery, scrapsQuery, journalQuery, savedQuery].filter((q) => q.isError);
+  // `undefined` means untouched: the picks then come from the saved card, so editing starts where it was left.
   const [picked, setPicked] = useState<string>();
-  const [sentenceIds, setSentenceIds] = useState<string[]>([]);
-  const [excerpt, setExcerpt] = useState<string>();
-  const changed = picked !== undefined || sentenceIds.length > 0 || excerpt !== undefined;
+  const [sentenceIds, setSentenceIds] = useState<string[]>();
+  const [excerpt, setExcerpt] = useState<string | null>();
+  const changed = picked !== undefined || sentenceIds !== undefined || excerpt !== undefined;
   const templateId = picked ?? saved?.templateId ?? "sentence";
   const save = useMutation(
     trpc.keepsake.upsert.mutationOptions({
@@ -63,9 +64,15 @@ export default function KeepsakeCreator() {
   if (!archive || !scraps || journal === undefined) return <Screen tabs>{null}</Screen>;
   const { exhibition } = archive;
   const defaults = templateDefaults(templateId, scraps, journal?.content ?? null);
+  // Saved picks that still exist: a sentence unsaved since, or an excerpt no longer in the journal, would fail the save.
+  const savedSentenceIds = (saved?.card.sentences ?? []).map((s) => s.sentenceId).filter((id) => scraps.some((s) => s.sentenceId === id));
+  const savedExcerpt = saved?.card.journalExcerpt;
+  const keptExcerpt = savedExcerpt && journal?.content.normalize("NFC").includes(savedExcerpt) ? savedExcerpt : null;
+  const chosenIds = sentenceIds ?? savedSentenceIds;
+  const chosenExcerpt = excerpt === undefined ? keptExcerpt : excerpt;
   const picks = {
-    sentenceIds: templateId !== "cover" && sentenceIds.length > 0 ? sentenceIds : undefined,
-    journalExcerpt: templateId === "reflection" ? excerpt : undefined,
+    sentenceIds: templateId !== "cover" && chosenIds.length > 0 ? chosenIds : undefined,
+    journalExcerpt: templateId === "reflection" ? (chosenExcerpt ?? undefined) : undefined,
   };
   const card = {
     exhibition,
@@ -74,7 +81,7 @@ export default function KeepsakeCreator() {
     journalExcerpt: picks.journalExcerpt ?? defaults.journalExcerpt,
   };
   const paragraphs = (journal?.content ?? "").split("\n").filter((p) => p.trim() !== "");
-  const toggleSentence = (id: string) => setSentenceIds((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]));
+  const toggleSentence = (id: string) => setSentenceIds(chosenIds.includes(id) ? chosenIds.filter((i) => i !== id) : [...chosenIds, id]);
   return (
     <Screen tabs>
       <Stack>
@@ -90,15 +97,15 @@ export default function KeepsakeCreator() {
         {templateId !== "cover" && (
           <Section label={strings.onTheCard}>
             <Stack gap="inset">
-              <Text variant="secondary">{sentenceIds.length >= 3 ? strings.threeChosen : strings.chooseUpTo}</Text>
+              <Text variant="secondary">{chosenIds.length >= 3 ? strings.threeChosen : strings.chooseUpTo}</Text>
               {scraps.map((s) => (
                 <Choice
                   key={s.sentenceId}
                   label={s.content}
                   role="checkbox"
                   textVariant="action"
-                  selected={sentenceIds.includes(s.sentenceId)}
-                  disabled={!sentenceIds.includes(s.sentenceId) && sentenceIds.length >= 3}
+                  selected={chosenIds.includes(s.sentenceId)}
+                  disabled={!chosenIds.includes(s.sentenceId) && chosenIds.length >= 3}
                   onPress={() => toggleSentence(s.sentenceId)}
                 />
               ))}
@@ -106,7 +113,7 @@ export default function KeepsakeCreator() {
                 <>
                   <Text variant="label">{strings.excerptHeading}</Text>
                   {paragraphs.map((p) => (
-                    <Choice key={p} label={p} role="radio" selected={p === excerpt} onPress={() => setExcerpt(p === excerpt ? undefined : p)} />
+                    <Choice key={p} label={p} role="radio" selected={p === chosenExcerpt} onPress={() => setExcerpt(p === chosenExcerpt ? null : p)} />
                   ))}
                 </>
               )}
