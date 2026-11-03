@@ -45,7 +45,7 @@ export default function ArchiveDetail() {
           {archive.exhibition.coverImage && <Artwork {...archive.exhibition.coverImage} caption={archiveStrings.exhibition} />}
           <Rule />
           <Section label={archiveStrings.collection}>
-            <Stack>
+            <Stack gap="section">
               <ScrapSection code={code} />
               <JournalSection code={code} />
               <KeepsakeSection code={code} />

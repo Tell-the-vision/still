@@ -25,6 +25,25 @@ test("an archive card opens its detail", async ({ page, next }) => {
   expect((await trpcCall(page, "archive.get", { code: "no-such" })).status).toBe(404);
 });
 
+test("collection groups are separated and the journal excerpt is small", async ({ page, next }) => {
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
+  await openGuide(page, "forms-of-stillness");
+  await page.getByRole("button", { name: "＋ Save this guide sentence" }).first().click();
+  await expect(page.getByText("Saved", { exact: true })).toHaveCount(1);
+  await page.getByRole("link", { name: "Write a journal" }).click();
+  await page.getByRole("textbox", { name: "Journal" }).fill("Quiet light.");
+  const saved = page.waitForResponse(/journal\.upsert/);
+  await page.getByRole("button", { name: "Save Journal" }).click();
+  await saved;
+  await page.goto("/archive/forms-of-stillness");
+  const unsave = await page.getByRole("button", { name: "Unsave" }).boundingBox();
+  const journal = await page.getByRole("heading", { name: "01 journal · editable" }).boundingBox();
+  expect(journal && unsave && journal.y - (unsave.y + unsave.height)).toBeGreaterThanOrEqual(32);
+  await expect(page.getByText("Quiet light.")).toHaveCSS("font-size", "13px");
+});
+
 test("an unknown archive shows a quiet empty state", async ({ page, next }) => {
   stubGoogleToken(next, newUser());
   await stubGoogle(page);
