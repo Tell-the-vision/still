@@ -1,10 +1,11 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { FlatList, StyleSheet } from "react-native";
+import { FlatList, View } from "react-native";
 import { ArchiveCard } from "../../features/archive/ArchiveCard";
 import { archiveStrings } from "../../features/archive/strings";
 import { useRequireLogin } from "../../features/auth/require-login";
 import { useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
+import { Frame } from "../../ui/Frame";
 import { Notice } from "../../ui/Notice";
 import { Screen } from "../../ui/Screen";
 import { Stack } from "../../ui/Stack";
@@ -20,17 +21,21 @@ export default function Archive() {
   );
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const totalSize = data?.pages[0]?.totalSize ?? 0;
+  const header = (
+    <View style={{ gap: spacing.inset, marginBottom: spacing.gutter }}>
+      <Text variant="headline">{archiveStrings.heading}</Text>
+      <Text variant="eyebrow">{archiveStrings.count(totalSize)}</Text>
+    </View>
+  );
   return (
     <Screen tabs headerRight scroll={false}>
-      {me && error && (
-        <Stack>
-          <Notice error message={archiveStrings.error} />
-          <Button label={archiveStrings.retry} onPress={() => refetch()} />
-        </Stack>
-      )}
+      {me && error && <Notice error message={archiveStrings.error} action={{ label: archiveStrings.retry, onPress: () => refetch() }} />}
       {me && data && items.length === 0 && (
-        <Stack centered>
-          <Text>{archiveStrings.empty}</Text>
+        <Stack>
+          {header}
+          <Frame aspectRatio={3 / 4}>
+            <Text variant="secondary">{archiveStrings.empty}</Text>
+          </Frame>
           <Button label={archiveStrings.scan} href="/scan" />
         </Stack>
       )}
@@ -39,19 +44,13 @@ export default function Archive() {
           data={items}
           numColumns={2}
           keyExtractor={(item) => item.exhibition.code}
-          columnWrapperStyle={styles.row}
+          columnWrapperStyle={{ gap: spacing.gap }}
+          contentContainerStyle={{ gap: spacing.section }}
           renderItem={({ item }) => <ArchiveCard archive={item} />}
           onEndReached={() => hasNextPage && fetchNextPage()}
-          ListHeaderComponent={
-            <>
-              <Text variant="title">{archiveStrings.heading}</Text>
-              <Text variant="label">{archiveStrings.count(totalSize)}</Text>
-            </>
-          }
+          ListHeaderComponent={header}
         />
       )}
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({ row: { gap: spacing.gap } });

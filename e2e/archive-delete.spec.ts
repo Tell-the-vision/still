@@ -23,7 +23,7 @@ test("deleting an archive removes it and a new visit recreates it", async ({ pag
   await page.getByRole("button", { name: "Delete this Archive" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page).toHaveURL(/\/archive$/);
-  await expect(page.getByText("No archives yet.").last()).toBeVisible();
+  await expect(page.getByText("Exhibitions you open appear here, with the lines you saved and your journal.").last()).toBeVisible();
   expect((await trpcCall(page, "archive.get", { code: "forms-of-stillness" })).json.result.data).toBeNull();
 
   await visit();
