@@ -9,11 +9,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.still.placeholder",
+      "bundleIdentifier": "gdg.still.app",
       "associatedDomains": ["applinks:team2.gdgoc-devfest.org"]
     },
     "android": {
-      "package": "app.still.placeholder",
+      "package": "gdg.still.app",
       "intentFilters": [
         {
           "action": "VIEW",

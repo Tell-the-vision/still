@@ -10,7 +10,7 @@ export function GET() {
       relation: ["delegate_permission/common.handle_all_urls"],
       target: {
         namespace: "android_app",
-        package_name: process.env.ANDROID_PACKAGE ?? "app.still.placeholder",
+        package_name: process.env.ANDROID_PACKAGE ?? "gdg.still.app",
         sha256_cert_fingerprints: fingerprints,
       },
     },
