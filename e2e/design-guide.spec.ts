@@ -15,6 +15,6 @@ test("Guide: hierarchy, commentary section and journal link", async ({ page }) =
 test("Guide: an unknown exhibition offers a way back to QR Scan", async ({ page }) => {
   await openGuide(page, "no-such");
   await expect(page.getByRole("heading", { name: "Not available." })).toBeVisible();
-  await page.getByRole("link", { name: "QR Scan" }).click();
+  await page.getByRole("link", { name: "QR Scan" }).last().click();
   await expect(page).toHaveURL(/\/scan/);
 });

@@ -11,10 +11,12 @@ import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { spacing } from "../../ui/theme";
 import { useWide } from "../../ui/useWide";
+import { useCanScan } from "../../ui/useCanScan";
 
 // My Archive 07: two-column grid, most recently visited first, loading further pages on scroll.
 export default function Archive() {
   const wide = useWide();
+  const canScan = useCanScan();
   const me = useRequireLogin("/archive");
   const trpc = useTRPC();
   const { data, error, refetch, hasNextPage, fetchNextPage } = useInfiniteQuery(
@@ -36,7 +38,7 @@ export default function Archive() {
           {header}
           <Text variant="subhead">{archiveStrings.emptyTitle}</Text>
           <Text variant="secondary">{archiveStrings.empty}</Text>
-          {!wide && <Button label={archiveStrings.scan} href="/scan" />}
+          {canScan && <Button label={archiveStrings.scan} href="/scan" />}
         </Stack>
       )}
       {me && items.length > 0 && (

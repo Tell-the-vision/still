@@ -1,6 +1,5 @@
 import { expect, test } from "next/experimental/testmode/playwright";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
-import { openGuide } from "./support/reach";
 
 // The chromium default window is desktop-wide; these tests cover the phone layout.
 test.use({ viewport: { width: 390, height: 844 } });
@@ -10,7 +9,7 @@ test("My Archive lists visited exhibitions", async ({ page, next }) => {
   await stubGoogle(page);
   await signIn(page);
   const upserted = page.waitForResponse(/archive\.upsert/);
-  await openGuide(page, "forms-of-stillness");
+  await page.goto("/e/forms-of-stillness");
   await upserted;
   await page.goto("/");
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
@@ -31,11 +30,12 @@ test("an empty archive points to QR Scan", async ({ page, next }) => {
   await page.getByRole("link", { name: "ARCHIVE", exact: true }).click();
   await expect(page.getByText("00 EXPERIENCES")).toBeVisible();
   await expect(page.getByText("Nothing kept yet.")).toBeVisible();
-  const scan = page.getByRole("link", { name: "QR Scan" });
+  // The header link and the empty-state action both lead to the scanner; the action is the one under test.
+  const scan = page.getByRole("link", { name: "QR Scan" }).last();
   await expect(scan).toBeInViewport();
   expect((await scan.boundingBox())?.y).toBeLessThan(400);
   await expect(page.getByText("Exhibitions you open appear here, with the lines you saved and your journal.")).toBeVisible();
-  await page.getByRole("link", { name: "QR Scan" }).click();
+  await scan.click();
   await expect(page).toHaveURL(/\/scan$/);
   await expect(page.getByText("Scan to enter.")).toBeVisible();
 });
@@ -46,7 +46,7 @@ test("on desktop the archive grid has uses the wide column", async ({ page, next
   await signIn(page);
   // Desktop web has no QR entry points, so the visit happens on the phone viewport first.
   const upserted = page.waitForResponse(/archive\.upsert/);
-  await openGuide(page, "forms-of-stillness");
+  await page.goto("/e/forms-of-stillness");
   await upserted;
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/archive");

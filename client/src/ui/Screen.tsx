@@ -2,8 +2,11 @@ import { createContext, useRef, type ReactNode, type RefObject } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, type ScrollViewInstance, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "./BottomNav";
+import { TextLink } from "./TextLink";
+import { uiStrings } from "./strings";
+import { useCanScan } from "./useCanScan";
 import { useWide } from "./useWide";
-import { Link } from "expo-router";
+import { Link, usePathname } from "expo-router";
 import { Pressable } from "react-native";
 import { Wordmark } from "./Wordmark";
 import { colors, rule, spacing } from "./theme";
@@ -24,30 +27,38 @@ const WIDE_MAX_WIDTH = { reading: 720, wide: 1144 } as const;
 export function Screen({ children, header = true, tabs = false, scroll = true, width = "reading" }: Props) {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const wide = useWide();
+  const canScan = useCanScan() && usePathname() !== "/scan";
+  // The scroll container spans the window so the wheel scrolls over the margins; the header and body share this centred column.
+  const column = { width: "100%", maxWidth: wide ? WIDE_MAX_WIDTH[width] : COLUMN_MAX_WIDTH, alignSelf: "center" } as const;
   return (
     <SafeAreaView style={styles.root}>
-      <View style={[styles.column, wide && { maxWidth: WIDE_MAX_WIDTH[width] }]}>
+      <>
         <KeyboardAvoidingView behavior={Platform.OS === "web" ? undefined : "padding"} style={styles.fill}>
           {header && (
+            <View style={column}>
             <View style={styles.header}>
               <Link href="/" asChild>
                 <Pressable accessibilityRole="link" accessibilityLabel="STILL, home" hitSlop={8}>
                   <Wordmark size="header" />
                 </Pressable>
               </Link>
-              {tabs && wide && <BottomNav placement="header" />}
+              <View style={styles.headerRight}>
+                {tabs && wide && <BottomNav placement="header" />}
+                {canScan && <TextLink href="/scan" label={uiStrings.qrScan} variant="eyebrow" tone="secondary" />}
+              </View>
+            </View>
             </View>
           )}
           {scroll ? (
-            <ScrollView ref={scrollRef} style={styles.fill} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={scrollRef} style={styles.fill} contentContainerStyle={[styles.content, column]} keyboardShouldPersistTaps="handled">
               <ScreenScrollContext.Provider value={scrollRef}>{children}</ScreenScrollContext.Provider>
             </ScrollView>
           ) : (
-            <View style={styles.body}>{children}</View>
+            <View style={[styles.body, column]}>{children}</View>
           )}
         </KeyboardAvoidingView>
-        {tabs && !wide && <BottomNav />}
-      </View>
+        {tabs && !wide && <View style={column}><BottomNav /></View>}
+      </>
     </SafeAreaView>
   );
 }
@@ -56,8 +67,8 @@ const content = { paddingHorizontal: spacing.gutter, paddingTop: spacing.content
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  column: { flex: 1, width: "100%", maxWidth: COLUMN_MAX_WIDTH, alignSelf: "center" },
   fill: { flex: 1 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.section },
   header: {
     flexDirection: "row",
     alignItems: "center",

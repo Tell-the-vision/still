@@ -55,7 +55,8 @@ export default function KeepsakeCreator() {
         track("keepsake_save", { exhibition_code: code, template_id: variables.templateId, source: fromGuide ? "guide" : "archive" });
         queryClient.setQueryData(trpc.keepsake.get.queryKey({ code }), r.keepsake);
         if (r.created) void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
-        router.replace(fromGuide ? `/e/${code}` : `/archive/${code}`);
+        if (router.canGoBack()) router.back();
+        else router.replace(fromGuide ? `/e/${code}` : `/archive/${code}`);
       },
     }),
   );
