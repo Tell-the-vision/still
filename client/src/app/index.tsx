@@ -41,7 +41,7 @@ export default function Home() {
         <Wordmark size="hero" />
         <Stack gap="section" align="flex-start">
           <TextAction label={homeStrings.login} href="/login?returnTo=/" variant="subhead" mark="square" />
-          {canScan && <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="circle" />}
+          {canScan && <TextAction label={homeStrings.scan} href="/scan" variant="subhead" mark="qr" />}
         </Stack>
         {wide && (
           <View style={{ alignSelf: "stretch" }}>

@@ -1,15 +1,15 @@
-import { createContext, useRef, type ReactNode, type RefObject } from "react";
+import { createContext, useRef, useState, type ReactNode, type RefObject } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, type ScrollViewInstance, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "./BottomNav";
-import { TextLink } from "./TextLink";
+import { QrIcon } from "./QrIcon";
 import { uiStrings } from "./strings";
 import { useCanScan } from "./useCanScan";
 import { useWide } from "./useWide";
 import { Link, usePathname } from "expo-router";
 import { Pressable } from "react-native";
 import { Wordmark } from "./Wordmark";
-import { colors, rule, spacing } from "./theme";
+import { colors, focusRing, rule, spacing } from "./theme";
 
 type Props = { children: ReactNode; header?: boolean; tabs?: boolean; scroll?: boolean; width?: "reading" | "wide" };
 
@@ -44,7 +44,7 @@ export function Screen({ children, header = true, tabs = false, scroll = true, w
               </Link>
               <View style={styles.headerRight}>
                 {tabs && wide && <BottomNav placement="header" />}
-                {canScan && <TextLink href="/scan" label={uiStrings.qrScan} variant="eyebrow" tone="secondary" />}
+                {canScan && <QrScanLink />}
               </View>
             </View>
             </View>
@@ -63,11 +63,31 @@ export function Screen({ children, header = true, tabs = false, scroll = true, w
   );
 }
 
+// The header entry to /scan: icon only, with a 44×44 hit area.
+function QrScanLink() {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Link href="/scan" asChild>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={uiStrings.qrScan}
+        {...(Platform.OS === "web" && { title: uiStrings.qrScan })}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={StyleSheet.flatten([styles.qrLink, focused && focusRing])}
+      >
+        <QrIcon size={20} />
+      </Pressable>
+    </Link>
+  );
+}
+
 const content = { paddingHorizontal: spacing.gutter, paddingTop: spacing.contentTop, paddingBottom: spacing.section, gap: spacing.gap };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
   fill: { flex: 1 },
+  qrLink: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginVertical: -12, marginRight: -12 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.section },
   header: {
     flexDirection: "row",
