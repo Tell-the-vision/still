@@ -8,6 +8,7 @@ import { useRequireLogin } from "../../../features/auth/require-login";
 import { keepsakeStrings as strings } from "../../../features/keepsake/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { DownloadPng } from "../../../features/keepsake/DownloadPng";
+import { KeepsakeActions } from "../../../features/keepsake/KeepsakeActions";
 import { Button } from "../../../ui/Button";
 import { Choice } from "../../../ui/Choice";
 import { KeepsakeCard } from "../../../ui/KeepsakeCard";
@@ -146,11 +147,13 @@ export default function KeepsakeCreator() {
         {save.isError && <Notice error message={strings.failed} />}
         <Stack>
         <Button label={strings.save} onPress={() => save.mutate({ code, templateId, ...picks })} />
-        {saved && !changed ? (
-          <DownloadPng code={code} url={saved.png.url} />
-        ) : (
-          <TextAction label={strings.png.download} leading="↓" disabled onPress={() => undefined} />
-        )}
+        <KeepsakeActions align="start">
+          {saved && !changed ? (
+            <DownloadPng code={code} url={saved.png.url} />
+          ) : (
+            <TextAction label={strings.png.download} leading="↓" disabled onPress={() => undefined} />
+          )}
+        </KeepsakeActions>
         </Stack>
       </Stack>
     </Screen>

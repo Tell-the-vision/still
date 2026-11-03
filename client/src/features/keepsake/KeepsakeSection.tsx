@@ -8,6 +8,7 @@ import { Notice } from "../../ui/Notice";
 import { Stack } from "../../ui/Stack";
 import { TextAction } from "../../ui/TextAction";
 import { DownloadPng } from "./DownloadPng";
+import { KeepsakeActions } from "./KeepsakeActions";
 import { KeepsakePresence } from "./KeepsakePresence";
 import { keepsakeQueryOptions } from "./keepsakeQuery";
 import { keepsakeStrings } from "./strings";
@@ -33,10 +34,10 @@ export function KeepsakeSection({ code, exhibition }: { code: string; exhibition
     <Stack>
         <KeepsakePresence code={code} exhibition={exhibition} hasGuide where="archive" />
         {keepsake && (
-          <Stack direction="row" gap="section" justify="center">
+          <KeepsakeActions align="center">
             <DownloadPng code={code} url={keepsake.png.url} />
             <TextAction label={keepsakeStrings.delete} tone="secondary" onPress={() => setConfirming(true)} />
-          </Stack>
+          </KeepsakeActions>
         )}
         {remove.isError && <Notice error message={keepsakeStrings.deleteFailed} />}
         <Dialog visible={confirming} onClose={() => setConfirming(false)} label={keepsakeStrings.delete} body={keepsakeStrings.dialogBody}>
