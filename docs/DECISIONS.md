@@ -37,7 +37,7 @@
 | 삭제 정책 | 아티스트 삭제 = 소프트(방문자 Archive 유지). 관리자만 완전 삭제(연쇄 삭제) | `/api/admin/exhibitions/{id}` DELETE |
 | 정지(SUSPENDED) | 로그인은 되나 쓰기 API 전부 403, 아티스트의 전시는 공개 조회에서 제외(데이터는 그대로) | `requireUser()`, `isPubliclyVisible()` |
 | 가이드 수정과 Scrap | 문장 내용이 같으면 id 유지, 삭제된 문장의 Scrap은 `guide_sentence_id=NULL` + 스냅샷 유지 | `replaceGuide()` |
-| 이미지 저장 | DB `bytea` (클라이언트에서 1600px JPEG로 축소 후 업로드, ≤3MB). Vercel + 호스팅 Postgres에서 동작. 트래픽 커지면 S3/Vercel Blob으로 교체 | `/api/images` |
+| 이미지 저장 | **Cloudflare R2**(팀 결정) — `R2_*` + `MEDIA_BASE_URL`이 있으면 버킷에 올리고 공개 도메인 URL을 저장. 없으면 DB `bytea` 폴백(로컬 개발). 클라이언트에서 1600px JPEG로 축소 후 업로드, ≤3MB. R2 쪽에 앱 origin에 대한 CORS(GET) 허용 필요(웹카드 PNG 내보내기) | `src/lib/storage.ts`, `/api/images` |
 | slug | 제목에서 ASCII slug 생성(한글 제목은 `ex-xxxxxx`), 생성 후 불변(인쇄된 QR 보호) | `uniqueSlug()` |
 | 좋아요 | 사용자당 전시당 1개, 토글, 공개 카운트 | `exhibition_likes` |
 | 신고 | 사유 4종 + 상세(기타는 필수). 사용자당 전시당 미처리 신고 1개. 본인 전시 신고 불가 | `createReport()` |

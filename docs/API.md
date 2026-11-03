@@ -107,8 +107,8 @@ PNG 내보내기는 서버 엔드포인트가 아니라 클라이언트(`src/lib
 | PUT | `/api/artist/exhibitions/{id}` | 부분 수정 (POST와 같은 body). `guide`를 보내면 전체 교체하되 문장 내용이 같으면 id 유지 → 방문자 Scrap 연결 보존 |
 | POST | `/api/artist/exhibitions/{id}/status` `{ status: ACTIVE\|DRAFT }` | 공개 / 비공개. 공개하려면 해설 문장 1개 이상. HIDDEN은 소유자가 못 풂 |
 | DELETE | `/api/artist/exhibitions/{id}` | 소프트 삭제 (`status=DELETED`) |
-| POST | `/api/images` (multipart `file`, jpeg/png/webp ≤ 3MB) | 이미지 업로드 → `{ id, url: /api/images/{id} }` (Postgres `bytea`로 저장되므로 Vercel에서도 동작) |
-| GET | `/api/images/{id}` | 이미지 서빙 (공개, 캐시 1년) |
+| POST | `/api/images` (multipart `file`, jpeg/png/webp ≤ 3MB) | 이미지 업로드 → `{ id, url, storage: "r2" \| "db" }`. R2가 설정돼 있으면 버킷에 올리고 `url`은 `MEDIA_BASE_URL/covers/…` 공개 주소, 아니면 DB(`bytea`)에 저장하고 `url: /api/images/{id}` |
+| GET | `/api/images/{id}` | DB 저장 이미지 서빙 (공개, 캐시 1년) |
 
 ## Admin (ADMIN 전용, 아니면 403)
 

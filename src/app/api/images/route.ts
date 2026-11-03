@@ -2,14 +2,17 @@ import { db } from "@/db";
 import { images } from "@/db/schema";
 import { handler, HttpError, ok, requireUser } from "@/lib/api";
 import { isArtist } from "@/lib/api";
+import { objectKey, putObject, r2Enabled } from "@/lib/storage";
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3 MB (client resizes before upload)
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 /**
  * POST /api/images  (multipart/form-data, field "file")
- * Stores the image in the database and returns { id, url }.
- * Artists and admins only (cover images for exhibitions).
+ * Stores the image and returns { id, url }. With R2 configured (see
+ * lib/storage.ts) the file goes to the bucket and `url` is its public
+ * MEDIA_BASE_URL address; otherwise it is kept in the database and served
+ * from /api/images/{id}. Artists and admins only (exhibition cover images).
  */
 export const POST = handler(async (req) => {
   const user = await requireUser();
@@ -29,9 +32,20 @@ export const POST = handler(async (req) => {
   const bytes = Buffer.from(await file.arrayBuffer());
   const width = Number(form.get("width")) || null;
   const height = Number(form.get("height")) || null;
+
+  if (r2Enabled) {
+    const key = objectKey("covers", file.type);
+    try {
+      const stored = await putObject(key, bytes, file.type);
+      return ok({ id: key, url: stored.url, storage: "r2" }, 201);
+    } catch (err) {
+      console.error("[still] R2 upload failed, falling back to database storage:", err);
+    }
+  }
+
   const [row] = await db
     .insert(images)
     .values({ ownerId: user.id, mimeType: file.type, bytes, size: bytes.length, width, height })
     .returning({ id: images.id });
-  return ok({ id: row.id, url: `/api/images/${row.id}` }, 201);
+  return ok({ id: row.id, url: `/api/images/${row.id}`, storage: "db" }, 201);
 });

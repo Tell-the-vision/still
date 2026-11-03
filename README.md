@@ -217,7 +217,7 @@ src/
    npm run setup        # drizzle-kit push + seed → 원격 DB에 테이블·샘플 전시 3개
    ```
    끝나면 `DATABASE_URL`을 다시 `file:./data/pg`로 돌려 두세요 (로컬 개발은 각자 로컬 DB).
-3. Vercel에 레포 연결(Git 연동 — 아래 참고), 환경변수 입력: `DATABASE_URL`, `AUTH_SECRET`(배포 환경 필수, 32자 이상 랜덤), `NEXT_PUBLIC_APP_URL=https://<도메인>`, `ADMIN_EMAILS=<관리자 이메일>`, 그리고 `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` 또는 데모용 `ENABLE_DEV_LOGIN=true`
+3. Vercel에 레포 연결(Git 연동 — 아래 참고), 환경변수 입력: `DATABASE_URL`, `AUTH_SECRET`(배포 환경 필수, 32자 이상 랜덤), `NEXT_PUBLIC_APP_URL=https://<도메인>`, `ADMIN_EMAILS=<관리자 이메일>`, 그리고 `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` 또는 데모용 `ENABLE_DEV_LOGIN=true`. 이미지 저장소로 R2를 쓰면 `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `MEDIA_BASE_URL`도 (없으면 이미지는 DB에 저장)
 4. (Google 로그인 시) Google Cloud 리디렉션 URI에 `https://<도메인>/api/auth/callback/google` 추가
 5. 환경변수를 바꿨으면 **Redeploy** (빌드 시점에 반영됨)
 
