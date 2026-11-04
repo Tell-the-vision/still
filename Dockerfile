@@ -8,6 +8,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 COPY client/package.json client/package.json
 COPY shared/package.json shared/package.json
+COPY console/package.json console/package.json
 RUN npm ci
 
 COPY . .
