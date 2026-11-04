@@ -8,7 +8,7 @@ import { useRequireLogin } from "../../../features/auth/require-login";
 import { keepsakeStrings as strings } from "../../../features/keepsake/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { DownloadPng } from "../../../features/keepsake/DownloadPng";
-import { markKept } from "../../../features/keepsake/develop";
+import { KeepsakeActions } from "../../../features/keepsake/KeepsakeActions";
 import { Button } from "../../../ui/Button";
 import { Choice } from "../../../ui/Choice";
 import { KeepsakeCard } from "../../../ui/KeepsakeCard";
@@ -42,8 +42,9 @@ export default function KeepsakeCreator() {
   const [picked, setPicked] = useState<string>();
   const [sentenceIds, setSentenceIds] = useState<string[]>();
   const [excerpt, setExcerpt] = useState<string | null>();
-  // The line just ticked on, so the preview inks only that one in.
-  const [lastAdded, setLastAdded] = useState<string>();
+  // The tallest the editor has been: switching to a shorter layout (Cover) keeps this height, so a scrolled page
+  // is not pulled up and the scrollbar does not disappear.
+  const [tallest, setTallest] = useState(0);
   const changed = picked !== undefined || sentenceIds !== undefined || excerpt !== undefined;
   const templateId = picked ?? saved?.templateId ?? "sentence";
   const save = useMutation(
@@ -105,6 +106,13 @@ export default function KeepsakeCreator() {
   const drawnHeight = drawnWidth / cardTokens.aspectRatio;
   return (
     <Screen tabs>
+      <View
+        style={{ minHeight: tallest }}
+        onLayout={(e) => {
+          const height = e.nativeEvent.layout.height;
+          if (height > tallest) setTallest(height);
+        }}
+      >
       <Stack gap="section">
         <Text variant="headline">{strings.heading}</Text>
         <View style={{ width: drawnWidth, height: drawnHeight, alignSelf: "center" }}>
@@ -158,14 +166,17 @@ export default function KeepsakeCreator() {
         )}
         {save.isError && <Notice error message={strings.failed} />}
         <Stack>
-        <Button label={save.isPending ? strings.saving : strings.save} disabled={save.isPending} onPress={() => save.mutate({ code, templateId, ...picks })} />
-        {saved && !changed ? (
-          <DownloadPng code={code} url={saved.png.url} />
-        ) : (
-          <TextAction label={strings.png.download} leading="↓" disabled onPress={() => undefined} />
-        )}
+        <Button label={strings.save} onPress={() => save.mutate({ code, templateId, ...picks })} />
+        <KeepsakeActions align="start">
+          {saved && !changed ? (
+            <DownloadPng code={code} url={saved.png.url} />
+          ) : (
+            <TextAction label={strings.png.download} leading="↓" disabled onPress={() => undefined} />
+          )}
+        </KeepsakeActions>
         </Stack>
       </Stack>
+      </View>
     </Screen>
   );
 }

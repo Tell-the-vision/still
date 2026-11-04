@@ -1,5 +1,6 @@
 import { track } from "../../lib/analytics";
 import { useEffect, useState } from "react";
+import { View } from "react-native";
 import { Button } from "../../ui/Button";
 import { Notice } from "../../ui/Notice";
 import { Stack } from "../../ui/Stack";
@@ -10,6 +11,7 @@ const strings = keepsakeStrings.png;
 
 // The signed URL needs no request inside the tap (SPEC §7.3): the PNG is fetched ahead into a File,
 // so Share can call navigator.share synchronously. Without file sharing, the image is long-pressable.
+// Download and Share are text actions side by side, so they sit on the parent's action line (see KeepsakeActions).
 export function DownloadPng({ url, code }: { url: string; code: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -26,24 +28,20 @@ export function DownloadPng({ url, code }: { url: string; code: string }) {
   }, [url, attempt]);
 
   return (
-    <Stack>
+    <>
       <TextAction label={strings.download} leading="↓" href={url} download onPress={() => track("keepsake_png_download", { exhibition_code: code })} />
-      {canShareFiles ? (
-        <Button
-          label={strings.share}
-          variant="secondary"
-          disabled={file === null}
-          onPress={() => file && navigator.share({ files: [file] }).catch(() => undefined)}
-        />
-      ) : (
-        null
+      {canShareFiles && (
+        <TextAction label={strings.share} leading="↗" disabled={file === null} onPress={() => file && navigator.share({ files: [file] }).catch(() => undefined)} />
       )}
       {failed && (
-        <>
-          <Notice error message={strings.failed} />
-          <Button label={strings.retry} variant="secondary" onPress={() => setAttempt(attempt + 1)} />
-        </>
+        // A full-width break, so the notice and Retry sit under the action line.
+        <View style={{ flexBasis: "100%" }}>
+          <Stack>
+            <Notice error message={strings.failed} />
+            <Button label={strings.retry} variant="secondary" onPress={() => setAttempt(attempt + 1)} />
+          </Stack>
+        </View>
       )}
-    </Stack>
+    </>
   );
 }
