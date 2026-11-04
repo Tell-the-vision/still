@@ -4,13 +4,16 @@
   "private": true,
   "workspaces": [
     "client",
-    "shared"
+    "shared",
+    "institutions"
   ],
   "scripts": {
     "web:export": "npm run export:web -w @still/client",
-    "dev": "npm run web:export && next dev",
+    "institutions:dev": "npm run dev -w @still/institutions",
+    "institutions:build": "npm run build -w @still/institutions",
+    "dev": "npm run web:export && npm run institutions:build && next dev",
     "dev:hot": "rm -rf public && (npm run web -w @still/client & EXPO_WEB_DEV_URL=http://localhost:8081 next dev)",
-    "build": "npm run web:export && next build",
+    "build": "npm run web:export && npm run institutions:build && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
