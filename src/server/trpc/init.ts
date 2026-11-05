@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 import type { AppCode } from "@still/shared/errors";
 import type { Session, StaffSurface } from "../auth/sessions";
 import { ipAllowed, userAllowed } from "../rate-limit";
-import { getConsent } from "../services/consent";
+import { hasCurrentConsent } from "../services/consent";
 import type { Context, Surface } from "./context";
 
 export class AppError extends Error {
@@ -126,9 +126,10 @@ export const consoleProcedure = staffProcedure("console").use(({ ctx, next }) =>
   return next({ ctx: { institutionId } });
 });
 
-// Procedures on personal data require agreement to the current policies (SPEC §2.2 Consent).
+// Procedures on personal data require agreement to the current policies (SPEC §2.2 Consent): the user's
+// latest agreement must name the versions served now, so a policy update asks everyone again.
 export const consentedProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  if (!(await getConsent(ctx.session.userId))) {
+  if (!(await hasCurrentConsent(ctx.session.userId))) {
     throw new TRPCError({ code: "FORBIDDEN", cause: new AppError("CONSENT_REQUIRED") });
   }
   return next();

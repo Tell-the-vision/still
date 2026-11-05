@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { userConsents } from "../db/schema";
+import { currentPolicy } from "./policy";
 
 const toConsent = (row: typeof userConsents.$inferSelect) => ({ termsVersion: row.termsVersion, privacyVersion: row.privacyVersion, agreedAt: row.agreedAt.toISOString() });
 
@@ -8,6 +9,13 @@ const toConsent = (row: typeof userConsents.$inferSelect) => ({ termsVersion: ro
 export async function getConsent(userId: string) {
   const [row] = await db.select().from(userConsents).where(eq(userConsents.userId, userId)).orderBy(desc(userConsents.agreedAt)).limit(1);
   return row ? toConsent(row) : null;
+}
+
+// Whether the user's latest agreement is to the policy versions served now (SPEC §2.2 Consent).
+export async function hasCurrentConsent(userId: string) {
+  const consent = await getConsent(userId);
+  const policy = currentPolicy();
+  return consent !== null && consent.termsVersion === policy.termsVersion && consent.privacyVersion === policy.privacyVersion;
 }
 
 // Idempotent: agreeing again to the same versions keeps the first row.
