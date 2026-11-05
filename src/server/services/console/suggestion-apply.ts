@@ -2,7 +2,7 @@ import { stillBlock, type ContentSources, type StillBlock, type StillDoc, type T
 import type { Suggestion } from "./suggestion-write";
 
 // What accepting a suggestion does to the document (SPEC §9.4 편집 제안). The spec fixes the effect, not
-// the proposal shape; these are the shapes used (target is always {node}, a top-level node id):
+// the proposal shape; these are the shapes used (target is always {node}: a top-level node id, or for text edits a paragraph id inside a quote or list):
 //   TEXT_EXTRACTION_FIX        {text}          node text becomes `text`; scrap-marked substrings still found keep their mark
 //   PUNCTUATION_CONSISTENCY    {from, to}      every `from` in the node's text becomes `to`, marks kept
 //   STRUCTURE_LEVEL            {level: 2|3}    the paragraph or heading becomes a heading of that level
@@ -32,13 +32,31 @@ const replaceAt = (doc: StillDoc, i: number, ...blocks: StillBlock[]): StillDoc 
 const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
 const newId = () => crypto.randomUUID();
 
-// Edits of the target's characters; null when the target is not a text block.
+// Edits of the target's characters. The target is a top-level text block, or a paragraph nested in a quote or list item.
 const onChars = (change: (chars: Char[], proposal: Record<string, unknown>) => Char[] | null): Edit => (doc, node, proposal) => {
   const i = find(doc, node);
   const block = doc.content[i];
-  if (!block || !isTextBlock(block)) return null;
-  const chars = change(toChars((block as { content?: TextNode[] }).content), proposal);
-  return chars && { doc: replaceAt(doc, i, withRuns(block, chars)) };
+  if (block) {
+    if (!isTextBlock(block)) return null;
+    const chars = change(toChars((block as { content?: TextNode[] }).content), proposal);
+    return chars && { doc: replaceAt(doc, i, withRuns(block, chars)) };
+  }
+  // Nested: rewrite the paragraph carrying the id, wherever it sits inside a container block.
+  let changed = false;
+  const inParagraph = (p: { attrs?: { id?: string }; content?: TextNode[] }) => {
+    const chars = p.attrs?.id === node ? change(toChars(p.content), proposal) : null;
+    if (!chars) return p;
+    changed = true;
+    return { ...p, content: toRuns(chars) };
+  };
+  const content = doc.content.map((b) => {
+    if (b.type === "blockquote") return { ...b, content: b.content.map(inParagraph) };
+    if (b.type === "bulletList" || b.type === "orderedList") {
+      return { ...b, content: b.content.map((item) => ({ ...item, content: item.content.map(inParagraph) })) };
+    }
+    return b;
+  }) as StillBlock[];
+  return changed ? { doc: { ...doc, content } } : null;
 };
 
 const edits: Record<string, Edit> = {

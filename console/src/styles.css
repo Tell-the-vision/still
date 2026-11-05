@@ -1294,3 +1294,11 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .source-panel__text { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
 .source-panel del { text-decoration: line-through; color: var(--gray); }
 .source-panel ins { text-decoration: underline; color: var(--black); }
+/* Suggestions beside their block. A wide editor column has a right gutter with each card level with its block;
+   a narrow one (the preview open) lists the cards under the text instead. */
+.still-editor { position: relative; container-type: inline-size; }
+.suggestion--inline { margin-top: 8px; }
+@container (min-width: 640px) {
+  .still-editor:has(.suggestion--inline) .still-editor__body { width: calc(100% - 232px); }
+  .suggestion--inline { position: absolute; right: 0; width: 216px; margin-top: 0; }
+}

@@ -6,6 +6,7 @@ import UniqueID from "@tiptap/extension-unique-id";
 import { api } from "../api";
 import { ApiError } from "../api/errors";
 import { useWorkspace } from "../store";
+import { InlineSuggestions } from "./InlineSuggestions";
 import { SourceGutter } from "./SourceGutter";
 import { ImagePicker, StillImage } from "./StillImage";
 
@@ -103,6 +104,7 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
       <SourceGutter editor={editor} itemId={itemId} editable={editable} version={saves}>
         <EditorContent editor={editor} className="input input--lg still-editor__body" />
       </SourceGutter>
+      <InlineSuggestions editor={editor} itemId={itemId} editable={editable} />
       <p className="caption-sm" role="status" aria-live="polite">
         {error ?? (state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "")}
       </p>

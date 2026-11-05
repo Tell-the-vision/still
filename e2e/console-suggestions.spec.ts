@@ -30,21 +30,26 @@ test("accept applies the proposal and clears review; dismiss records; stale revi
   await page.goto("/console/materials/review");
 
   await page.locator(".item", { hasText: "Alpha piece" }).click();
-  await page.getByRole("button", { name: "Accept" }).click();
-  await expect(page.getByRole("region", { name: "Suggestions" })).toBeHidden();
+  // The card sits inside the editor; in a wide column (preview hidden) it stands level with its block.
+  const card = page.locator(".still-editor .suggestion--inline");
+  await expect(card).toBeVisible();
+  const blockBox = () => page.locator('.ProseMirror [data-id="b1"]').boundingBox();
+  await expect.poll(async () => Math.abs((await card.boundingBox())!.y - (await blockBox())!.y)).toBeLessThan(4);
+  const block = (await blockBox())!;
+  expect((await card.boundingBox())!.x).toBeGreaterThanOrEqual(block.x + block.width);
+  await card.getByRole("button", { name: "Accept" }).click();
+  await expect(card).toBeHidden();
   // The rich editor reopens on the new revision, so it shows the accepted text.
   await expect(page.locator(".ProseMirror")).toContainText("The Secret Show");
-  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/sugg/accepted.png" });
   const accepted = await read(one.id);
   expect(accepted.doc.content[1].content![0].text).toBe("The Secret Show");
   expect(accepted.status).toBe("READY");
   expect(accepted.suggestions[0].status).toBe("ACCEPTED");
 
   await page.locator(".item", { hasText: "Bravo piece" }).click();
-  await expect(page.getByRole("region", { name: "Suggestions" })).toBeVisible();
-  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/sugg/open.png" });
+  await expect(card).toBeVisible();
   await page.getByRole("button", { name: "Dismiss" }).click();
-  await expect(page.getByRole("region", { name: "Suggestions" })).toBeHidden();
+  await expect(card).toBeHidden();
   expect((await read(two.id)).suggestions[0].status).toBe("DISMISSED");
 
   const stale = await consoleCall(page, "console.suggestion.update", { contentId: two.id, id: "g2", status: "ACCEPTED", revision: crypto.randomUUID() });

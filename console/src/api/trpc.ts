@@ -517,8 +517,8 @@ export function createTrpcApi(): ConsoleApi {
     },
 
     listSuggestions: async (exhibitionId) => {
-      const rows = await q<(Omit<EditSuggestion, "proposalText" | "rationale"> & { proposal?: { text?: string }; rationale?: string })[]>("console.suggestion.list", { code: exhibitionId });
-      return rows.map(({ proposal, rationale, ...s }) => ({ ...s, proposalText: proposal?.text ?? null, rationale: rationale ?? null }));
+      const rows = await q<(Omit<EditSuggestion, "proposalText" | "rationale" | "node"> & { target?: { node?: string }; proposal?: { text?: string }; rationale?: string })[]>("console.suggestion.list", { code: exhibitionId });
+      return rows.map(({ proposal, rationale, target, ...s }) => ({ ...s, node: target?.node ?? null, proposalText: proposal?.text ?? null, rationale: rationale ?? null }));
     },
     decideSuggestion: async ({ contentId, id, revision }, status, exhibitionId) => {
       try {

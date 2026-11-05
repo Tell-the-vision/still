@@ -88,3 +88,18 @@ test("accepting a split on the review screen shows the paragraphs in the editor"
   await page.getByRole("button", { name: "Accept" }).click();
   await expect(page.locator(".ProseMirror p")).toHaveText(["Alpha sentence. ", "Omega sentence."]);
 });
+
+test("a text fix targeting a paragraph inside a blockquote is applied", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account);
+  const quote = { type: "blockquote", attrs: { id: "q1" }, content: [{ type: "paragraph", attrs: { id: "qp" }, content: [run("Te quote")] }] };
+  const item = await seedContent(exhibition, { kind: "ARTWORK", status: "READY", doc: [paragraph("p1", run("Body")), quote] });
+  await e2eSql("UPDATE contents SET suggestions = $2 WHERE id = $1", [item.id, JSON.stringify([suggestion("n", "TEXT_EXTRACTION_FIX", "qp", { text: "The quote" })])]);
+  await signInConsole(page, account);
+  await page.goto("/console/exhibitions");
+  const list = await consoleCall(page, "console.suggestion.list", { code: exhibition.code });
+  const res = await consoleCall(page, "console.suggestion.update", { contentId: item.id, id: "n", status: "ACCEPTED", revision: list.json.result.data[0].revision });
+  expect(res.json.error).toBeUndefined();
+  const { doc } = await read(item.id);
+  expect(JSON.stringify(doc.content[1])).toContain("The quote");
+});

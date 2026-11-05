@@ -188,6 +188,8 @@ export interface EditSuggestion {
   id: string;
   contentId: string | null;
   kind: string;
+  /** The block the suggestion points at, when it has one. */
+  node: string | null;
   status: "OPEN" | "ACCEPTED" | "DISMISSED";
   proposalText: string | null;
   rationale: string | null;
