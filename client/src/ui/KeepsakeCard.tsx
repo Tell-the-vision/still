@@ -63,7 +63,7 @@ export function KeepsakeCard({
         ))}
         {personal.length === 0 && placeholder && <Text variant="secondary">{placeholder}</Text>}
       </View>
-      <Text variant="caption">{`${exhibition.venue.city} / ${exhibition.startDate.slice(0, 4)}`}</Text>
+      <Text variant="cardCaption">{`${exhibition.venue.city} / ${exhibition.startDate.slice(0, 4)}`}</Text>
     </View>
   );
 }

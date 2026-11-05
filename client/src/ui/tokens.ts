@@ -20,8 +20,13 @@ export const type = {
   action: { face: "body", size: 13, line: 17 },
   label: { face: "bodyMedium", size: 12, line: 16 },
   secondary: { face: "body", size: 11, line: 14 },
-  eyebrow: { face: "bodyMedium", size: 9, line: 12 },
-  caption: { face: "bodyMedium", size: 8, line: 10 },
+  // Functional text stays at 11px or more (impeccable legibility floor): eyebrows label navigation and
+  // sections, captions describe images. Was 9px and 8px.
+  eyebrow: { face: "bodyMedium", size: 11, line: 14 },
+  caption: { face: "bodyMedium", size: 11, line: 15 },
+  // The keepsake card is artwork rendered at its own scale (and exported as a PNG); its caption keeps the
+  // original size there.
+  cardCaption: { face: "bodyMedium", size: 8, line: 10 },
 } as const;
 
 export const wordmark = {
