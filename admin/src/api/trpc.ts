@@ -1,7 +1,7 @@
 // PlatformApi over the still server (tRPC at /api/trpc, no transformer = plain JSON).
 // Procedure names follow the SPEC (admin.*, me.get, session.delete); see ../../API.md for what is still missing.
 import { ApiError } from "./errors";
-import type { PlatformAdmin, PlatformApi } from "./types";
+import type { Institution, PlatformAdmin, PlatformApi } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -22,6 +22,30 @@ async function call<T>(path: string, input?: unknown): Promise<T> {
   }
   return body.result.data as T;
 }
+
+// admin.institution.* return this row (src/server/services/admin/institution-rows.ts, SPEC §9.2 A9).
+export type InstitutionRow = {
+  id: string;
+  code: string;
+  name: string;
+  status: "ACTIVE" | "SUSPENDED";
+  displayStatus: "ACTIVE" | "PENDING_SETUP" | "SUSPENDED";
+  accountCount: number;
+  workspaceAdmin: { accountId: string; email: string } | null;
+  lastActiveAt: string | null;
+  analysisDailyTokenLimit: number | null;
+  createdAt: string;
+};
+
+export const toInstitution = (row: InstitutionRow): Institution => ({
+  id: row.id,
+  publicId: row.code,
+  name: row.name,
+  adminEmail: row.workspaceAdmin?.email ?? "—",
+  status: row.displayStatus === "PENDING_SETUP" ? "PENDING" : row.displayStatus,
+  createdAt: row.createdAt,
+  lastActiveAt: row.lastActiveAt,
+});
 
 // me.get for an operator (SPEC §9.5).
 type StaffMe = { email: string; role: "ADMIN"; mustChangePassword: boolean };
