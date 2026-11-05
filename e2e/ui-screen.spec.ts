@@ -63,9 +63,10 @@ test("on a wide window the header stays put across pages and a reading screen's 
   await page.goto("/scan");
   await expect(page.getByRole("navigation")).toBeVisible();
   expect(await header()).toEqual(home);
-  // The reading measure applies to the body: its text starts inside the centred 720px column.
+  // The reading measure applies to the body: its text sits inside the centred 720px column.
   const headline = (await page.getByText("Scan to enter.", { exact: true }).boundingBox())!;
   expect(headline.x).toBeGreaterThanOrEqual((1280 - 720) / 2);
+  expect(headline.x + headline.width).toBeLessThanOrEqual((1280 + 720) / 2);
 });
 
 test("signed-in Home keeps its sections together and the header rule clears the wordmark", async ({ page, next }) => {
