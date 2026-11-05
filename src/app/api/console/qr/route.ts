@@ -21,7 +21,8 @@ const FORMATS = {
 // an artwork that is not the exhibition's answer the same 404.
 export async function GET(req: Request) {
   const session = await currentConsoleSession();
-  if (!session) return new Response(null, { status: 401 });
+  // A session still on its temporary password may only change it, see itself or sign out (SPEC §10.5).
+  if (!session || session.mustChangePassword) return new Response(null, { status: 401 });
   if (!userAllowed(session.userId)) return new Response(null, { status: 429 });
 
   const params = new URL(req.url).searchParams;

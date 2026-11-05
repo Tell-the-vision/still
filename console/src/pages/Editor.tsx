@@ -311,7 +311,7 @@ export default function Editor() {
                 </button>
                 <p className="new-menu__foot caption-sm">
                   STILL drafts from PDF, DOCX, XLSX, PPTX, images ·{" "}
-                  <button type="button" className="link-btn link-btn--inline" onClick={() => { setNewOpen(false); downloadTemplate(); }}>template</button>
+                  <button type="button" className="link-btn link-btn--inline" onClick={() => { setNewOpen(false); downloadTemplate(); }} title="CSV: save it as .xlsx before uploading">template (save as .xlsx)</button>
                 </p>
               </div>
             )}

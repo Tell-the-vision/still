@@ -11,13 +11,17 @@ export type StorageDelete = { bucket: "private" | "public" | "modelInputs"; key?
 
 // Sends the jobs through the caller's transaction, so they exist exactly when the row deletes commit.
 // pg-boss takes any object with executeSql; a drizzle transaction is adapted by turning $n into bound values.
-export async function enqueueStorageDeletes(boss: PgBoss, tx: Pick<typeof db, "execute">, jobs: StorageDelete[]) {
-  const executeSql = async (text: string, values: unknown[] = []) => {
+export const transactionDb = (tx: Pick<typeof db, "execute">) => ({
+  executeSql: async (text: string, values: unknown[] = []) => {
     const parts = text.split(/\$(\d+)/);
     const query = sql.join(parts.map((part, i) => (i % 2 ? sql`${values[Number(part) - 1]}` : sql.raw(part))), sql.raw(""));
     const { rows } = await tx.execute(query);
     return { rows };
-  };
+  },
+});
+
+export async function enqueueStorageDeletes(boss: PgBoss, tx: Pick<typeof db, "execute">, jobs: StorageDelete[]) {
+  const { executeSql } = transactionDb(tx);
   for (const job of jobs) {
     await boss.send(STORAGE_DELETE_QUEUE, job, { singletonKey: `${job.bucket}:${job.key ?? job.prefix}`, ...STORAGE_DELETE_OPTIONS, db: { executeSql } });
   }

@@ -1,4 +1,5 @@
 import { TRPCError, initTRPC } from "@trpc/server";
+import { loggable } from "../log-safe";
 import { ZodError } from "zod";
 import type { AppCode } from "@still/shared/errors";
 import type { Session, StaffSurface } from "../auth/sessions";
@@ -16,11 +17,13 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const t = initTRPC.context<Context>().create({
   isDev: !isProduction,
-  sse: { ping: { enabled: true, intervalMs: 15_000 } }, // SPEC §11.1 heartbeat
+  // SPEC §11.1 heartbeat; a stream lasts at most 5 minutes, so a revoked session stops receiving (the browser
+  // reconnects, which checks the session again).
+  sse: { ping: { enabled: true, intervalMs: 15_000 }, maxDurationMs: 5 * 60_000 },
   errorFormatter({ shape, error }) {
     if (error.code === "INTERNAL_SERVER_ERROR") {
       // Log the cause only: input values must never reach the logs.
-      console.error(error.cause ?? error);
+      console.error(loggable(error.cause ?? error));
     }
     return {
       ...shape,
