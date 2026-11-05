@@ -71,7 +71,7 @@ async function verifyDocument(documentId: string) {
 
 // SPEC §10.10 실시간 알림: tells `console.analysis.watch` listeners. Inside a transaction it is delivered on commit.
 type Executor = Pick<typeof db, "execute">;
-const notify = (exec: Executor, analysisId: string, state: "active" | "completed" | "failed", error?: string) =>
+export const notify = (exec: Executor, analysisId: string, state: "active" | "completed" | "failed" | "cancelled", error?: string) =>
   exec.execute(sql`select pg_notify(${`analysis_${analysisId}`}, ${JSON.stringify({ queue: ANALYSIS_QUEUE, key: "run", state, error })})`);
 
 const analysisOf = async (exhibitionId: string) =>
