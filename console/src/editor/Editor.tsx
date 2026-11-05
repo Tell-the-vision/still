@@ -4,6 +4,8 @@ import { Mark, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import UniqueID from "@tiptap/extension-unique-id";
 import { api } from "../api";
+import { ApiError } from "../api/errors";
+import { useWorkspace } from "../store";
 import { ImagePicker, StillImage } from "./StillImage";
 
 // SPEC §9.4 편집기: the STILL schema only. Nothing outside it can be typed, pasted or toggled.
@@ -22,6 +24,7 @@ type Saved = "idle" | "saving" | "saved";
 export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { itemId: string; exhibitionId: string; doc: JSONContent; editable: boolean; onChange?: (doc: JSONContent) => void }) {
   const [state, setState] = useState<Saved>("idle");
   const [error, setError] = useState<string | null>(null);
+  const { reloadExhibitionData, reportError } = useWorkspace();
   const timer = useRef<number>(0);
   // The latest edit that has not been sent yet; flushed on unmount instead of dropped.
   const pending = useRef<JSONContent | null>(null);
@@ -52,6 +55,12 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
           setError(null);
           setState("saved");
         } catch (e) {
+          if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") {
+            // SPEC §9.4: load the latest version; the new revision remounts this editor with it.
+            await reloadExhibitionData();
+            reportError(new Error("This item changed elsewhere. The latest version is loaded."));
+            return;
+          }
           setError(e instanceof Error ? e.message : "Could not save.");
           setState("idle");
         }

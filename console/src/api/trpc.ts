@@ -1,7 +1,6 @@
 // ConsoleApi over the still server: tRPC at /api/trpc, plain JSON, the console.* procedures of SPEC §9.5.
 // Rows are mapped to the screens' shapes here, so the screens never see server field names.
 import { ApiError } from "./errors";
-import { extractManifest } from "../extract";
 import type { ContentItem, EditSuggestion, Exhibition, ExhibitionImage, Guide, GuideSection, ConsoleApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
@@ -323,6 +322,7 @@ const MANIFEST_NAME = "manifest.v1.json";
 async function extractStored(stored: SourceFile, file: File, sha256: string, options?: UploadOptions): Promise<SourceFile> {
   try {
     options?.onExtracting?.();
+    const { extractManifest } = await import("../extract");
     const manifest = await extractManifest(file, { documentId: stored.id, sha256 });
     if (!manifest) return { ...stored, note: `Text extraction for ${stored.format} is not available yet.` };
     const body = new Blob([JSON.stringify(manifest)], { type: "application/json" });

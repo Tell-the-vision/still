@@ -72,3 +72,17 @@ test("Scrap marks the selected sentence", async ({ page }) => {
   await page.getByRole("button", { name: "Scrap" }).click();
   await expect.poll(async () => (await docOf(item.id)).content[1].content?.[0].marks?.[0].type).toBe("scrap");
 });
+
+test("a save that lost to another edit loads the latest version and says so", async ({ page }) => {
+  const item = await open(page);
+  const doc = { type: "doc", content: [
+    { type: "heading", attrs: { id: "h1", level: 2 }, content: [{ type: "text", text: "Farewell" }] },
+    { type: "paragraph", attrs: { id: "b1" }, content: [{ type: "text", text: "Words from elsewhere." }] },
+  ] };
+  await e2eSql("UPDATE contents SET doc = $2, revision = gen_random_uuid() WHERE id = $1", [item.id, JSON.stringify(doc)]);
+  await page.locator(".ProseMirror").getByText("Old words.").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type(" Mine.");
+  await expect(page.getByText("This item changed elsewhere. The latest version is loaded.")).toBeVisible();
+  await expect(page.locator(".ProseMirror").getByText("Words from elsewhere.")).toBeVisible();
+});
