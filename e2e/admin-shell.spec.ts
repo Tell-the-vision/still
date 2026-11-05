@@ -26,7 +26,7 @@ test("visitor and museum staff pages never load the admin bundle", async ({ page
   page.on("request", (r) => { if (new URL(r.url()).pathname.startsWith("/admin")) adminRequests.push(r.url()); });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "QR Scan" })).toBeVisible();
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toBeVisible();
   expect(adminRequests).toEqual([]);
 });

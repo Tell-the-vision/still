@@ -33,16 +33,16 @@ async function seedImage(exhibition: SeededExhibition) {
 
 // The staff open the exhibition from the list, then use the in-app links (the open exhibition lives in memory, not in the URL).
 async function openExhibition(page: Page, title: string) {
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(title, { exact: true }).click();
-  await expect(page).toHaveURL(/\/institutions\/overview$/);
+  await expect(page).toHaveURL(/\/console\/overview$/);
 }
 const openPublish = async (page: Page, title: string) => {
   await openExhibition(page, title);
   // The open exhibition lives in memory, so move inside the app without a page load. The workflow stepper is
   // not on the Upload page and the step before Publish does not work against the server yet, so there is no link to click.
   await page.evaluate(() => {
-    history.pushState({}, "", "/institutions/materials/publish");
+    history.pushState({}, "", "/console/materials/publish");
     dispatchEvent(new PopStateEvent("popstate"));
   });
   await expect(page.getByRole("heading", { name: "Prepare publication" })).toBeVisible();
@@ -184,7 +184,7 @@ test("a draft that was never published can be published from the digital guide",
   const exhibition = await seedExhibition(account, { title: `Never Published ${Date.now()}` });
   await signInConsole(page, account);
   await openExhibition(page, exhibition.title);
-  await page.goto("/institutions/guide");
+  await page.goto("/console/guide");
   await expect(page.getByText("Draft · Not published")).toBeVisible();
   await expect(page.getByRole("button", { name: "Publish changes" })).not.toHaveAttribute("aria-disabled", "true");
 });

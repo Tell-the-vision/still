@@ -1,6 +1,6 @@
 import { expect, test } from "next/experimental/testmode/playwright";
 
-for (const path of ["/institutions/sign-in", "/admin/sign-in"]) {
+for (const path of ["/console/sign-in", "/admin/sign-in"]) {
   test(`${path} uses DM Sans and split Noto Sans KR slices`, async ({ page }) => {
     // Slices keep arriving while the page renders Korean, so a body read after the test ends counts as 0.
     const fontSizes: Promise<number>[] = [];

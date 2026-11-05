@@ -87,9 +87,9 @@ test("blocks are labelled Source / Edited / No source and an edited one reverts 
   const got = await consoleCall(page, "console.content.get", { id: content.id });
   expect(data(got).sources.b1.text).toBe("One two.");
 
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(s.exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
   const rows = page.locator(".source-marks__row");
   await expect(rows.nth(0).locator(".source-marks__label")).toHaveText("Source");
   await expect(rows.nth(1).locator(".source-marks__label")).toHaveText("Edited");
@@ -116,9 +116,9 @@ test("a block traced to a document without a manifest reads No source and cannot
   });
   expect(data(await consoleCall(page, "console.content.get", { id: content.id })).sources.b1.text).toBeNull();
 
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(s.exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
   await expect(page.locator(".source-marks__row").first().locator(".source-marks__label")).toHaveText("No source");
   await expect(page.getByRole("button", { name: "Revert to source" })).toHaveCount(0);
 });

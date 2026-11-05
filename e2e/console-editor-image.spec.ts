@@ -19,9 +19,9 @@ test("the Image button inserts an exhibition image that autosaves and shows in t
     doc: [{ type: "heading", attrs: { id: "h1", level: 2 }, content: [{ type: "text", text: "Farewell" }] }],
   });
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
   await page.locator(".item", { hasText: "Farewell" }).click();
 
   await page.locator(".ProseMirror").getByText("Farewell").click();

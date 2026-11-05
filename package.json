@@ -5,18 +5,18 @@
   "workspaces": [
     "client",
     "shared",
-    "institutions",
+    "console",
     "admin"
   ],
   "scripts": {
     "web:export": "npm run export:web -w @still/client",
-    "institutions:dev": "npm run dev -w @still/institutions",
-    "institutions:build": "npm run build -w @still/institutions",
+    "console:dev": "npm run dev -w @still/console",
+    "console:build": "npm run build -w @still/console",
     "admin:dev": "npm run dev -w @still/admin",
     "admin:build": "npm run build -w @still/admin",
-    "dev": "npm run web:export && npm run institutions:build && npm run admin:build && next dev",
+    "dev": "npm run web:export && npm run console:build && npm run admin:build && next dev",
     "dev:hot": "rm -rf public && (npm run web -w @still/client & EXPO_WEB_DEV_URL=http://localhost:8081 next dev)",
-    "build": "npm run web:export && npm run institutions:build && npm run admin:build && next build",
+    "build": "npm run web:export && npm run console:build && npm run admin:build && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",

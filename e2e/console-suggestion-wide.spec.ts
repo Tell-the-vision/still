@@ -21,9 +21,9 @@ test("accepting an exhibition-wide suggestion fixes its items; stale revision is
   const suggestions = [wide("w1", [{ contentId: a.id, node: "b1" }, { contentId: b.id, node: "b1" }]), wide("w2", [])];
   await e2eSql("UPDATE exhibitions SET analysis = $2 WHERE id = $1", [exhibition.id, JSON.stringify({ suggestions })]);
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
 
   const section = page.getByRole("region", { name: "Exhibition-wide suggestions" });
   await expect(section.locator(".suggestion")).toHaveCount(2);

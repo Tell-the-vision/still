@@ -41,7 +41,7 @@ test("an operator adds an institution and its first account signs in with the te
 
   // The temporary password signs in at the console and must be changed.
   await page.context().clearCookies();
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   await page.getByLabel("Institution ID").fill(row.code);
   await page.getByLabel("Work email").fill(email);
   await page.getByLabel("Password").fill(password);

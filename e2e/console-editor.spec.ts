@@ -26,9 +26,9 @@ async function open(page: Page) {
     doc: [{ type: "heading", attrs: { id: "h2", level: 2 }, content: [{ type: "text", text: "Other item" }] }],
   });
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
   await page.locator(".item", { hasText: "Farewell" }).click();
   return item;
 }

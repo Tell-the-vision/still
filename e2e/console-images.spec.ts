@@ -39,13 +39,13 @@ test("confirming an image's permission on the review screen passes the Image rig
   await signInConsole(page, account);
   expect((await imageRights(page, exhibition.code)).ok).toBe(false);
 
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
   await page.locator(".item", { hasText: "Pictured work" }).click();
-  await page.getByLabel("Usage permission").selectOption("GRANTED");
-  await page.getByRole("button", { name: "Save image rights" }).click();
-  await expect(page.getByText("Image rights saved")).toBeVisible();
+  await page.getByLabel("Rights").selectOption("CONFIRMED");
+  await page.getByRole("button", { name: "Save image details" }).click();
+  await expect(page.getByText("Image details saved")).toBeVisible();
 
   const [row] = await e2eSql<{ rights: string }>("SELECT rights FROM images WHERE id = $1", [image.id]);
   expect(row.rights).toBe("CONFIRMED");
@@ -56,18 +56,18 @@ test("confirming an image's permission on the review screen passes the Image rig
 test("alt text and permission saved without a copyright holder leave no rights issue", async ({ page }) => {
   const { account, exhibition, image } = await setup();
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
   await page.locator(".item", { hasText: "Pictured work" }).click();
   await page.getByLabel("Alt text").fill("A still life with pears");
-  await page.getByLabel("Usage permission").selectOption("GRANTED");
-  await page.getByRole("button", { name: "Save image rights" }).click();
-  await expect(page.getByText("Image rights saved")).toBeVisible();
+  await page.getByLabel("Rights").selectOption("CONFIRMED");
+  await page.getByRole("button", { name: "Save image details" }).click();
+  await expect(page.getByText("Image details saved")).toBeVisible();
 
   const [row] = await e2eSql<{ alt_text: string; credit: string | null }>("SELECT alt_text, credit FROM images WHERE id = $1", [image.id]);
   expect(row).toEqual({ alt_text: "A still life with pears", credit: null });
-  await expect(page.locator(".asset__head")).toContainText("Rights confirmed");
+  await expect(page.locator(".asset__head")).toContainText("Confirmed");
   expect((await imageRights(page, exhibition.code)).ok).toBe(true);
 });
 

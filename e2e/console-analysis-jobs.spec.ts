@@ -45,9 +45,9 @@ async function extractedExhibition(page: Page) {
 
 test("Start analysis fills the review screen with the manifest text", async ({ page }) => {
   const { exhibition } = await extractedExhibition(page);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials");
+  await page.goto("/console/materials");
   await page.getByRole("button", { name: "Start analysis" }).click();
   await expect(page).toHaveURL(/\/materials\/review$/);
   await expect(page.getByRole("textbox", { name: "Item text" }).getByText(TEXT)).toBeVisible({ timeout: 30_000 });

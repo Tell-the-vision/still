@@ -47,9 +47,9 @@ test("the review screen has no text under 11px, readable amber, and a singular g
   const exhibition = await seedExhibition(account);
   await seedContent(exhibition, { kind: "ARTWORK", status: "NEEDS_REVIEW", doc: [{ type: "paragraph", attrs: { id: "b1" }, content: [{ type: "text", text: "Body" }] }] });
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
 
   await expect(page.locator(".panel__head")).toContainText("1 group");
   await expect(page.locator(".panel__head")).not.toContainText("1 groups");
@@ -78,9 +78,9 @@ test("the review list's select box has a 24px target", async ({ page }) => {
   const exhibition = await seedExhibition(account);
   await seedContent(exhibition, { kind: "ARTWORK", status: "NEEDS_REVIEW", doc: [{ type: "paragraph", attrs: { id: "b1" }, content: [{ type: "text", text: "Body" }] }] });
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
 
   const box = page.getByRole("checkbox", { name: /^Select / });
   const target = page.locator(".pick-row label").filter({ has: box });

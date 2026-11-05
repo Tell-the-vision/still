@@ -45,15 +45,15 @@ test("an operator with a temporary password chooses a new one, then reaches Inst
   expect(fresh.status).toBe(200);
 });
 
-test("institution staff with a temporary password choose a new one at /institutions", async ({ page }) => {
+test("institution staff with a temporary password choose a new one at /console", async ({ page }) => {
   const account = await seedInstitutionAccount({ mustChangePassword: true });
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   await page.getByLabel("Institution ID").fill(account.institutionCode);
   await page.getByLabel("Work email").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/institutions\/change-password$/);
+  await expect(page).toHaveURL(/\/console\/change-password$/);
   await expect(page.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
 
   await fillChangeForm(page, { current: account.password, next: NEW_PASSWORD, confirm: "something-else-entirely" });

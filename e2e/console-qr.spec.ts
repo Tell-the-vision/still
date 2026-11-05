@@ -22,9 +22,9 @@ test("staff download the QR of a published exhibition from the publication-compl
   const live = await seedExhibition(account, { title: "Tidal", state: "PUBLISHED" });
   await signInConsole(page, account);
 
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(live.title, { exact: true }).click();
-  await page.goto("/institutions/materials/published");
+  await page.goto("/console/materials/published");
   await expect(page.getByRole("heading", { name: "Your guide is live." })).toBeVisible();
 
   const download = page.waitForEvent("download");

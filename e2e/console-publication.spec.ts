@@ -46,12 +46,12 @@ test("staff publish, a visitor keeps a line, a republish keeps its id, unpublish
   const staff = await browser.newContext({ baseURL, viewport: { width: 1440, height: 900 } });
   const staffPage = await staff.newPage();
   await signInConsole(staffPage, account);
-  await staffPage.goto("/institutions/exhibitions");
+  await staffPage.goto("/console/exhibitions");
   await staffPage.getByText(exhibition.title, { exact: true }).click();
-  await expect(staffPage).toHaveURL(/\/institutions\/overview$/);
+  await expect(staffPage).toHaveURL(/\/console\/overview$/);
   // The open exhibition lives in memory, so move inside the app without a page load.
   await staffPage.evaluate(() => {
-    history.pushState({}, "", "/institutions/materials/publish");
+    history.pushState({}, "", "/console/materials/publish");
     dispatchEvent(new PopStateEvent("popstate"));
   });
   await expect(staffPage.getByRole("heading", { name: "Prepare publication" })).toBeVisible();
@@ -94,7 +94,7 @@ test("staff publish, a visitor keeps a line, a republish keeps its id, unpublish
   await expect(page.getByRole("button", { name: "Remove this line" })).toHaveCount(1);
 
   // Staff unpublish from the Published exhibitions row menu.
-  await staffPage.goto("/institutions/exhibitions");
+  await staffPage.goto("/console/exhibitions");
   await staffPage.getByRole("button", { name: `More actions for ${exhibition.title}` }).click();
   await staffPage.getByRole("menuitem", { name: "Unpublish…" }).click();
   await staffPage.getByRole("button", { name: "Unpublish", exact: true }).click();

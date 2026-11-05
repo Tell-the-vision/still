@@ -42,7 +42,7 @@ test("accepting each kind changes the document as SPEC §9.4 says", async ({ pag
   ];
   await e2eSql("UPDATE contents SET suggestions = $2 WHERE id = $1", [item.id, JSON.stringify(suggestions)]);
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
 
   const accept = async (id: string) => {
     const list = await consoleCall(page, "console.suggestion.list", { code: exhibition.code });
@@ -81,9 +81,9 @@ test("accepting a split on the review screen shows the paragraphs in the editor"
   });
   await e2eSql("UPDATE contents SET suggestions = $2 WHERE id = $1", [item.id, JSON.stringify([suggestion("s", "SPLIT_FOR_MOBILE", "p1", { offsets: [16] })])]);
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
   await page.locator(".item", { hasText: "Splitting piece" }).click();
   await page.getByRole("button", { name: "Accept" }).click();
   await expect(page.locator(".ProseMirror p")).toHaveText(["Alpha sentence. ", "Omega sentence."]);

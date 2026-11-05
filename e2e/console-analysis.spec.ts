@@ -20,9 +20,9 @@ async function seedDocument(exhibitionId: string, status: string) {
 
 async function openOverview(page: Page, account: InstitutionAccount, title: string) {
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(title, { exact: true }).click();
-  await expect(page).toHaveURL(/\/institutions\/overview$/);
+  await expect(page).toHaveURL(/\/console\/overview$/);
 }
 
 const step = (page: Page, title: string) => page.getByRole("row").filter({ hasText: title });

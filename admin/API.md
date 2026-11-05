@@ -17,7 +17,7 @@ The screens only talk to `PlatformApi` (`src/api/types.ts`). To connect the real
 
 ## Rules the server must enforce
 
-- **Who can call `platform.*`**: STILL staff only, checked on every call. These are our own people, so a STILL Google Workspace sign-in (verified email in the STILL domain, plus an allow-list with role `SUPER_ADMIN`) is fine here, unlike museum staff (see `institutions/API.md`, Staff sign-in). Every change goes to the audit log (who, what, when).
+- **Who can call `platform.*`**: STILL staff only, checked on every call. These are our own people, so a STILL Google Workspace sign-in (verified email in the STILL domain, plus an allow-list with role `SUPER_ADMIN`) is fine here, unlike museum staff (see `console/API.md`, Staff sign-in). Every change goes to the audit log (who, what, when).
 - **Institution ID**: `STL-<CODE>-<NNNN>`. `CODE` is 2–6 letters chosen on create; `NNNN` is a platform-wide sequence, so an ID is unique and never reused, even after suspension. Staff type it when signing in (case-insensitive).
 - **Create**: makes the institution `PENDING` and emails `adminEmail` a one-time link (single use, expires, e.g. 72 h) to set a password as its first `INSTITUTION_ADMIN`. It becomes `ACTIVE` when that link is used.
 - **Suspend**: nobody from that institution can sign in, and their open sessions are deleted. Nothing is deleted; reactivating restores access (back to `PENDING` if the invite was never accepted).

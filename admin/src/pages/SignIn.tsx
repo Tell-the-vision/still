@@ -57,7 +57,7 @@ export default function SignIn() {
           <button type="submit" className="pa-btn pa-btn--primary pa-signin__submit" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}
           </button>
-          <p className="pa-signin__note">Museum staff sign in at /institutions.</p>
+          <p className="pa-signin__note">Museum staff sign in at /console.</p>
         </form>
       </main>
     </div>

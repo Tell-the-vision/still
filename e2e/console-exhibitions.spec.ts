@@ -13,12 +13,12 @@ test("staff sign in, land on their workspace and see only their institution's ex
   const live = await seedExhibition(account, { title: "Quiet Matter", state: "PUBLISHED" });
   const other = await seedExhibition(await seedInstitutionAccount(), { title: "Not Ours" });
 
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   await page.getByLabel("Institution ID").fill(account.institutionCode);
   await page.getByLabel("Work email").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/institutions\/overview$/);
+  await expect(page).toHaveURL(/\/console\/overview$/);
 
   await page.getByRole("link", { name: "Published exhibitions" }).click();
   await expect(page.getByText(draft.title, { exact: true })).toBeVisible();

@@ -12,7 +12,7 @@ import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {/* Served under /admin. STILL staff only; museum staff use /institutions, visitors use the Expo app. */}
+    {/* Served under /admin. STILL staff only; museum staff use /console, visitors use the Expo app. */}
     <AuthProvider>
       <BrowserRouter basename="/admin">
         <Routes>

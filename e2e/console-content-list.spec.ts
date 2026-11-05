@@ -21,9 +21,9 @@ test("staff open an exhibition's review screen and see its contents, not another
   await seedContent(other, { kind: "ARTWORK", status: "READY", doc: [heading("Foreign heading"), paragraph("b2", "Foreign text.")] });
 
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
 
   await expect(page.getByText("Why light", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("In review 1")).toBeVisible();

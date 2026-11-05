@@ -25,9 +25,9 @@ test("accept applies the proposal and clears review; dismiss records; stale revi
   await e2eSql("UPDATE contents SET suggestions = $2 WHERE id = $1", [one.id, JSON.stringify([suggestion("g1", "TEXT_EXTRACTION_FIX", "The Secret Show")])]);
   await e2eSql("UPDATE contents SET suggestions = $2 WHERE id = $1", [two.id, JSON.stringify([suggestion("g2", "PUNCTUATION_CONSISTENCY")])]);
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
 
   await page.locator(".item", { hasText: "Alpha piece" }).click();
   await page.getByRole("button", { name: "Accept" }).click();

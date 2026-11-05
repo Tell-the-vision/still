@@ -16,9 +16,9 @@ const paragraph = (id: string, value: string) => ({ type: "paragraph", attrs: { 
 const doc = (content: unknown[]) => ({ type: "doc", content });
 
 async function openReview(page: Page, exhibition: SeededExhibition) {
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
 }
 const row = (page: Page, title: string) => page.locator(".item", { hasText: title });
 const statusOf = async (id: string) => (await e2eSql<{ status: string }>("SELECT status FROM contents WHERE id = $1", [id]))[0].status;
@@ -50,7 +50,9 @@ test("staff approve and reject items on the review screen", async ({ page }) => 
   await expect(page.getByText("Approved 1")).toBeVisible();
 
   await row(page, "Bravo piece").click();
+  // Rejecting is final (SPEC §10.8), so the screen asks once more.
   await page.getByRole("button", { name: "Reject", exact: true }).click();
+  await page.getByRole("button", { name: "Reject permanently" }).click();
   await expect(row(page, "Bravo piece")).toContainText("Rejected");
 
   expect(await statusOf(alpha.id)).toBe("APPROVED");

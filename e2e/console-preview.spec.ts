@@ -64,10 +64,10 @@ const preview = async (page: Page, code: string) => (await consoleCall(page, "co
 const checkOf = (checks: Check[], id: string) => checks.find((c) => c.id === id)!;
 
 async function openPreview(page: Page, title: string) {
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(title, { exact: true }).click();
   await page.getByRole("link", { name: /Preview/ }).first().click();
-  await expect(page).toHaveURL(/\/institutions\/materials\/preview$/);
+  await expect(page).toHaveURL(/\/console\/materials\/preview$/);
 }
 
 test("staff see the content approval check fail, then pass once the content is approved", async ({ page }) => {

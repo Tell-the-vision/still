@@ -62,7 +62,7 @@ export const adminCall = (page: Page, path: string, input: unknown = null) => tr
 // Signs in through the API so a test can start on any console page. The sign-in form itself is
 // covered by e2e/staff-sign-in.spec.ts.
 export async function signInConsole(page: Page, account: InstitutionAccount, { remember = false } = {}) {
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   const res = await consoleCall(page, "console.session.create", {
     institutionCode: account.institutionCode,
     email: account.email,

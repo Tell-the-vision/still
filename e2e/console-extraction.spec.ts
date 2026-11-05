@@ -22,7 +22,7 @@ type Stub = { manifests: Manifest[]; creates: unknown[]; updates: unknown[]; ori
 
 async function openMaterials(page: Page, account: InstitutionAccount, title: string) {
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(title, { exact: true }).first().click();
   await page.getByRole("link", { name: "Exhibition materials" }).click();
   await expect(page.getByRole("heading", { name: "Exhibition materials" })).toBeVisible();

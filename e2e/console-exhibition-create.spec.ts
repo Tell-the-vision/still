@@ -14,7 +14,7 @@ test("staff create an exhibition from the Published exhibitions page and it open
   const account = await seedInstitutionAccount();
   const code = `e2e-new-${tag()}`;
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
 
   await page.getByRole("button", { name: "+ New exhibition" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New exhibition" });
@@ -24,7 +24,7 @@ test("staff create an exhibition from the Published exhibitions page and it open
   await dialog.getByLabel("Exhibition code").fill(code);
   await dialog.getByRole("button", { name: "Create exhibition" }).click();
 
-  await expect(page).toHaveURL(/\/institutions\/materials$/);
+  await expect(page).toHaveURL(/\/console\/materials$/);
   await expect(page.locator(".exhibition-line__title")).toHaveText("Forms of Light");
   const [row] = await e2eSql<{ state: string; title: string; created_by: string; draft: { title: string; sections: unknown[] } }>(
     "SELECT state, title, created_by, draft FROM exhibitions WHERE code = $1",
@@ -40,7 +40,7 @@ test("a taken or invalid code is shown inside the dialog", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const taken = await seedExhibition(account);
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
 
   await page.getByRole("button", { name: "+ New exhibition" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New exhibition" });
@@ -52,7 +52,7 @@ test("a taken or invalid code is shown inside the dialog", async ({ page }) => {
   await dialog.getByLabel("Exhibition code").fill("Not A Slug");
   await dialog.getByRole("button", { name: "Create exhibition" }).click();
   await expect(dialog.getByRole("alert")).toContainText("lowercase letters, numbers and hyphens");
-  await expect(page).toHaveURL(/\/institutions\/exhibitions$/);
+  await expect(page).toHaveURL(/\/console\/exhibitions$/);
 });
 
 test("staff delete a draft from the row menu", async ({ page }) => {
@@ -60,7 +60,7 @@ test("staff delete a draft from the row menu", async ({ page }) => {
   const draft = await seedExhibition(account, { title: "Unused Draft" });
   const live = await seedExhibition(account, { title: "Kept Live", state: "PUBLISHED" });
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
 
   const liveMenu = page.getByRole("button", { name: `More actions for ${live.title}` });
   await liveMenu.click();

@@ -18,9 +18,9 @@ test("the review screen previews the item as visitors see it", async ({ page }) 
     ],
   });
   await signInConsole(page, account);
-  await page.goto("/institutions/exhibitions");
+  await page.goto("/console/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
-  await page.goto("/institutions/materials/review");
+  await page.goto("/console/materials/review");
 
   await expect(page.getByText("The editor view may differ from what visitors see. The preview on the right is the visitor renderer.")).toBeVisible();
   const preview = page.getByTestId("visitor-preview");

@@ -4,8 +4,8 @@ import type { NextConfig } from "next";
 // /api/* and exported files; every other path falls back to the SPA shell.
 // In dev:hot the fallback proxies to Metro instead.
 //
-// The museum staff app (institutions/, built into public/institutions) is a separate SPA
-// under /institutions, and the STILL platform admin app (admin/, built into public/admin)
+// The museum staff app (console/, built into public/console) is a separate SPA
+// under /console, and the STILL platform admin app (admin/, built into public/admin)
 // is another under /admin. Their paths never fall back to the visitor shell, and visitor
 // paths never load their bundles.
 const spaDestination = process.env.EXPO_WEB_DEV_URL
@@ -20,20 +20,20 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return {
       fallback: [
-        { source: "/institutions", destination: "/institutions/index.html" },
-        { source: "/institutions/:path*", destination: "/institutions/index.html" },
+        { source: "/console", destination: "/console/index.html" },
+        { source: "/console/:path*", destination: "/console/index.html" },
         { source: "/admin", destination: "/admin/index.html" },
         { source: "/admin/:path*", destination: "/admin/index.html" },
-        { source: "/:path((?!api/|api$|institutions/|institutions$|admin/|admin$).*)", destination: spaDestination },
+        { source: "/:path((?!api/|api$|console/|console$|admin/|admin$).*)", destination: spaDestination },
       ],
     };
   },
   async headers() {
-    // Staff-only: keep /institutions and /admin out of search results.
+    // Staff-only: keep /console and /admin out of search results.
     const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
     return [
-      { source: "/institutions", headers: noindex },
-      { source: "/institutions/:path*", headers: noindex },
+      { source: "/console", headers: noindex },
+      { source: "/console/:path*", headers: noindex },
       { source: "/admin", headers: noindex },
       { source: "/admin/:path*", headers: noindex },
     ];

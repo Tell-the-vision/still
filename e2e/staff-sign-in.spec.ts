@@ -24,7 +24,7 @@ const cookie = async (page: Page, name: string) => (await page.context().cookies
 
 test("institution staff sign in with the institution ID, work email and password", async ({ page }) => {
   const account = await seedInstitutionAccount();
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   // The ID and the email are not case-sensitive.
   await fillConsoleSignIn(page, { institutionId: account.institutionCode.toLowerCase(), email: account.email.toUpperCase(), password: account.password });
   const signedIn = page.waitForResponse(/console\.session\.create/);
@@ -45,7 +45,7 @@ test("institution staff sign in with the institution ID, work email and password
 
 test("Remember this device keeps the console session for 30 days", async ({ page }) => {
   const account = await seedInstitutionAccount();
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   await fillConsoleSignIn(page, { institutionId: account.institutionCode, email: account.email, password: account.password });
   await page.getByLabel("Remember this device").check();
   const signedIn = page.waitForResponse(/console\.session\.create/);
@@ -58,7 +58,7 @@ test("Remember this device keeps the console session for 30 days", async ({ page
 test("a wrong institution ID, a wrong password and an unknown email all get the same message", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const other = await seedInstitutionAccount();
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   for (const attempt of [
     { institutionId: other.institutionCode, email: account.email, password: account.password },
     { institutionId: account.institutionCode, email: account.email, password: "not-the-password" },
@@ -73,7 +73,7 @@ test("a wrong institution ID, a wrong password and an unknown email all get the 
 
 test("ten wrong passwords lock the account for 15 minutes", async ({ page }) => {
   const account = await seedInstitutionAccount();
-  await page.goto("/institutions/sign-in");
+  await page.goto("/console/sign-in");
   const attempt = (password: string) =>
     consoleCall(page, "console.session.create", { institutionCode: account.institutionCode, email: account.email, password });
   for (let i = 0; i < 10; i++) expect((await attempt("not-the-password")).status).toBe(401);

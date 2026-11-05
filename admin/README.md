@@ -4,11 +4,11 @@
 
 ```
 still.art/admin/...          → this app (public/admin/index.html), STILL staff only
-still.art/institutions/...   → museum staff app (institutions/), signs in with the ID issued here
+still.art/console/...        → museum staff app (console/), signs in with the ID issued here
 still.art/api/trpc           → one server; these procedures go under platform.*
 ```
 
-- Own workspace package (`@still/admin`) and own Vite build, like `institutions/`. Visitors and museum staff never load this code.
+- Own workspace package (`@still/admin`) and own Vite build, like `console/`. Visitors and museum staff never load this code.
 - `/admin` is sent with `X-Robots-Tag: noindex, nofollow` and has a robots meta tag.
 - Access control must be enforced by the server (`platform.*` checks a STILL staff session). Hiding the page is not security.
 
