@@ -1,5 +1,4 @@
 import type { ExhibitionDraft } from "@still/shared/console-draft";
-import type { StoredDocument } from "@still/shared/document";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
@@ -8,7 +7,7 @@ import { db } from "../client";
 import { deleteObject, putObject } from "../../media/r2";
 import { exhibitionPlaylists, exhibitions, guideSentences, images, institutions, venues } from "../schema";
 import type { ContentPackage } from "./content";
-import { imageContentType, sentenceRefs, validatePackage } from "./validate";
+import { imageContentType, sentenceRefs, toStillDocument, validatePackage } from "./validate";
 
 // Idempotent operator import (SPEC §9): safe to rerun with the same or an edited package.
 // The whole package is one transaction, so a failed import leaves no partial rows.
@@ -35,6 +34,8 @@ export async function importPackage(pkg: ContentPackage) {
     for (const { venueCode, playlist, sentences, images: imageFiles = [], cover = null, code, ...fields } of pkg.exhibitions) {
       const venueId = venueIds.get(venueCode);
       if (!venueId) throw new Error(`Unknown venue "${venueCode}" in exhibition "${code}"`);
+      const description = toStillDocument("description", fields.description, sentences);
+      const guide = toStillDocument("guide", fields.guide, sentences);
       const published = fields.state !== "DRAFT";
       const [existing] = await tx.select({ firstPublishedAt: exhibitions.firstPublishedAt }).from(exhibitions).where(eq(exhibitions.code, code));
       if (!published && existing?.firstPublishedAt) {
@@ -57,6 +58,8 @@ export async function importPackage(pkg: ContentPackage) {
       };
       const mutable = {
         ...fields,
+        description,
+        guide,
         institutionId: institution.id,
         venueId,
         firstPublishedAt: published ? (existing?.firstPublishedAt ?? now) : null,
@@ -88,8 +91,8 @@ export async function importPackage(pkg: ContentPackage) {
 
       // Image rows that are neither the cover nor an image block of a stored document (SPEC §9).
       const used = new Set<string>(coverImageId ? [coverImageId] : []);
-      for (const doc of [exhibition.description, exhibition.guide] as (StoredDocument | null)[]) {
-        for (const block of doc?.blocks ?? []) if (block.type === "image") used.add(block.imageId);
+      for (const doc of [description, guide]) {
+        for (const block of doc?.content ?? []) if (block.type === "stillImage") used.add(block.attrs.imageId);
       }
       const removed = await tx
         .delete(images)
@@ -125,7 +128,7 @@ export async function importPackage(pkg: ContentPackage) {
         .select({ id: guideSentences.id })
         .from(guideSentences)
         .where(and(eq(guideSentences.exhibitionId, exhibition.id), isNull(guideSentences.deletedAt)));
-      const referenced = new Set(sentenceRefs(exhibition.guide as StoredDocument | null));
+      const referenced = new Set(sentenceRefs(guide));
       if (live.length !== referenced.size || live.some((r) => !referenced.has(r.id))) {
         throw new Error(`Exhibition "${code}": stored guide and live sentences differ`);
       }

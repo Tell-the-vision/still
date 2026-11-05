@@ -1,16 +1,16 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull } from "drizzle-orm";
-import { storedDocument } from "../../../shared/src/document";
+import { and, eq } from "drizzle-orm";
+import { stillDocument } from "../../../shared/src/still-doc";
 import { db } from "../db/client";
-import { exhibitions, guideSentences } from "../db/schema";
+import { exhibitions } from "../db/schema";
 import { expandDocument } from "./documents";
 
 export async function getGuide(code: string) {
   const row = await db.query.exhibitions.findFirst({
     where: and(eq(exhibitions.code, code), eq(exhibitions.state, "PUBLISHED")),
-    with: { images: true, sentences: { where: isNull(guideSentences.deletedAt) } },
+    with: { images: true },
   });
   if (!row) throw new TRPCError({ code: "NOT_FOUND" });
-  const guide = storedDocument.nullable().parse(row.guide);
-  return { exhibitionCode: row.code, document: expandDocument(guide, { images: row.images, sentences: row.sentences }) };
+  const guide = stillDocument.nullable().parse(row.guide);
+  return { exhibitionCode: row.code, document: expandDocument(guide, { images: row.images }) };
 }
