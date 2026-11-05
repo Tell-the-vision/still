@@ -1,5 +1,5 @@
 import { suggestInput, suggestOutput } from "@still/shared/analysis-suggest";
-import { structureInput, structureOutput } from "@still/shared/analysis-structure";
+import { structureInput, structureOutput, type StructureOutput } from "@still/shared/analysis-structure";
 import { signWorkerRequest } from "@still/shared/analysis-worker-signature";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { PgBoss } from "pg-boss";
@@ -88,15 +88,57 @@ async function settle({ exhibitionId, analysisId }: JobData, result: "FAILED") {
   });
 }
 
+// SPEC §10.10 analysis.structure: a document goes to the Worker in chunks of at most 100 pages or about
+// 100k input tokens. Tokens are estimated from characters (3 per token, cautious for Korean text).
+const CHUNK_PAGES = 100;
+const CHUNK_TOKENS = 100_000;
+export function chunkPages<T extends { text: string }>(pages: T[]): T[][] {
+  const chunks: T[][] = [];
+  let current: T[] = [];
+  let tokens = 0;
+  for (const page of pages) {
+    const pageTokens = Math.ceil(page.text.length / 3);
+    if (current.length && (current.length >= CHUNK_PAGES || tokens + pageTokens > CHUNK_TOKENS)) {
+      chunks.push(current);
+      current = [];
+      tokens = 0;
+    }
+    current.push(page);
+    tokens += pageTokens;
+  }
+  if (current.length) chunks.push(current);
+  return chunks;
+}
+
+// The chunk answers as one: items in order, outline item indexes shifted past the earlier chunks' items.
+function mergeOutputs(outputs: StructureOutput[]): StructureOutput {
+  const merged: StructureOutput = { items: [], outline: [], variants: [], usage: { model: outputs[0]?.usage.model ?? "", inputTokens: 0, outputTokens: 0 } };
+  for (const output of outputs) {
+    const offset = merged.items.length;
+    merged.items.push(...output.items);
+    merged.outline.push(...output.outline.map((section) => ({ ...section, items: section.items.map((i) => i + offset) })));
+    merged.variants.push(...output.variants);
+    merged.usage.inputTokens += output.usage.inputTokens;
+    merged.usage.outputTokens += output.usage.outputTokens;
+  }
+  return merged;
+}
+
+async function structureChunk(analysisId: string, chunk: number, document: { mediaType: string; category: string | null }, pages: { page: number; text: string }[]) {
+  const body = JSON.stringify(structureInput.parse({ analysisId, chunk, document, pages, images: [] }));
+  const headers = await signWorkerRequest(process.env.ANALYSIS_WORKER_SECRET ?? "", body, Math.floor(Date.now() / 1000));
+  const res = await fetch(`${process.env.ANALYSIS_WORKER_URL}/structure/text`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
+  if (!res.ok) throw new Error(`Worker answered HTTP ${res.status} for chunk ${chunk}: ${(await res.text()).slice(0, 200)}`);
+  return structureOutput.parse(await res.json());
+}
+
 async function structure(analysisId: string, document: { mediaType: string; category: string | null }, manifest: Awaited<ReturnType<typeof readManifest>>) {
   const byPage = new Map<number, string[]>();
   for (const s of manifest.segments) byPage.set(s.page, [...(byPage.get(s.page) ?? []), s.text]);
   const pages = [...byPage].map(([page, texts]) => ({ page, text: texts.join("\n") }));
-  const body = JSON.stringify(structureInput.parse({ analysisId, chunk: 0, document, pages, images: [] }));
-  const headers = await signWorkerRequest(process.env.ANALYSIS_WORKER_SECRET ?? "", body, Math.floor(Date.now() / 1000));
-  const res = await fetch(`${process.env.ANALYSIS_WORKER_URL}/structure/text`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
-  if (!res.ok) throw new Error(`Worker answered HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  return structureOutput.parse(await res.json());
+  const outputs: StructureOutput[] = [];
+  for (const [chunk, chunkPagesList] of chunkPages(pages).entries()) outputs.push(await structureChunk(analysisId, chunk, document, chunkPagesList));
+  return mergeOutputs(outputs);
 }
 
 async function runAnalysis({ exhibitionId, analysisId }: JobData) {
@@ -104,7 +146,7 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
   if (!isRunning(analysis, analysisId)) return; // cancelled (or replaced) before it ran
 
   await notify(db, analysisId, "active");
-  const docs = await db.select().from(documents).where(and(eq(documents.exhibitionId, exhibitionId), inArray(documents.id, analysis!.documentIds)));
+  const docs = await db.select().from(documents).where(and(eq(documents.exhibitionId, exhibitionId), inArray(documents.id, analysis!.documentIds))).orderBy(documents.createdAt, documents.id);
   const coverage: Coverage = { total: 0, uncovered: 0, refs: [] };
   const aligned: { documentId: string; contents: AlignedContent[] }[] = [];
   for (const doc of docs) {
@@ -122,9 +164,13 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
   await db.transaction(async (tx) => {
     const [row] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
     if (!isRunning(row.analysis as Analysis, analysisId)) return; // cancelled meanwhile
+    // Items keep source order: the console lists by created_at, which one transaction would make equal.
+    const start = Date.now();
+    let position = 0;
     for (const { documentId, contents: items } of aligned) {
       for (const c of items) {
-        const [{ id }] = await tx.insert(contents).values({ exhibitionId, kind: c.kind, status: c.status, doc: c.doc, sources: c.sources, fields: c.fields, suggestions: c.suggestions }).returning({ id: contents.id });
+        const createdAt = new Date(start + position++);
+        const [{ id }] = await tx.insert(contents).values({ exhibitionId, kind: c.kind, status: c.status, doc: c.doc, sources: c.sources, fields: c.fields, suggestions: c.suggestions, createdAt }).returning({ id: contents.id });
         created.push({ id, kind: c.kind, doc: c.doc });
       }
       await tx.update(documents).set({ analyzedAt: new Date() }).where(eq(documents.id, documentId));
@@ -134,6 +180,9 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
   });
   await suggestEdits(exhibitionId, analysisId, created).catch((e) => console.error("analysis.suggest", e));
 }
+
+// Suggestions a person must look at before the item is ready (SPEC §9.4 "확인 필요").
+const NEEDS_CHECK_KINDS: string[] = ["TEXT_MISMATCH", "LABEL_GENERATED", "IMAGE_NOT_ANALYZED", "SOURCE_CONFLICT"];
 
 const textOf = (block: StillBlock) => ((block as { content?: { text?: string }[] }).content ?? []).map((n) => n.text ?? "").join("");
 
@@ -159,8 +208,9 @@ async function suggestEdits(exhibitionId: string, analysisId: string, created: {
     for (const id of created.map((c) => c.id)) {
       const mine = suggestions.filter((s) => s.contentId === id);
       if (!mine.length) continue;
-      const [row] = await tx.select({ suggestions: contents.suggestions }).from(contents).where(eq(contents.id, id)).for("update");
-      await tx.update(contents).set({ suggestions: [...(row.suggestions as unknown[]), ...stored(mine, 0)] }).where(eq(contents.id, id));
+      const [row] = await tx.select({ suggestions: contents.suggestions, status: contents.status }).from(contents).where(eq(contents.id, id)).for("update");
+      const needsCheck = row.status === "READY" && mine.some((s) => NEEDS_CHECK_KINDS.includes(s.kind));
+      await tx.update(contents).set({ suggestions: [...(row.suggestions as unknown[]), ...stored(mine, 0)], ...(needsCheck && { status: "NEEDS_REVIEW" as const }) }).where(eq(contents.id, id));
     }
     const wide = suggestions.filter((s) => s.contentId === null);
     if (!wide.length) return;
