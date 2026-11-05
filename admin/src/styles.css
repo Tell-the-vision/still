@@ -9,7 +9,7 @@
   --ink: #0e0e0e;
   --ink-2: #1f1f1f;
   --muted: #6e6e6e;
-  --faint: #999;
+  --faint: #717171;
   --line: #e3e3e3;
   --panel: #f7f7f7;
   --white: #fff;
@@ -76,7 +76,7 @@ button { cursor: pointer; }
 }
 .pa-nav__link:hover { color: var(--ink); }
 .pa-nav__link.is-active { background: var(--white); border-color: var(--line); color: var(--ink); font-weight: 600; }
-.pa-side__foot { margin-top: auto; padding-left: 14px; font-size: 10px; font-weight: 500; line-height: 16px; text-transform: uppercase; color: var(--faint); }
+.pa-side__foot { margin-top: auto; padding-left: 14px; font-size: 11px; font-weight: 500; line-height: 16px; text-transform: uppercase; color: var(--faint); }
 
 /* ── Page ───────────────────────────────────────── */
 .pa-main { flex: 1; min-width: 0; }
@@ -141,7 +141,7 @@ button { cursor: pointer; }
 .pa-tr--head {
   min-height: 0; height: 48px; padding-top: 15px;
   background: var(--panel); border-radius: 4px 4px 0 0;
-  font-size: 10px; font-weight: 600; line-height: 16px; text-transform: uppercase;
+  font-size: 11px; font-weight: 600; line-height: 16px; text-transform: uppercase;
 }
 .pa-td-name { font-size: 13px; font-weight: 500; line-height: 20px; color: var(--ink-2); }
 .pa-badge { display: inline-block; height: 26px; margin-top: -3px; padding: 4px 10px; border-radius: 13px; font-size: 11px; font-weight: 500; line-height: 18px; white-space: nowrap; }
@@ -151,7 +151,7 @@ button { cursor: pointer; }
 .pa-empty { padding: 24px 23px; color: var(--muted); border-bottom: 1px solid var(--line); }
 .pa-pager { display: flex; justify-content: space-between; gap: 16px; padding: 8px 23px 12px; font-size: 12px; line-height: 22px; color: var(--muted); white-space: pre; }
 .pa-pager__nav { display: flex; gap: 16px; }
-.pa-note { margin-top: 28px; font-size: 11px; line-height: 22px; color: var(--faint); }
+.pa-note { margin-top: 28px; font-size: 12px; line-height: 22px; color: var(--faint); }
 
 .pa-rowmenu { position: absolute; top: 12px; right: 10px; }
 .pa-rowmenu__btn { width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: 4px; background: none; font-size: 16px; line-height: 1; color: var(--muted); }
@@ -169,7 +169,7 @@ button { cursor: pointer; }
 .pa-dialog__title { font-family: var(--font-display); font-weight: 500; font-size: 26px; line-height: 34px; }
 .pa-dialog .pa-desc { font-size: 13px; line-height: 20px; }
 .pa-dfield { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
-.pa-hint { font-size: 11px; line-height: 16px; color: var(--faint); }
+.pa-hint { font-size: 12px; line-height: 16px; color: var(--faint); }
 .pa-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; }
 
 /* ── Temporary sign-in (임시, not in Figma) ──────── */
@@ -182,7 +182,7 @@ button { cursor: pointer; }
 .pa-signin__title { margin-top: 10px; font-size: 28px; line-height: 38px; }
 .pa-signin__field { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
 .pa-signin__submit { display: block; width: 100%; margin-top: 28px; }
-.pa-signin__note { margin-top: 16px; font-size: 11px; line-height: 18px; color: var(--faint); }
+.pa-signin__note { margin-top: 16px; font-size: 12px; line-height: 18px; color: var(--faint); }
 
 /* ── Smaller screens ────────────────────────────── */
 @media (max-width: 1280px) {

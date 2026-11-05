@@ -79,7 +79,7 @@ export default function Review() {
     setBulkBusy(false);
     setConfirming(null);
     setPicked(new Set());
-    showFlash(`${done} groups ${kind === "approve" ? "approved" : "rejected"}${skipped ? ` · ${skipped} skipped (needs a closer look or could not be saved)` : ""}`);
+    showFlash(`${done} ${done === 1 ? "group" : "groups"} ${kind === "approve" ? "approved" : "rejected"}${skipped ? ` · ${skipped} skipped (needs a closer look or could not be saved)` : ""}`);
   };
 
   const filters: [Filter, string][] = [
@@ -100,7 +100,7 @@ export default function Review() {
       <div className="toolbar">
         <div className="toolbar__summary">
           {hasItems ? <Badge tone="green" className="badge--wide">Analysis complete</Badge> : <Badge className="badge--wide">No analysis yet</Badge>}
-          <span className="muted">{counts.total} items found · {counts.approved} approved · {counts.needReview} need attention</span>
+          <span className="muted">{counts.total} {counts.total === 1 ? "item" : "items"} found · {counts.approved} approved · {counts.needReview} {counts.needReview === 1 ? "needs" : "need"} attention</span>
         </div>
         <div className="toolbar__actions">
           <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Preview digital guide</button>
@@ -140,7 +140,7 @@ export default function Review() {
               {confirming ? (
                 <>
                   <p>
-                    <strong>{confirming === "approve" ? "Approve" : "Reject"} {pickedItems.length} groups ({pickedItems.reduce((n, i) => n + i.itemCount, 0)} entries)?</strong>{" "}
+                    <strong>{confirming === "approve" ? "Approve" : "Reject"} {pickedItems.length} {pickedItems.length === 1 ? "group" : "groups"} ({pickedItems.reduce((n, i) => n + i.itemCount, 0)} entries)?</strong>{" "}
                     {pickedItems.map((i) => `${no(i)} ${i.title}`).join(", ")}
                   </p>
                   <span className="bulkbar__actions">
@@ -165,7 +165,7 @@ export default function Review() {
             <section className="panel">
               <div className="panel__head">
                 <span className="eyebrow">Extracted content</span>
-                <span className="eyebrow">{visible.length} groups</span>
+                <span className="eyebrow">{visible.length} {visible.length === 1 ? "group" : "groups"}</span>
               </div>
               <ul className="item-list">
                 {visible.map((i) => (
