@@ -4,7 +4,7 @@
 import { ApiError } from "./errors";
 import { RIGHTS_STATEMENT_VERSION, UPLOAD_FORMATS } from "../constants";
 import { extractManifest } from "../extract";
-import type { ContentItem, Exhibition, Guide, GuideSection, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
+import type { ContentItem, EditSuggestion, Exhibition, Guide, GuideSection, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -561,6 +561,18 @@ export function createTrpcApi(): InstitutionsApi {
     updateMediaAsset: unavailable,
     mergeContentItems: unavailable,
     splitContentItem: unavailable,
+    listSuggestions: async (exhibitionId) => {
+      const rows = await q<(Omit<EditSuggestion, "proposalText" | "rationale"> & { proposal?: { text?: string }; rationale?: string })[]>("console.suggestion.list", { code: exhibitionId });
+      return rows.map(({ proposal, rationale, ...s }) => ({ ...s, proposalText: proposal?.text ?? null, rationale: rationale ?? null }));
+    },
+    decideSuggestion: async ({ contentId, id, revision }, status) => {
+      try {
+        await m("console.suggestion.update", { contentId, id, revision, status });
+      } catch (e) {
+        if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") throw new ApiError(CHANGED_ELSEWHERE, e.code, e.appCode);
+        throw e;
+      }
+    },
 
     listPublicationChecks: async (exhibitionId) => toPublicationChecks((await q<{ checks: ConsoleCheck[] }>("console.preview.get", { code: exhibitionId })).checks),
 

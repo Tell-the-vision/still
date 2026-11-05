@@ -204,6 +204,8 @@ function useWorkspaceState() {
     selectExhibition: setCurrentId,
     clearError: () => setError(null),
     reportError: fail,
+    /** Re-reads the items and checks after a change the server made to several parts (a decided suggestion). */
+    reloadExhibitionData: () => (currentId ? loadExhibitionData(currentId).catch(fail) : Promise.resolve()),
     reloadWorkspace: () => api.getWorkspace().then(setWorkspace).catch(fail),
     /** Errors stay on the form (not the app banner) and are rethrown for it. */
     signIn: async (request: SignInRequest) => {

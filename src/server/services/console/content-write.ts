@@ -98,7 +98,7 @@ async function removeFromDraftSections(tx: Tx, exhibitionId: string, contentIds:
 }
 
 // Locks the exhibition of the caller's item. NOT_FOUND for anything else.
-async function lockOwnedContent(tx: Tx, institutionId: string, id: string): Promise<Row> {
+export async function lockOwnedContent(tx: Tx, institutionId: string, id: string): Promise<Row> {
   const [owned] = await tx
     .select({ exhibitionId: contents.exhibitionId })
     .from(contents)
