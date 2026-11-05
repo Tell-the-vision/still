@@ -1,3 +1,4 @@
+@import "../../shared/fonts/fonts.css";
 /*
  * STILL — Museum Workspace (/institutions) draft.
  * Measurements are read off the Figma frames (node 169-186, 1440 wide) via PNG exports,
@@ -23,8 +24,8 @@
   --amber-bg: #fcf0dd;
   --focus: #e9b824;
 
-  --font-display: "Futura PT", Futura, "Jost", "Century Gothic", sans-serif;
-  --font-text: "DM Sans", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-display: Futura, "Futura PT", Montserrat, "Noto Sans KR", sans-serif;
+  --font-text: "DM Sans", "Noto Sans KR", system-ui, sans-serif;
 
   --header-h: 72px;
   --sidebar-w: 248px;
