@@ -40,12 +40,15 @@ export interface SourceFile {
   uploadedAt: ISODateTime;
   status: FileStatus;
   error: string | null; // why it failed, shown on the row
+  note?: string; // client only: something to know about a healthy row ("Text extraction for DOCX is not available yet.")
   /** Client only: upload progress 0–100 while UPLOADING. */
   progress?: number;
 }
 export interface UploadOptions {
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
+  /** The file is stored and its text is being extracted in the browser. */
+  onExtracting?: () => void;
 }
 
 // Handoff 5: extracted → in_review → approved / rejected. Only APPROVED items reach the visitor guide.

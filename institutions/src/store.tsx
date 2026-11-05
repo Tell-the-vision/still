@@ -161,7 +161,7 @@ function useWorkspaceState() {
     inFlight.current.set(rowId, controller);
     patchRow(rowId, { status: "UPLOADING", progress: 0, error: null });
     try {
-      const saved = await api.uploadFile(exhibitionId, file, { signal: controller.signal, onProgress: (progress) => patchRow(rowId, { progress }) });
+      const saved = await api.uploadFile(exhibitionId, file, { signal: controller.signal, onProgress: (progress) => patchRow(rowId, { progress }), onExtracting: () => patchRow(rowId, { status: "PROCESSING" }) });
       retryable.current.delete(rowId);
       setLocalFiles((l) => l.filter((r) => r.id !== rowId));
       setData((d) => ({ ...d, files: [...d.files, saved] }));

@@ -3,6 +3,7 @@
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
 import { RIGHTS_STATEMENT_VERSION, UPLOAD_FORMATS } from "../constants";
+import { extractManifest } from "../extract";
 import type { ContentItem, Exhibition, Guide, GuideSection, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
@@ -286,13 +287,13 @@ const toSourceFile = (doc: ConsoleDocument): SourceFile => ({
   error: doc.status === "DUPLICATE" ? `Same file as ${doc.duplicateOfName}` : doc.errorCode && (FAILURE_TEXT[doc.errorCode] ?? "The file could not be processed."),
 });
 
-const sha256Hex = async (file: File) =>
+const sha256Hex = async (file: Blob) =>
   Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer())), (b) => b.toString(16).padStart(2, "0")).join("");
 
 const abortError = () => new DOMException("Upload canceled", "AbortError");
 
 // PUTs the file to the presigned URL. XMLHttpRequest instead of fetch: fetch cannot report upload progress.
-function putFile(upload: { url: string; headers: Record<string, string> }, file: File, options?: UploadOptions) {
+function putFile(upload: { url: string; headers: Record<string, string> }, file: Blob, options?: UploadOptions) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", upload.url);
@@ -322,7 +323,31 @@ async function uploadDocument(code: string, file: File, options?: UploadOptions)
     await removeDocument(document.id).catch(() => {});
     throw e;
   }
-  return toSourceFile(await m<ConsoleDocument>("console.document.update", { id: document.id, uploaded: true }));
+  const stored = toSourceFile(await m<ConsoleDocument>("console.document.update", { id: document.id, uploaded: true }));
+  // A byte-for-byte duplicate comes back as DUPLICATE: there is nothing to extract.
+  return stored.status === "UPLOADED" ? extractStored(stored, file, sha256, options) : stored;
+}
+
+const MANIFEST_NAME = "manifest.v1.json";
+
+// SPEC §9.4 추출: the stored file is read in the browser, and the manifest goes to the document's prefix in R2.
+// The server then validates it (SPEC §10.6) and answers with the document, EXTRACTED or FAILED. A file that
+// cannot be extracted stays stored (UPLOADED) with a note on its row; it never fails the upload.
+async function extractStored(stored: SourceFile, file: File, sha256: string, options?: UploadOptions): Promise<SourceFile> {
+  try {
+    options?.onExtracting?.();
+    const manifest = await extractManifest(file, { documentId: stored.id, sha256 });
+    if (!manifest) return { ...stored, note: `Text extraction for ${stored.format} is not available yet.` };
+    const body = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    const { uploads } = await m<{ uploads: { name: string; url: string; headers: Record<string, string> }[] }>(
+      "console.documentUpload.create", { documentId: stored.id, files: [{ name: MANIFEST_NAME, size: body.size, sha256: await sha256Hex(body) }] });
+    const upload = uploads.find((u) => u.name === MANIFEST_NAME);
+    if (!upload) throw new ApiError("The server did not accept the manifest.");
+    await putFile(upload, body);
+    return toSourceFile(await m<ConsoleDocument>("console.document.update", { id: stored.id, manifestKey: MANIFEST_NAME }));
+  } catch (e) {
+    return { ...stored, error: `Text extraction failed: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
 
 // The server refuses to remove a document that reviewed content (or the cover) still uses.
