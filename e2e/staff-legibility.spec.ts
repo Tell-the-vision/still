@@ -71,3 +71,23 @@ test("Users & access has no text under 11px and readable faint text", async ({ p
   expect(faint.count).toBeGreaterThan(0);
   expect(faint.failing).toEqual([]);
 });
+
+// WCAG 2.5.8: the list's select box is 15px, so its label gives it a 24×24 target that toggles it.
+test("the review list's select box has a 24px target", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account);
+  await seedContent(exhibition, { kind: "ARTWORK", status: "NEEDS_REVIEW", doc: [{ type: "paragraph", attrs: { id: "b1" }, content: [{ type: "text", text: "Body" }] }] });
+  await signInConsole(page, account);
+  await page.goto("/institutions/exhibitions");
+  await page.getByText(exhibition.title, { exact: true }).click();
+  await page.goto("/institutions/materials/review");
+
+  const box = page.getByRole("checkbox", { name: /^Select / });
+  const target = page.locator(".pick-row label").filter({ has: box });
+  const size = await target.boundingBox();
+  expect(size!.width).toBeGreaterThanOrEqual(24);
+  expect(size!.height).toBeGreaterThanOrEqual(24);
+  // A click on the target's corner, outside the 15px box, still toggles it.
+  await target.click({ position: { x: 1, y: 1 } });
+  await expect(box).toBeChecked();
+});
