@@ -178,3 +178,13 @@ test("another institution's code is NOT_FOUND", async ({ page }) => {
   const draft = (await e2eSql<{ draft: unknown }>("SELECT draft FROM exhibitions WHERE id = $1", [theirs.id]))[0].draft;
   expect((await consoleCall(page, "console.draft.update", { code: theirs.code, revision: theirs.draftRevision, draft })).status).toBe(404);
 });
+
+test("a draft that was never published can be published from the digital guide", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account, { title: `Never Published ${Date.now()}` });
+  await signInConsole(page, account);
+  await openExhibition(page, exhibition.title);
+  await page.goto("/institutions/guide");
+  await expect(page.getByText("Draft · Not published")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Publish changes" })).not.toHaveAttribute("aria-disabled", "true");
+});

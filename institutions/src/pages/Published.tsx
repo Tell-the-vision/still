@@ -56,7 +56,7 @@ export default function Published() {
           <button type="button" className="btn btn--secondary btn--wide" onClick={copy}>{copied ? "Copied" : "Copy link"}</button>
         </div>
         <div className="qr-block" id="qr">
-          <img className="qr qr--img" src={qr} alt={`QR code for ${url}`} />
+          <img className="qr qr--img" src={qr} width={180} height={180} alt={`QR code for ${url}`} />
           <a className="btn btn--secondary" href={qr} download={qrFilename}>Download QR (PNG)</a>
         </div>
       </div>

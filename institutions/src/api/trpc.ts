@@ -405,7 +405,8 @@ const toGuideSection = (s: ServerDraft["sections"][number]): GuideSection => ({
 const toGuide = (draft: ServerDraft, row: ConsoleExhibitionRow): Guide => ({
   sections: draft.sections.map(toGuideSection),
   themes: [],
-  hasUnpublishedChanges: row.hasUnpublishedChanges,
+  // Anything not live yet (a draft never published, or an unpublished guide) can be published.
+  hasUnpublishedChanges: row.state !== "PUBLISHED" || row.hasUnpublishedChanges,
 });
 
 const STALE_DRAFT = "This draft changed elsewhere. Reload to see the latest.";
