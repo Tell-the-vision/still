@@ -265,8 +265,24 @@ async function uploadDocument(code: string, file: File, options?: UploadOptions)
   if (options?.signal?.aborted) throw abortError();
   const { document, upload } = await m<{ document: ConsoleDocument; upload: { url: string; headers: Record<string, string> } }>(
     "console.document.create", { code, name: file.name, mediaType, byteSize: file.size, sha256 });
-  await putFile(upload, file, options);
+  try {
+    await putFile(upload, file, options);
+  } catch (e) {
+    // A row that never got its bytes would sit in UPLOADING for good; a retry registers a new one.
+    await removeDocument(document.id).catch(() => {});
+    throw e;
+  }
   return toSourceFile(await m<ConsoleDocument>("console.document.update", { id: document.id, uploaded: true }));
+}
+
+// The server refuses to remove a document that reviewed content (or the cover) still uses.
+async function removeDocument(id: string) {
+  try {
+    await m("console.document.delete", { id });
+  } catch (e) {
+    if (e instanceof ApiError && e.appCode === "DOCUMENT_IN_USE") throw new ApiError("This file is used by reviewed content and cannot be removed.", e.code, e.appCode);
+    throw e;
+  }
 }
 
 export function createTrpcApi(): InstitutionsApi {
@@ -313,7 +329,8 @@ export function createTrpcApi(): InstitutionsApi {
 
     listFiles: async (exhibitionId) => (await q<ConsoleDocument[]>("console.document.list", { code: exhibitionId })).map(toSourceFile),
     uploadFile: (exhibitionId, file, options) => uploadDocument(exhibitionId, file, options),
-    deleteFile: (exhibitionId, fileId) => m("deleteFile", { exhibitionId, fileId }),
+    deleteFile: (_exhibitionId, fileId) => removeDocument(fileId),
+    getFileDownloadUrl: async (fileId) => (await q<{ download: { url: string } }>("console.document.get", { id: fileId })).download.url,
     // console.analysis.create needs pg-boss and the Worker (SPEC §10.10); no procedure to call yet.
     startAnalysis: async () => {
       throw new ApiError("Analysis is not available yet.");

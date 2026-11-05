@@ -30,6 +30,7 @@ function fetchObject(key: string, init: RequestInit) {
 const DRY_RUN_ORIGIN = "https://r2.dry-run.invalid";
 const dryRun = () => process.env.R2_DRY_RUN === "1";
 // Required only where the private bucket is used, so the public media upload does not depend on it.
+const PRESIGN_SECONDS = 900;
 const privateBucket = () => (dryRun() ? "private-dry-run" : z.string().min(1).parse(process.env.R2_PRIVATE_BUCKET));
 
 // A presigned PUT the browser uses to upload one original straight to the private bucket.
@@ -38,9 +39,28 @@ export async function presignPrivatePut(key: string) {
   if (dryRun()) return { url: `${DRY_RUN_ORIGIN}/${privateBucket()}/${key}`, headers: {} as Record<string, string> };
   const { client, env } = r2Client();
   const url = new URL(`${env.R2_ENDPOINT}/${privateBucket()}/${key}`);
-  url.searchParams.set("X-Amz-Expires", "900");
+  url.searchParams.set("X-Amz-Expires", String(PRESIGN_SECONDS));
   const signed = await client.sign(url.toString(), { method: "PUT", aws: { signQuery: true } });
   return { url: signed.url, headers: {} as Record<string, string> };
+}
+
+// A presigned GET the browser opens to download one original. Valid 15 minutes, like the PUT.
+export async function presignPrivateGet(key: string) {
+  const expiresAt = new Date(Date.now() + PRESIGN_SECONDS * 1000);
+  if (dryRun()) return { url: `${DRY_RUN_ORIGIN}/${privateBucket()}/${key}`, expiresAt };
+  const { client, env } = r2Client();
+  const url = new URL(`${env.R2_ENDPOINT}/${privateBucket()}/${key}`);
+  url.searchParams.set("X-Amz-Expires", String(PRESIGN_SECONDS));
+  const signed = await client.sign(url.toString(), { method: "GET", aws: { signQuery: true } });
+  return { url: signed.url, expiresAt };
+}
+
+// Removes an original (or its manifest) from the private bucket. R2_DRY_RUN=1 skips the delete.
+export async function deletePrivateObject(key: string) {
+  if (dryRun()) return;
+  const { client, env } = r2Client();
+  const res = await client.fetch(`${env.R2_ENDPOINT}/${privateBucket()}/${key}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`R2 delete of ${key} failed: ${res.status}`);
 }
 
 // Writes an original from the server (pasted text only). R2_DRY_RUN=1 skips the write.

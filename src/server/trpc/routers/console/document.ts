@@ -1,17 +1,19 @@
 import {
   consoleDocumentCreateInput,
+  consoleDocumentDeleteInput,
+  consoleDocumentGetInput,
   consoleDocumentListInput,
   consoleDocumentUpdateInput,
   DOCUMENT_FORMATS,
   DOCUMENT_MAX_BYTES,
 } from "@still/shared/console";
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "../../../db/client";
-import { documents, exhibitions } from "../../../db/schema";
-import { presignPrivatePut, privateObjectSize, putPrivateObject } from "../../../media/r2";
+import { contents, documents, exhibitions, images } from "../../../db/schema";
+import { deletePrivateObject, presignPrivateGet, presignPrivatePut, privateObjectSize, putPrivateObject } from "../../../media/r2";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
 import { AppError, consoleProcedure, router } from "../../init";
 
@@ -165,4 +167,77 @@ export const consoleDocumentRouter = router({
       .where(eq(documents.exhibitionId, exhibition.id))
       .orderBy(asc(documents.createdAt), asc(documents.id));
   }),
+
+  // The document and a presigned GET for its original.
+  get: consoleProcedure.input(consoleDocumentGetInput).query(async ({ ctx, input }) => {
+    const document = await documentView(ctx.institutionId, input.id);
+    if (!document) throw new TRPCError({ code: "NOT_FOUND" });
+    const [{ objectKey }] = await db.select({ objectKey: documents.objectKey }).from(documents).where(eq(documents.id, input.id));
+    return { ...document, download: await presignPrivateGet(objectKey) };
+  }),
+
+  // SPEC §9.1-1: an original goes only while nothing refers to it. ZIP children and duplicates go with it
+  // (self FKs), and so do the images extracted from any of them (images_document_fk).
+  delete: consoleProcedure.input(consoleDocumentDeleteInput).mutation(async ({ ctx, input }) => {
+    const current = await documentView(ctx.institutionId, input.id);
+    if (!current) throw new TRPCError({ code: "NOT_FOUND" });
+
+    const objectKeys = await db.transaction(async (tx) => {
+      const [{ exhibitionId }] = await tx.select({ exhibitionId: documents.exhibitionId }).from(documents).where(eq(documents.id, input.id));
+      // Locking the exhibition row keeps two deletes (and any writer that takes the same lock) from
+      // interleaving with the checks below.
+      const [exhibition] = await tx
+        .select({ analysis: exhibitions.analysis, draft: exhibitions.draft, coverImageId: exhibitions.coverImageId })
+        .from(exhibitions)
+        .where(eq(exhibitions.id, exhibitionId))
+        .for("update");
+      // The row may have been deleted by a concurrent request while we waited for the lock.
+      const doomed = await documentsGoingWith(tx, exhibitionId, input.id);
+      if (!doomed.length) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const analysis = exhibition.analysis as { result?: unknown } | null;
+      if (analysis && analysis.result == null) throw new TRPCError({ code: "CONFLICT", cause: new AppError("ANALYSIS_IN_PROGRESS") });
+
+      const doomedImages = await tx.select({ id: images.id }).from(images).where(inArray(images.documentId, doomed.map((d) => d.id)));
+      const imageIds = new Set(doomedImages.map((i) => i.id));
+      const draftCover = (exhibition.draft as { coverImageId?: string | null }).coverImageId;
+      const coverIsTheirs = [exhibition.coverImageId, draftCover].some((cover) => cover && imageIds.has(cover));
+      const items = await tx.select({ blocks: contents.blocks, fields: contents.fields }).from(contents).where(eq(contents.exhibitionId, exhibitionId));
+      const refersToThem = (value: string) => imageIds.has(value) || doomed.some((d) => value.startsWith(`${d.id}:`));
+      if (coverIsTheirs || items.some((item) => stringsIn(item).some(refersToThem))) {
+        throw new TRPCError({ code: "CONFLICT", cause: new AppError("DOCUMENT_IN_USE") });
+      }
+
+      await tx.delete(documents).where(eq(documents.id, input.id));
+      return doomed.flatMap((d) => [d.objectKey, d.manifestObjectKey]).filter((key): key is string => key !== null);
+    });
+
+    // SPEC queues a storage.delete job for this (issue #66, pg-boss is not built). Until then the objects are
+    // removed here, after the commit and best effort: a failure leaves an orphan object, never a failed request.
+    await Promise.all(objectKeys.map((key) => deletePrivateObject(key).catch((e) => console.error(`console.document.delete: could not remove ${key}`, e))));
+    return { id: input.id };
+  }),
 });
+
+// The document with its ZIP children and duplicates, transitively: every row the delete cascades to.
+async function documentsGoingWith(tx: Pick<typeof db, "execute">, exhibitionId: string, id: string) {
+  const { rows } = await tx.execute<{ id: string; objectKey: string; manifestObjectKey: string | null }>(sql`
+    WITH RECURSIVE going AS (
+      SELECT id, object_key, manifest_object_key FROM documents WHERE exhibition_id = ${exhibitionId} AND id = ${id}
+      UNION
+      SELECT d.id, d.object_key, d.manifest_object_key FROM documents d
+        JOIN going g ON d.parent_id = g.id OR d.duplicate_of_id = g.id
+        WHERE d.exhibition_id = ${exhibitionId}
+    )
+    SELECT id, object_key AS "objectKey", manifest_object_key AS "manifestObjectKey" FROM going`);
+  return rows;
+}
+
+// Every string anywhere in a JSON value: content refs ("{documentId}:{segmentId}") and image ids are found
+// without caring which block or field holds them, so a new place for refs cannot be missed.
+function stringsIn(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(stringsIn);
+  if (value && typeof value === "object") return Object.values(value).flatMap(stringsIn);
+  return [];
+}

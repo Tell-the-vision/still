@@ -256,6 +256,8 @@ export interface InstitutionsApi {
   listFiles(exhibitionId: string): Promise<SourceFile[]>;
   uploadFile(exhibitionId: string, file: File, options?: UploadOptions): Promise<SourceFile>;
   deleteFile(exhibitionId: string, fileId: string): Promise<void>;
+  /** A short-lived URL for the original file as it was uploaded. */
+  getFileDownloadUrl(fileId: string): Promise<string>;
   startAnalysis(exhibitionId: string): Promise<void>;
   listProcessingEvents(exhibitionId: string): Promise<ProcessingEvent[]>;
 

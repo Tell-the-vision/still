@@ -19,7 +19,7 @@ const STATUS: Record<SourceFile["status"], { label: string; tone: "green" | "amb
 
 export default function Upload() {
   const {
-    exhibition, files, uploadFiles, rejectFiles, retryUpload, cancelUpload, canRetry, dismissLocalFile, deleteFile, startAnalysis, createExhibition, can,
+    exhibition, files, uploadFiles, rejectFiles, retryUpload, cancelUpload, canRetry, dismissLocalFile, deleteFile, downloadFile, startAnalysis, createExhibition, can,
   } = useWorkspace();
   const [dragging, setDragging] = useState(false);
   const [duplicates, setDuplicates] = useState<File[]>([]);
@@ -205,6 +205,9 @@ export default function Upload() {
                         )}
                         {editable && (f.status === "FAILED" || f.status === "CANCELED") && canRetry(f.id) && (
                           <button type="button" className="link-btn link-btn--strong" onClick={() => retryUpload(f.id)}>Retry</button>
+                        )}
+                        {(f.status === "UPLOADED" || f.status === "PROCESSED") && (
+                          <button type="button" className="link-btn" onClick={() => downloadFile(f.id).catch(() => {})} aria-label={`Download ${f.name}`}>Download</button>
                         )}
                         {editable && f.status !== "UPLOADING" && f.status !== "QUEUED" && (
                           <button

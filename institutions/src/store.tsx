@@ -257,6 +257,8 @@ function useWorkspaceState() {
       enqueue(rowId, file);
     },
     cancelUpload: (rowId: string) => {
+      // A row the server already has (an upload that never finished) is removed there.
+      if (!localFiles.some((r) => r.id === rowId)) { void actions.deleteFile(rowId).catch(() => {}); return; }
       const queued = queue.current.find((j) => j.rowId === rowId);
       if (queued) {
         queue.current = queue.current.filter((j) => j.rowId !== rowId);
@@ -267,6 +269,7 @@ function useWorkspaceState() {
       }
     },
     dismissLocalFile: (rowId: string) => {
+      if (!localFiles.some((r) => r.id === rowId)) { void actions.deleteFile(rowId).catch(() => {}); return; }
       retryable.current.delete(rowId);
       setLocalFiles((l) => l.filter((r) => r.id !== rowId));
     },
@@ -275,6 +278,7 @@ function useWorkspaceState() {
       await api.deleteFile(currentId, fileId);
       setData((d) => ({ ...d, files: d.files.filter((f) => f.id !== fileId) }));
     }),
+    downloadFile: (fileId: string) => run(async () => { window.open(await api.getFileDownloadUrl(fileId), "_blank", "noopener"); }),
     startAnalysis: () => run(async () => {
       if (!currentId) return;
       await api.startAnalysis(currentId);

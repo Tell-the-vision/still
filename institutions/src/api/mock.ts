@@ -210,6 +210,10 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       db.files[id] = (db.files[id] ?? []).filter((f) => f.id !== fileId);
       return wait(undefined);
     },
+    async getFileDownloadUrl(fileId) {
+      const file = Object.values(db.files).flat().find((f) => f.id === fileId);
+      return wait(URL.createObjectURL(new Blob([`Mock original of ${file?.name ?? fileId}`], { type: "text/plain" })));
+    },
     async startAnalysis(id) {
       allow("edit");
       for (const f of db.files[id] ?? []) if (f.status === "UPLOADED") f.status = "PROCESSING";
