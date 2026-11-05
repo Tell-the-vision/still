@@ -6,6 +6,7 @@ import UniqueID from "@tiptap/extension-unique-id";
 import { api } from "../api";
 import { ApiError } from "../api/errors";
 import { useWorkspace } from "../store";
+import { SourceGutter } from "./SourceGutter";
 import { ImagePicker, StillImage } from "./StillImage";
 
 // SPEC §9.4 편집기: the STILL schema only. Nothing outside it can be typed, pasted or toggled.
@@ -25,6 +26,7 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
   const [state, setState] = useState<Saved>("idle");
   const [error, setError] = useState<string | null>(null);
   const { reloadExhibitionData, reportError } = useWorkspace();
+  const [saves, setSaves] = useState(0); // counts finished saves, so source marks refresh
   const timer = useRef<number>(0);
   // The latest edit that has not been sent yet; flushed on unmount instead of dropped.
   const pending = useRef<JSONContent | null>(null);
@@ -54,6 +56,7 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
           await api.saveContentDoc(itemId, ed.getJSON());
           setError(null);
           setState("saved");
+          setSaves((n) => n + 1);
         } catch (e) {
           if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") {
             // SPEC §9.4: load the latest version; the new revision remounts this editor with it.
@@ -97,7 +100,9 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
           <ImagePicker editor={editor} exhibitionId={exhibitionId} />
         </div>
       )}
-      <EditorContent editor={editor} className="input input--lg still-editor__body" />
+      <SourceGutter editor={editor} itemId={itemId} editable={editable} version={saves}>
+        <EditorContent editor={editor} className="input input--lg still-editor__body" />
+      </SourceGutter>
       <p className="caption-sm" role="status" aria-live="polite">
         {error ?? (state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "")}
       </p>
