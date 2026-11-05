@@ -8,6 +8,7 @@ import { useRequireLogin } from "../../../features/auth/require-login";
 import { keepsakeStrings as strings } from "../../../features/keepsake/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { DownloadPng } from "../../../features/keepsake/DownloadPng";
+import { markKept } from "../../../features/keepsake/develop";
 import { KeepsakeActions } from "../../../features/keepsake/KeepsakeActions";
 import { Button } from "../../../ui/Button";
 import { Choice } from "../../../ui/Choice";
@@ -42,6 +43,8 @@ export default function KeepsakeCreator() {
   const [picked, setPicked] = useState<string>();
   const [sentenceIds, setSentenceIds] = useState<string[]>();
   const [excerpt, setExcerpt] = useState<string | null>();
+  // The line just ticked on, so the preview inks only that one in.
+  const [lastAdded, setLastAdded] = useState<string>();
   // The tallest the editor has been: switching to a shorter layout (Cover) keeps this height, so a scrolled page
   // is not pulled up and the scrollbar does not disappear.
   const [tallest, setTallest] = useState(0);
@@ -166,7 +169,7 @@ export default function KeepsakeCreator() {
         )}
         {save.isError && <Notice error message={strings.failed} />}
         <Stack>
-        <Button label={strings.save} onPress={() => save.mutate({ code, templateId, ...picks })} />
+        <Button label={save.isPending ? strings.saving : strings.save} disabled={save.isPending} onPress={() => save.mutate({ code, templateId, ...picks })} />
         <KeepsakeActions align="start">
           {saved && !changed ? (
             <DownloadPng code={code} url={saved.png.url} />
