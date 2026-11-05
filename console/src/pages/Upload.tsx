@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import type { SourceFile } from "../api";
 import { ARTWORK_TEMPLATE_CSV, MATERIAL_TAGS, UPLOAD_ACCEPT, UPLOAD_EXTENSIONS, UPLOAD_FORMATS_LABEL, UPLOAD_MAX_BYTES } from "../constants";
 import { formatAdded, formatMB, formatPeriod } from "../format";
-import { NO_PERMISSION } from "../rules";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead } from "../ui";
 
@@ -19,14 +18,13 @@ const STATUS: Record<SourceFile["status"], { label: string; tone: "green" | "amb
 
 export default function Upload() {
   const {
-    exhibition, files, uploadFiles, rejectFiles, retryUpload, cancelUpload, canRetry, dismissLocalFile, deleteFile, startAnalysis, createExhibition, can,
+    exhibition, files, uploadFiles, rejectFiles, retryUpload, cancelUpload, canRetry, dismissLocalFile, deleteFile, startAnalysis, createExhibition,
   } = useWorkspace();
   const [dragging, setDragging] = useState(false);
   const [duplicates, setDuplicates] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const editable = can("edit");
 
   if (!exhibition) return <NoExhibition title="Exhibition materials" onCreate={createExhibition} />;
 
@@ -39,7 +37,7 @@ export default function Upload() {
   const canAnalyse = onServer.some((f) => f.status === "UPLOADED") && !uploading && !busy;
 
   const addFiles = (list: FileList | null) => {
-    if (!list?.length || !editable) return;
+    if (!list?.length) return;
     const refused: { file: File; reason: string }[] = [];
     const fresh: File[] = [];
     const dupes: File[] = [];
@@ -99,14 +97,12 @@ export default function Upload() {
         title="Exhibition materials"
         lede="Upload the materials you already have. STILL will organise the content for your review."
         actions={
-          editable && (
-            <>
-              <button type="button" className="btn btn--secondary" onClick={() => navigate("/overview")}>Save draft</button>
-              <button type="button" className="btn btn--primary" onClick={analyse} aria-disabled={!canAnalyse} disabled={!canAnalyse}>
-                {busy ? "Starting…" : "Start analysis"}
-              </button>
-            </>
-          )
+          <>
+            <button type="button" className="btn btn--secondary" onClick={() => navigate("/overview")}>Save draft</button>
+            <button type="button" className="btn btn--primary" onClick={analyse} aria-disabled={!canAnalyse} disabled={!canAnalyse}>
+              {busy ? "Starting…" : "Start analysis"}
+            </button>
+          </>
         }
       />
       <hr className="rule" />
@@ -119,8 +115,7 @@ export default function Upload() {
         </div>
       </div>
 
-      {editable ? (
-        <section
+      <section
           className={`dropzone${dragging ? " is-dragging" : ""}`}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -146,9 +141,6 @@ export default function Upload() {
           </div>
           <input ref={input} type="file" multiple accept={UPLOAD_ACCEPT} hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
         </section>
-      ) : (
-        <p className="notice">{NO_PERMISSION.edit}</p>
-      )}
 
       {duplicates.length > 0 && (
         <div className="notice notice--amber" role="alert">
@@ -200,13 +192,13 @@ export default function Upload() {
                         )}
                       </td>
                       <td className="cell-action">
-                        {editable && (f.status === "QUEUED" || f.status === "UPLOADING") && (
+                        {(f.status === "QUEUED" || f.status === "UPLOADING") && (
                           <button type="button" className="link-btn" onClick={() => cancelUpload(f.id)}>Cancel</button>
                         )}
-                        {editable && (f.status === "FAILED" || f.status === "CANCELED") && canRetry(f.id) && (
+                        {(f.status === "FAILED" || f.status === "CANCELED") && canRetry(f.id) && (
                           <button type="button" className="link-btn link-btn--strong" onClick={() => retryUpload(f.id)}>Retry</button>
                         )}
-                        {editable && f.status !== "UPLOADING" && f.status !== "QUEUED" && (
+                        {f.status !== "UPLOADING" && f.status !== "QUEUED" && (
                           <button
                             type="button"
                             className="link-btn"

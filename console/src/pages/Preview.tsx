@@ -4,7 +4,7 @@ import { rightsIssue } from "../rules";
 import { useWorkspace } from "../store";
 import { Arrow, Badge, EmptyState, NoExhibition, PageHead, StatusText, Stepper } from "../ui";
 
-const shown = (i: ContentItem | undefined): i is ContentItem => !!i && !i.removed && i.reviewStatus === "APPROVED";
+const shown = (i: ContentItem | undefined): i is ContentItem => !!i && i.reviewStatus === "APPROVED";
 
 export default function Preview() {
   const { exhibition, counts, items, guide, checks, createExhibition } = useWorkspace();
@@ -17,21 +17,21 @@ export default function Preview() {
   const byId = new Map(items.map((i) => [i.id, i]));
   const sections = guide.sections
     .filter((s) => s.visible)
-    .map((s) => ({ ...s, content: s.itemIds.map((id) => byId.get(id)).filter(shown) }));
+    .map((s) => ({ ...s, content: s.contentIds.map((id) => byId.get(id)).filter(shown) }));
 
   // What the draft has but visitors will not see, so nothing disappears silently.
   // The same item can sit in two sections, so lines are de-duplicated.
   const leftOut = [...new Set([
     ...guide.sections.filter((s) => !s.visible).map((s) => `Section "${s.title}" is hidden`),
     ...guide.sections.flatMap((s) =>
-      s.itemIds
+      s.contentIds
         .map((id) => byId.get(id))
         .filter((i): i is ContentItem => !!i && !shown(i))
-        .map((i) => `"${i.title}" in ${s.title} is ${i.removed ? "deleted" : i.reviewStatus === "REJECTED" ? "rejected" : "not approved yet"}`),
+        .map((i) => `"${i.title}" in ${s.title} is ${i.reviewStatus === "REJECTED" ? "rejected" : "not approved yet"}`),
     ),
     ...sections.flatMap((s) =>
       s.content.flatMap((i) =>
-        i.assets.filter((a) => a.excluded || rightsIssue(a)).map((a) => `Image "${a.caption}" (${i.title}): ${a.excluded ? "marked not to publish" : rightsIssue(a)}`),
+        i.assets.filter((a) => rightsIssue(a)).map((a) => `Image "${a.name}" (${i.title}): ${rightsIssue(a)}`),
       ),
     ),
   ])];
@@ -42,11 +42,12 @@ export default function Preview() {
       <PageHead
         eyebrow={<>Visitor experience <span aria-hidden>/</span> Preview</>}
         title="Preview digital guide"
-        lede="The saved guide draft as a visitor will see it on a 390 × 844 phone screen: visible sections, approved content only."
+        lede="The saved guide draft as visitors will see it on their phone. Approved content only."
+        actionsBottom
         actions={
           <>
-            <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/review")}>Edit content</button>
             <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/guide")}>Edit guide</button>
+            <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/review")}>Edit content</button>
           </>
         }
       >
@@ -65,15 +66,14 @@ export default function Preview() {
           {sections.map((s) => (
             <section key={s.id} className="phone__section">
               <h3 className="phone__h3">{s.title}</h3>
-              {s.intro && <p className="phone__body">{s.intro}</p>}
               {s.content.map((i) => {
-                const images = i.assets.filter((a) => !a.excluded && !rightsIssue(a));
+                const images = i.assets.filter((a) => !rightsIssue(a));
                 return (
                   <div key={i.id} className="phone__block">
                     {images.map((a) => (
                       <figure key={a.id} className="phone__figure">
-                        <div className="phone__image">Image</div>
-                        <figcaption className="phone__credit">{a.caption}{a.copyrightHolder && ` · © ${a.copyrightHolder}`}</figcaption>
+                        <div className="phone__image" role="img" aria-label={a.altText ?? a.name}>Image</div>
+                        {a.credit && <figcaption className="phone__credit">{a.credit}</figcaption>}
                       </figure>
                     ))}
                     <p className={`phone__body${i.contentType === "Guide sentence" ? " phone__quote" : ""}`}>{i.text}</p>

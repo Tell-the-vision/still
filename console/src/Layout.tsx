@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
-import { ROLES } from "./rules";
 import { useWorkspace } from "./store";
 
 const WORKSPACE_NAV = [
@@ -65,7 +64,8 @@ export default function Layout() {
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen((o) => !o)}
             >
-              {workspace.institutionName} <span aria-hidden>/</span> {me ? ROLES[me.role].label : workspace.role}
+              {/* The account name, not a role: everyone in an institution has the same permissions (SPEC §9.2). */}
+              {workspace.institutionName} <span aria-hidden>/</span> {me?.name}
               <span aria-hidden className="account-menu__caret">▾</span>
             </button>
             {accountOpen && (

@@ -2,19 +2,15 @@
 // Not real museum data. Used by the mock adapter when VITE_MOCK_SEED is "sample" (the default).
 // Open the app with ?seed=empty to see every screen with no data at all.
 
-import type {
-  ContentItem, Exhibition, Guide, MediaAsset, Me, Member, MemberRole, NotificationPrefs, ProcessingEvent, PublicationCheck, SourceFile, Venue, Workspace,
-  WorkspaceSettings, WorkspaceSummary,
-} from "./types";
+import type { ContentItem, Exhibition, Guide, MediaAsset, Me, ProcessingEvent, PublicationCheck, SourceFile, Venue, Workspace } from "./types";
 
 export interface Seed {
   workspace: Workspace;
   me: Me;
-  notifications: NotificationPrefs;
-  activity: WorkspaceSummary["activity"];
-  settings: WorkspaceSettings;
+  /** Accounts that can sign in to this workspace (mock only; STILL Admin issues them). */
+  accounts: string[];
+  password: string;
   venues: Venue[];
-  members: Member[];
   exhibitions: Exhibition[];
   files: Record<string, SourceFile[]>;
   items: Record<string, ContentItem[]>;
@@ -23,23 +19,13 @@ export interface Seed {
   guides: Record<string, Guide>;
 }
 
-const workspace: Workspace = { institutionName: "MMCA Seoul", institutionId: "STL-MMCA-0002", role: "Curator" };
-// Even an empty workspace has a signed-in user and settings.
-// ?as=curator | reviewer | readonly (mock only) previews the screens with another role.
-const ROLE_PREVIEW: Record<string, MemberRole> = { curator: "CURATOR", reviewer: "REVIEWER", readonly: "READ_ONLY" };
-const previewRole = typeof window === "undefined" ? undefined : ROLE_PREVIEW[new URLSearchParams(window.location.search).get("as") ?? ""];
-const me: Me = { id: "me", name: "Curator Name", email: "curator@museum.example", role: previewRole ?? "INSTITUTION_ADMIN", canPublish: !previewRole };
-const settings = (): WorkspaceSettings => ({
-  institutionName: workspace.institutionName,
-  guideLanguage: "ko+en",
-  publishing: { requireRightsConfirmation: true, allowVisitorScrap: true, ambienceDefaultOn: false },
-});
-const meAsMember: Member = { id: me.id, name: me.name, email: me.email, role: me.role, canPublish: me.canPublish, status: "ACTIVE" };
-
-const notifications = (): NotificationPrefs => ({ analysisComplete: true, reviewNeeded: true, weeklyDigest: false });
+const workspace: Workspace = { institutionName: "MMCA Seoul", institutionId: "STL-MMCA-0002" };
+// Even an empty workspace has a signed-in account.
+const me: Me = { id: "me", name: "Curator Name", email: "curator@museum.example" };
+const accounts = [me.email, "editor@museum.example"];
 
 export const emptySeed = (): Seed => ({
-  workspace, me: { ...me }, notifications: notifications(), activity: [], settings: settings(), venues: [], members: [meAsMember],
+  workspace, me: { ...me }, accounts, password: "", venues: [],
   exhibitions: [], files: {}, items: {}, events: {}, checks: {}, guides: {},
 });
 
@@ -48,22 +34,11 @@ export function sampleSeed(): Seed {
   return {
     workspace,
     me: { ...me },
-    notifications: notifications(),
-    activity: [
-      { id: "a1", at: "2026-11-05T01:48:00Z", actor: "STILL", text: "Text extraction finished for Exhibition Title" },
-      { id: "a2", at: "2026-11-05T01:47:00Z", actor: "Curator Name", text: "Uploaded 2 files to Exhibition Title" },
-      { id: "a3", at: "2026-11-04T09:00:00Z", actor: "Editor Name", text: "Published changes to Live Exhibition" },
-    ],
-    settings: settings(),
+    accounts,
+    password: "",
     venues: [
       { id: "v1", code: "mmca-seoul", name: "MMCA Seoul", city: "Seoul" },
       { id: "v2", code: "sema-seosomun", name: "SeMA Seosomun", city: "Seoul" },
-    ],
-    members: [
-      meAsMember,
-      { id: "m2", name: "Editor Name", email: "editor@museum.example", role: "CURATOR", canPublish: false, status: "ACTIVE" },
-      { id: "m4", name: "Reviewer Name", email: "reviewer@museum.example", role: "REVIEWER", canPublish: false, status: "ACTIVE" },
-      { id: "m3", name: null, email: "invited@museum.example", role: "READ_ONLY", canPublish: false, status: "INVITED" },
     ],
     exhibitions: [
       {
@@ -106,8 +81,8 @@ export function sampleSeed(): Seed {
           sourceFileName: "02_Artwork_Checklist.xlsx", sourceLocation: "Artwork checklist · Row 2", heading: "Artwork descriptions",
           fieldLabel: "Artwork 01 caption", text: "Artwork title, year. Medium.", theme: "Overview", contentType: "Artwork caption",
           assets: [
-            asset({ id: "as3a", caption: "Artwork 01", creator: "Artist Name", copyrightHolder: "Artist Name", imageSource: "Artist studio", usagePermission: "GRANTED", usageScope: "Digital guide, exhibition period", expiresOn: "2027-03-28", reviewedBy: "Reviewer Name", reviewedAt: "2026-11-05T02:12:00Z" }),
-            asset({ id: "as3b", caption: "Artwork 02", creator: "Artist Name", imageSource: "02_Artwork_Checklist.xlsx" }),
+            asset({ id: "as3a", name: "02_Artwork_Checklist.xlsx · Artwork 01", rights: "CONFIRMED", credit: "Artist Name, Artwork 01, 2024. Courtesy of the artist.", altText: "A tall bronze figure in an empty white room." }),
+            asset({ id: "as3b", name: "02_Artwork_Checklist.xlsx · Artwork 02", credit: "Artist Name, Artwork 02, 2025." }),
           ],
         }),
         item({
@@ -115,8 +90,8 @@ export function sampleSeed(): Seed {
           confidence: 0.81, sourceFileName: "01_Exhibition_Introduction.pdf", sourceLocation: "Installation views · Pages 6–7", heading: "Installation views",
           fieldLabel: "Image caption 01", text: "Installation view, Gallery 1.", theme: "Overview", contentType: "Artwork caption",
           assets: [
-            asset({ id: "as4a", caption: "Installation view, Gallery 1", imageSource: "01_Exhibition_Introduction.pdf · Page 6" }),
-            asset({ id: "as4b", caption: "Installation view, Gallery 2", imageSource: "01_Exhibition_Introduction.pdf · Page 7" }),
+            asset({ id: "as4a", name: "01_Exhibition_Introduction.pdf · Page 6" }),
+            asset({ id: "as4b", name: "01_Exhibition_Introduction.pdf · Page 7", rights: "RESTRICTED", credit: "Photo: Gallery archive" }),
           ],
         }),
         item({
@@ -157,12 +132,8 @@ export function sampleSeed(): Seed {
       [ex]: {
         hasUnpublishedChanges: true,
         sections: [
-          { id: "gs1", title: "Exhibition introduction", summary: "Draft · 3 blocks", visible: true, intro: "Section introduction.", itemIds: ["ci1"] },
-          { id: "gs2", title: "Themes & keywords", summary: "Draft · 2 blocks", visible: true, intro: "Themes introduction.", itemIds: ["ci2", "ci3"] },
-        ],
-        themes: [
-          { id: "th1", name: "Life & Death", description: "끝과 시작, 유한한 생명" },
-          { id: "th2", name: "Science & Medicine", description: "생명을 설명하려는 체계" },
+          { id: "gs1", kind: "INTRODUCTION", title: "Exhibition introduction", visible: true, contentIds: ["ci1"] },
+          { id: "gs2", kind: "THEMES", title: "Themes & keywords", visible: true, contentIds: ["ci3"] },
         ],
       },
     },
@@ -174,14 +145,10 @@ function item(fields: Partial<ContentItem> & Pick<ContentItem, "id" | "order" | 
   return {
     kind: "", summary: "", itemCount: 1, reviewStatus: "IN_REVIEW", sourceFileName: "", sourceLocation: "", heading: fields.title,
     fieldLabel: "", originalText: fields.text, theme: "", contentType: "", note: "", confidence: null, origin: "SOURCE",
-    updatedBy: null, updatedAt: null, removed: false, duplicateOf: null, assets: [],
+    updatedBy: null, updatedAt: null, duplicateOf: null, assets: [],
     ...fields,
   };
 }
-function asset(fields: Partial<MediaAsset> & Pick<MediaAsset, "id" | "caption">): MediaAsset {
-  return {
-    creator: "", copyrightHolder: "", imageSource: "", usagePermission: "UNKNOWN", usageScope: "", expiresOn: null, excluded: false,
-    reviewedBy: null, reviewedAt: null,
-    ...fields,
-  };
+function asset(fields: Partial<MediaAsset> & Pick<MediaAsset, "id" | "name">): MediaAsset {
+  return { rights: "UNCONFIRMED", credit: null, altText: null, ...fields };
 }

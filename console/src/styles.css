@@ -1,7 +1,8 @@
 /*
  * STILL — Museum Workspace (/console) draft.
- * Measurements are read off the Figma frames (node 169-186, 1440 wide) via PNG exports,
- * so they are close, not exact. Re-check against Figma once edit access is available.
+ * Measurements come from the Figma frames (node 169-186, 1440 wide), read from Figma itself
+ * (positions, sizes, type, colours). Screens with extra handoff features keep Figma's spacing
+ * around them.
  */
 
 :root {
@@ -12,9 +13,9 @@
   --gray: #666;
   --gray-2: #8a8a8a;
   --line: #000;
-  --line-soft: #dcdcdc;
+  --line-soft: #dbdbdb;
   --line-faint: #e8e8e8;
-  --fill: #f2f2f2;
+  --fill: #f5f5f5;
   --fill-2: #f7f7f7;
   --placeholder: #e6e6e6;
   --green: #2f7346;
@@ -27,8 +28,8 @@
   --font-text: "DM Sans", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
 
   --header-h: 72px;
-  --sidebar-w: 248px;
-  --main-pad-l: 28px;
+  --sidebar-w: 236px;
+  --main-pad-l: 40px;
   --main-pad-r: 48px;
   --content-max: 1120px;
   --btn-h: 42px;
@@ -43,6 +44,8 @@ body {
   font-family: var(--font-text);
   font-size: 13px;
   line-height: 1.45;
+  /* Figma sets DM Sans at optical size 14 everywhere; the browser default (opsz = font size) is wider at small sizes. */
+  font-variation-settings: "opsz" 14;
   -webkit-font-smoothing: antialiased;
 }
 p, h1, h2, h3, ul, ol { margin: 0; padding: 0; }
@@ -58,22 +61,23 @@ button { cursor: pointer; }
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--gray);
 }
 .h1 {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 36px;
-  line-height: 1.12;
-  letter-spacing: -0.005em;
+  font-size: 34px;
+  line-height: 44px;
+  letter-spacing: 0;
   margin-top: 12px;
 }
-.h1--xl { font-size: 38px; }
+.h1--xl { font-size: 36px; line-height: 46px; }
+.eyebrow + .page-head .h1--xl { margin-top: 17px; }
 .h2 {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 22px;
-  line-height: 1.2;
+  font-size: 21px;
+  line-height: 30px;
 }
 .h3 {
   font-family: var(--font-display);
@@ -81,8 +85,8 @@ button { cursor: pointer; }
   font-size: 19px;
   line-height: 1.25;
 }
-.lede { margin-top: 4px; color: var(--gray); font-size: 13px; }
-.lede--tight { margin-top: 2px; }
+.lede { margin-top: 4px; color: var(--gray); font-size: 13px; line-height: 22px; }
+.lede--tight { margin-top: 4px; }
 .muted { color: var(--gray); }
 .small { font-size: 11px; }
 .caption { font-size: 10px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--gray); }
@@ -111,8 +115,8 @@ button { cursor: pointer; }
 .wordmark {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 21px;
-  letter-spacing: 0.02em;
+  font-size: 22px;
+  line-height: 30px;
   width: 137px;
 }
 .topbar__workspace,
@@ -122,7 +126,8 @@ button { cursor: pointer; }
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
-.topbar__workspace { color: var(--ink-2); font-weight: 400; }
+.topbar__workspace { color: var(--gray); }
+.topbar__user { font-size: 11px; }
 .account-menu { position: relative; margin-left: auto; margin-right: 120px; }
 .topbar__user {
   display: inline-flex;
@@ -167,28 +172,31 @@ button { cursor: pointer; }
 
 .sidebar {
   flex: 0 0 var(--sidebar-w);
-  padding: 34px 0 40px;
+  padding: 29px 0 40px;
   background: var(--white);
+  border-right: 1px solid var(--line-soft);
 }
-.sidebar__label { display: block; padding: 0 28px; margin-bottom: 14px; font-size: 9px; }
-.sidebar__label--link { width: fit-content; margin-left: 16px; padding: 4px 12px; margin-bottom: 10px; }
+.sidebar__label { display: block; padding: 0 28px; margin-bottom: 14px; font-size: 9px; color: var(--gray); }
+.sidebar__label--link { width: fit-content; margin-left: 16px; padding: 4px 12px; margin-bottom: 13px; }
 .sidebar__label--link:hover { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
 .sidebar__label--link.is-active { color: var(--black); font-weight: 700; }
 .nav { display: flex; flex-direction: column; gap: 3px; }
 .nav__link {
   display: flex;
   align-items: center;
-  height: 41px;
+  height: 42px;
   margin: 0 16px;
   padding: 0 12px;
   font-size: 13px;
-  color: var(--ink-2);
+  font-weight: 500;
+  color: var(--gray);
 }
 .nav__link:hover { background: var(--fill-2); }
 .nav__link.is-active { background: var(--fill); color: var(--black); font-weight: 600; }
-.sidebar__rule { border: 0; border-top: 1px solid var(--line-soft); margin: 42px 28px 32px; }
+.sidebar__rule { border: 0; border-top: 1px solid var(--line-soft); margin: 37px 24px 25px; }
+.sidebar__rule + .sidebar__label--link { margin-bottom: 9px; }
 
-.main { flex: 1 1 auto; min-width: 0; padding: 42px var(--main-pad-r) 72px var(--main-pad-l); }
+.main { flex: 1 1 auto; min-width: 0; padding: 36px var(--main-pad-r) 72px var(--main-pad-l); }
 .main__inner { max-width: var(--content-max); }
 
 .scrim { display: none; }
@@ -201,9 +209,21 @@ button { cursor: pointer; }
   gap: 24px;
 }
 .page-head__main { min-width: 0; }
-.page-head__actions { display: flex; gap: 14px; flex-shrink: 0; margin-top: 18px; }
-.page-head__actions--bottom { align-self: flex-end; margin-top: 0; }
-.page-head__badge { margin-top: 26px; }
+.page-head__actions { display: flex; gap: 14px; flex-shrink: 0; margin-top: 24px; }
+/* Bottom actions sit on the badge row, centred on the badge (Figma 03, 04, 07), and leave the title and
+   lede the full width. */
+.page-head:has(.page-head__actions--bottom) { position: relative; }
+.page-head__actions--bottom { position: absolute; right: 0; bottom: -9px; margin: 0; }
+.page-head__badge { margin-top: 22px; }
+/* Figma's status tags keep the label left with ~30px after it (IN REVIEW 88, READY TO PUBLISH 132). */
+.page-head__badge .badge { min-width: 0; padding-right: 30px; }
+/* Workflow pages (Figma 03–06) use the larger title. */
+.stepper ~ .page-head .h1 { font-size: 36px; line-height: 46px; margin-top: 15px; }
+.stepper + .page-head + .rule { margin-top: 33px; }
+.eyebrow + .page-head + .rule { margin: 33px 0 23px; }
+.stepper ~ .page-head .page-head__actions--bottom .btn--wide, .footer-row .btn--wide { min-width: 202px; }
+.page-head__actions--bottom .btn--wide { min-width: 150px; }
+.page-head__actions--bottom .btn--xwide { min-width: 176px; }
 
 .rule { border: 0; border-top: 1px solid var(--line-soft); margin: 28px 0; }
 .rule--tight { margin: 14px 0 18px; }
@@ -278,16 +298,15 @@ button { cursor: pointer; }
 .status-text--amber { color: var(--amber); }
 .status-text--gray { color: var(--gray); }
 
-.chips { display: flex; flex-wrap: wrap; gap: 9px; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .chip {
   display: inline-flex;
   align-items: center;
   height: 25px;
-  min-width: 100px;
   padding: 0 8px;
   background: var(--fill);
   color: var(--gray);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -333,9 +352,10 @@ button { cursor: pointer; }
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: var(--ink-2);
+  color: var(--gray);
 }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (min-width: 601px) { .editor .field-row { grid-template-columns: minmax(0, 280px) minmax(0, 1fr); } }
 .input {
   width: 100%;
   height: 40px;
@@ -348,7 +368,7 @@ button { cursor: pointer; }
 .input:focus { outline: none; border-color: var(--black); }
 select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 18px) 18px, calc(100% - 14px) 18px; background-size: 4px 4px; background-repeat: no-repeat; }
 .input--tall { height: 47px; }
-.input--lg { height: auto; min-height: 94px; padding: 20px 14px; font-size: 14px; resize: vertical; line-height: 1.5; }
+.input--lg { height: auto; min-height: 94px; padding: 17px 17px; font-size: 15px; resize: vertical; line-height: 1.3; }
 .input--note { height: auto; min-height: 68px; padding: 14px; font-size: 11px; resize: vertical; color: var(--gray); }
 
 .checkbox { display: flex; align-items: center; gap: 12px; font-size: 12px; margin-top: 14px; cursor: pointer; }
@@ -364,17 +384,19 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: var(--ink-2);
-  padding: 0 16px;
+  color: var(--gray);
+  padding: 13px 18px 0;
   height: 46px;
+  line-height: 14px;
+  vertical-align: top;
   border-top: 1px solid var(--line);
 }
-.table td { padding: 0 16px; height: 48px; border-top: 1px solid var(--line-faint); vertical-align: middle; }
+.table td { padding: 0 18px; height: 48px; border-top: 1px solid var(--line-faint); vertical-align: middle; }
 .table .cell-action { text-align: right; width: 72px; }
 
-.table--files th:nth-child(1) { width: 44%; }
-.table--files th:nth-child(2) { width: 15%; }
-.table--files th:nth-child(3) { width: 16%; }
+.table--files th:nth-child(1) { width: 45.4%; }
+.table--files th:nth-child(2) { width: 15.2%; }
+.table--files th:nth-child(3) { width: 17%; }
 
 .table--history { margin-top: 18px; border-bottom: 1px solid var(--line-faint); }
 .table--history td { height: 68px; border-top-color: var(--line-soft); }
@@ -398,21 +420,21 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 
 /* ── Sections ─────────────────────────────────────── */
 .section { margin-top: 48px; }
-.section__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
+.section__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 13px; }
 .section__head .caption { margin-right: 150px; }
 .section__head--guide { align-items: flex-start; margin-top: -2px; }
-.section__head--guide .badge { margin-right: 92px; }
+.section__head--guide .badge { margin: 3px 102px 0 0; }
 .section__title { margin-bottom: 0; }
 
 /* Step 01 — Upload */
-.exhibition-line { display: flex; align-items: flex-start; gap: 18px; margin-top: -8px; }
+.exhibition-line { display: flex; align-items: flex-start; gap: 18px; margin-top: -12px; }
 .exhibition-line__title { font-size: 13px; font-weight: 500; margin-top: 3px; }
 .exhibition-line .caption { margin-top: 6px; font-size: 9px; }
 
 .dropzone {
-  margin-top: 32px;
-  padding: 32px 33px 22px;
-  border: 1.5px solid var(--focus);
+  margin-top: 36px;
+  padding: 32px 33px 23px;
+  border: 1px solid var(--black);
   transition: background 0.15s;
 }
 .dropzone.is-dragging { background: #fffaf0; border-style: dashed; }
@@ -426,17 +448,23 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   font-size: 22px;
 }
 .dropzone__body .muted { font-size: 12px; margin-top: 6px; }
-.dropzone__actions { display: flex; align-items: center; gap: 18px; margin-top: 24px; flex-wrap: wrap; }
+.dropzone__actions { display: flex; align-items: center; gap: 18px; margin-top: 31px; flex-wrap: wrap; }
 .dropzone__actions .btn { min-width: 132px; }
-.dropzone .chips { margin-top: 32px; }
+.dropzone .chips { margin-top: 34px; }
+.dropzone ~ .section { margin-top: 38px; }
+/* Figma's material chips keep the label on the left with room after it. */
+.dropzone .chip { padding-right: 34px; }
 
 /* Step 02 — Review */
-.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 20px; flex-wrap: wrap; }
+.toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 19px; flex-wrap: wrap; }
+.toolbar__summary { margin-top: 6px; }
+.filterbar .chip { padding-right: 30px; }
+.toolbar .badge--wide { min-width: 150px; }
 .toolbar__summary { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .toolbar__summary .muted { font-size: 12px; }
 .toolbar__actions { display: flex; gap: 14px; }
 .filterbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-.filterbar--tabs { margin: 34px 0 18px; }
+.filterbar--tabs { margin: 34px 0 20px; }
 .filterbar .sort { margin-right: 168px; }
 .filterbar--tabs .sort { margin-right: 202px; }
 .flash {
@@ -446,13 +474,28 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 }
 
 .split { display: grid; gap: 23px; margin-top: 22px; align-items: start; }
-.split--review { grid-template-columns: minmax(300px, 449fr) minmax(0, 643fr); }
-.split--guide { grid-template-columns: minmax(300px, 420fr) minmax(0, 672fr); margin-top: 18px; }
-.split--preview { grid-template-columns: 330px minmax(0, 1fr); gap: 50px; padding-left: 56px; margin-top: 30px; }
+.split--review { grid-template-columns: minmax(300px, 450fr) minmax(0, 644fr); gap: 22px; }
+.toolbar + .rule--tight { margin-bottom: 13px; }
+.split--review { margin-top: 21px; }
+.split--review > .panel { min-height: 672px; }
+.split--guide { grid-template-columns: minmax(300px, 420fr) minmax(0, 672fr); margin-top: 28px; }
+.split--guide > .panel { min-height: 568px; }
+.split--guide > .panel--padded { padding-top: 13px; }
+.split--guide .item { min-height: 77px; }
+.split--guide .input--lg { min-height: 76px; padding: 13px 15px; font-size: 11px; line-height: 1.4; }
+/* Digital guide and Published exhibitions (Figma 07, 08) start 4px lower than the other pages and use the 36px title. */
+.page-head:has(~ .split--guide), .page-head:has(~ .library-top) { margin-top: 4px; }
+.page-head:has(~ .split--guide) .h1, .page-head:has(~ .library-top) .h1 { font-size: 36px; line-height: 46px; }
+.page-head:has(~ .library-top) + .rule { margin: 39px 0 23px; }
+.page-head:has(~ .library-top) .btn--xwide { min-width: 176px; }
+.page-head:has(~ .library-top) .page-head__actions { margin-top: 20px; }
+.library-top .search .input--tall { height: 42px; }
+.table--library th { height: 42px; }
+.split--preview { grid-template-columns: 330px minmax(0, 1fr); gap: 50px; padding-left: 54px; margin-top: 30px; }
 .split--publish { grid-template-columns: minmax(0, 680fr) minmax(260px, 392fr); gap: 45px; margin-top: 0; }
 
 .panel { border: 1px solid var(--line-soft); background: var(--white); }
-.panel--padded { padding: 22px 24px 24px; }
+.panel--padded { padding: 19px 24px 24px; }
 .panel__head {
   display: flex;
   justify-content: space-between;
@@ -461,38 +504,43 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   padding: 0 20px 0 18px;
   border-bottom: 1px solid var(--line-soft);
 }
+.split--review .panel__head { align-items: flex-start; padding: 18px 20px 0; }
 .panel__head .eyebrow { font-size: 9px; }
 .panel__head .eyebrow:last-child { margin-right: 36px; }
 .panel__foot { padding: 0 14px 0; margin-top: -1px; }
 .panel__foot .btn { width: 184px; height: 42px; font-size: 12px; justify-content: center; }
 
-.item-list { padding: 4px 8px; }
+.item-list { padding: 12px 8px 4px; }
 .item-list li + li .item { border-top: 1px solid var(--line-soft); }
 .item {
   width: 100%;
   display: flex;
-  gap: 22px;
-  padding: 14px 12px 11px;
+  gap: 14px;
+  min-height: 73px;
+  padding: 8px 14px 8px;
   border: 0;
   background: none;
   text-align: left;
 }
 .item:hover { background: var(--fill-2); }
-.item.is-selected { background: #f4f4f4; }
-.item__no { width: 22px; font-size: 10px; color: var(--gray); padding-top: 3px; }
+.item.is-selected { background: var(--fill); }
+.item__no { flex: none; width: 24px; font-size: 10px; color: var(--gray); padding-top: 3px; }
 .item__body { display: flex; flex-direction: column; gap: 4px; }
-.item__title { font-size: 12.5px; font-weight: 600; }
-.item__meta { font-size: 10.5px; color: var(--gray); }
+.item__title { font-size: 12px; font-weight: 600; line-height: 18px; }
+.item__meta { font-size: 10px; line-height: 15px; color: var(--gray); }
 .item__status { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
 
 .editor .eyebrow { font-size: 9px; color: var(--gray); }
-.editor__title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 18px; }
+.editor__title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 15px; }
+.editor__title .h2 { font-size: 24px; line-height: 28px; }
 .editor__title .badge { margin-top: 0; }
 .editor__title--top { margin-top: 0; margin-bottom: 18px; align-items: center; }
 .editor__title--top .eyebrow { font-size: 9px; color: var(--gray); }
-.editor .field--first { margin-top: 16px; }
+.editor .field--first { margin-top: 25px; }
+.editor .field-row .field { margin-top: 21px; }
+.editor .field-row + .field { margin-top: 23px; }
 .editor .caption-sm { font-size: 10px; }
-.editor__actions { display: flex; align-items: center; gap: 12px; margin: 30px 0 24px; flex-wrap: wrap; }
+.editor__actions { display: flex; align-items: center; gap: 12px; margin: 32px 0 24px; flex-wrap: wrap; }
 .editor__actions .btn--primary { min-width: 132px; }
 .editor__actions .btn--secondary { min-width: 132px; }
 .editor__remove { margin-left: auto; }
@@ -528,14 +576,14 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .blockers a { color: inherit; text-decoration: underline; }
 .link-btn:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: none; }
 
-.theme-list { display: flex; flex-direction: column; gap: 9px; margin-top: 10px; }
+.theme-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .theme-list li {
   display: grid;
   grid-template-columns: 18px minmax(120px, 196px) 1fr auto;
   align-items: center;
   gap: 16px;
-  height: 38px;
-  padding: 0 34px 0 10px;
+  height: 44px;
+  padding: 0 34px 0 13px;
   border: 1px solid var(--line-soft);
   background: var(--white);
   cursor: grab;
@@ -712,10 +760,11 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .checkbox.has-error input { outline: 2px solid #b3261e; outline-offset: 1px; }
 
 /* Overview */
-.stepper { margin-bottom: 30px; }
+/* Figma puts the workflow 26px under the header, above the usual page top. */
+.stepper { margin: -10px 0 30px; }
 .stepper ol { display: flex; align-items: center; margin-top: 8px; flex-wrap: wrap; row-gap: 8px; }
 .stepper li { display: flex; align-items: center; }
-.stepper__dash { width: 15px; text-align: center; color: var(--gray); font-size: 11px; }
+.stepper__dash { width: 16px; text-align: center; color: var(--gray); font-size: 11px; }
 .stepper__step {
   display: flex;
   align-items: center;
@@ -724,28 +773,32 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   padding: 0 11px;
   border: 1px solid var(--line-soft);
   font-size: 11px;
-  color: var(--ink-2);
+  font-weight: 500;
+  color: var(--gray);
 }
 .stepper__step:hover { border-color: var(--black); }
 .stepper__step.is-current { background: var(--black); color: var(--white); border-color: var(--black); }
 
 .stats { display: grid; gap: 24px; margin-top: 18px; }
-.stats--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stats--4 { grid-template-columns: repeat(4, minmax(0, 260px)); }
 .stats--3 { grid-template-columns: repeat(3, 196px); margin-top: 0; }
 .stat {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   height: 110px;
-  padding: 16px 17px;
+  padding: 14px 17px 16px;
   border: 1px solid var(--line-soft);
 }
-.stat__value { font-family: var(--font-display); font-weight: 500; font-size: 30px; line-height: 1.2; }
+.stat__value { font-family: var(--font-display); font-weight: 500; font-size: 28px; line-height: 36px; }
 .stat__label { margin-top: 8px; font-size: 11px; color: var(--gray); }
-.stats--3 .stat { height: 86px; padding: 14px 16px; }
+.stats--3 .stat { height: 86px; padding: 11px 16px; }
 .stats--3 .stat__value { font-size: 25px; }
 .stats--3 .stat__label { margin-top: 4px; font-size: 10px; }
 
+/* Overview (Figma 03): history 37px under the cards, footer 18px under the last row. */
+.section:has(.table--history) { margin-top: 37px; }
+.section:has(.table--history) + .footer-row { margin-top: 18px; }
 .footer-row { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-top: 60px; flex-wrap: wrap; }
 .footer-row .muted { font-size: 12px; }
 
@@ -778,7 +831,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .phone__link { font-size: 11px; font-weight: 500; }
 
 .checks { padding: 30px 28px 6px; min-height: 570px; display: flex; flex-direction: column; }
-.check-list { margin-top: 24px; border-top: 1px solid var(--line-soft); }
+.check-list { margin-top: 19px; border-top: 1px solid var(--line-soft); }
 .check-list li {
   display: grid;
   grid-template-columns: 1fr 188px;
@@ -791,39 +844,49 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .check-list .caption-sm { font-size: 10px; margin-top: 8px; }
 .check-list .status-text { font-size: 10px; padding-top: 2px; }
 .checks > .caption-sm { margin: 18px 16px 0; font-size: 10.5px; }
-.checks__cta { display: flex; justify-content: flex-end; margin: 12px 25px 0 0; }
+.checks__cta { display: flex; justify-content: flex-end; margin: auto 25px 0 0; padding-top: 12px; }
 .checks__cta .btn { width: 230px; }
 
 /* Publish */
-.split--publish .section__title { margin-bottom: 30px; }
+.split--publish .section__title { margin-bottom: 26px; }
+.split--publish .field--stack { gap: 10px; margin-bottom: 28px; }
+.split--publish .input--tall { height: 48px; }
+.split--publish .field__label { line-height: 14px; }
 .info-card {
   height: 137px;
   padding: 20px 18px;
   border: 1px solid var(--line-soft);
 }
 .info-card + .info-card { margin-top: 20px; }
-.info-card--short { height: 118px; }
+.info-card--short { height: 120px; }
 .info-card .strong { font-size: 13px; }
 .info-card .caption-sm { margin-top: 12px; font-size: 11px; }
-.rights { margin-top: 56px; }
-.rights .h3 { font-size: 19px; }
+.rights { margin-top: 34px; }
+.rights .h3 { font-size: 18px; }
 .bottom-actions { display: flex; justify-content: flex-end; gap: 16px; margin-top: 56px; }
 .bottom-actions .btn--xwide { min-width: 212px; }
+.bottom-actions .btn--wide { min-width: 164px; }
 
 /* Published */
-.published-head { margin-top: -2px; }
-.published-head .eyebrow { margin-top: 36px; font-size: 9px; }
-.published-head .h1 { font-size: 41px; margin-top: 22px; }
-.published-head .lede { margin-top: 18px; }
+/* Collapses with the stepper's 30px bottom margin: 46px under the workflow, as in Figma 06. */
+.published-head { margin-top: 46px; }
+.published-head .badge { min-width: 0; padding-right: 22px; }
+.published-head .eyebrow { margin-top: 31px; font-size: 10px; }
+.published-head .h1 { font-size: 40px; line-height: 52px; margin-top: 18px; }
+.published-head .lede { margin-top: 10px; font-size: 14px; line-height: 24px; }
+.published-head + .rule { margin: 36px 0 36px; }
+/* The QR column is taller than the link card (Download button); Next steps keeps Figma's 50px under the card. */
+.share + .section { margin-top: -2px; }
+.share ~ .section + .btn { min-width: 240px; }
 .share { display: flex; gap: 54px; align-items: flex-start; flex-wrap: wrap; }
 .share__url {
   flex: 0 1 680px;
   min-height: 180px;
-  padding: 22px 23px;
+  padding: 23px 23px;
   border: 1px solid var(--line-soft);
 }
 .share__url .eyebrow { font-size: 9px; }
-.share__link { font-family: var(--font-display); font-size: 21px; margin: 18px 0 18px; word-break: break-all; }
+.share__link { font-size: 20px; font-weight: 500; line-height: 28px; margin: 22px 0 22px; word-break: break-all; }
 .share__url .btn { min-width: 124px; }
 .qr {
   flex: 0 0 180px;
@@ -835,7 +898,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   font-size: 13px;
   color: var(--ink-2);
 }
-.next-list { margin-top: 22px; border-top: 1px solid var(--line-soft); margin-bottom: 32px; }
+.next-list { margin-top: 22px; border-top: 1px solid var(--line-soft); margin-bottom: 20px; }
 .next-list li {
   display: grid;
   grid-template-columns: 274px 1fr 150px;
@@ -912,7 +975,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   .main { padding-top: 32px; }
 
   .page-head { flex-direction: column; gap: 16px; }
-  .page-head__actions, .page-head__actions--bottom { margin-top: 0; align-self: stretch; flex-wrap: wrap; }
+  .page-head__actions, .page-head__actions--bottom { position: static; margin-top: 0; align-self: stretch; flex-wrap: wrap; }
   .split--review, .split--guide, .split--preview { grid-template-columns: 1fr; }
   .phone { margin: 0 auto; }
   .checks { min-height: 0; }
@@ -979,7 +1042,10 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 /* Review: selection, bulk bar, split (handoff 4.2) */
 .pick-row { display: flex; align-items: flex-start; }
 .pick-row .item { flex: 1; min-width: 0; }
-.pick-row__box { margin: 17px 0 0 10px; width: 15px; height: 15px; accent-color: var(--black); flex: none; }
+/* Checkbox at the row's right end, so number and title sit where Figma puts them. */
+.pick-row { position: relative; }
+.pick-row__box { position: absolute; top: 12px; right: 12px; margin: 0; width: 15px; height: 15px; accent-color: var(--black); }
+.pick-row__box ~ .item { padding-right: 40px; }
 .bulkbar { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; margin-top: 14px; padding: 12px 16px; border: 1px solid var(--black); font-size: 12px; }
 .bulkbar p { flex: 1; min-width: 240px; }
 .bulkbar__actions { display: flex; align-items: center; gap: 14px; }
@@ -999,7 +1065,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .qr--img { display: block; object-fit: contain; background: #ffffff; }
 
 /* Preview: the guide draft by section (handoff 4.5) */
-.phone--scroll { max-height: 760px; overflow-y: auto; }
+.phone--scroll { height: 570px; overflow-y: auto; }
 .phone__section { margin-top: 8px; }
 .phone__block { margin-top: 12px; }
 .phone__figure { margin: 0 0 8px; }
@@ -1135,3 +1201,10 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   .signin__pitch { margin-top: 28px; }
   .signin__panel-foot { margin-top: 40px; }
 }
+
+/* Account (issue #61): profile facts, read only */
+.account-facts { display: grid; gap: 18px; margin: 0; }
+.account-facts div { display: grid; gap: 6px; }
+.account-facts dd { margin: 0; font-size: 13px; }
+.next-list--exhibitions li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto 80px; gap: 24px; align-items: center; padding-top: 0; }
+@media (max-width: 600px) { .next-list--exhibitions li { grid-template-columns: minmax(0, 1fr) auto; } }

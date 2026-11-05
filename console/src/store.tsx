@@ -1,9 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type MediaAssetPatch, type Me, type ProcessingEvent,
+  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type GuideSection, type MediaAssetPatch, type Me, type ProcessingEvent,
   type PublicationCheck, type PublicationDetails, type SignInRequest, type SourceFile, type Workspace,
 } from "./api";
-import { can, type Action } from "./rules";
 
 // All screens read and write through here; this file only talks to `api`, never to sample data.
 
@@ -17,7 +16,7 @@ interface ExhibitionData {
   checks: PublicationCheck[];
   guide: Guide;
 }
-const EMPTY: ExhibitionData = { files: [], items: [], events: [], checks: [], guide: { sections: [], themes: [], hasUnpublishedChanges: false } };
+const EMPTY: ExhibitionData = { files: [], items: [], events: [], checks: [], guide: { sections: [], hasUnpublishedChanges: false } };
 
 function useWorkspaceState() {
   const [status, setStatus] = useState<Status>("loading");
@@ -86,17 +85,16 @@ function useWorkspaceState() {
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;
   const replaceExhibition = (e: Exhibition) => setExhibitions((list) => list.map((x) => (x.id === e.id ? e : x)));
   // Approved items in the current exhibition, for the guide's section picker.
-  const approvedItems = useMemo(() => data.items.filter((i) => !i.removed && i.reviewStatus === "APPROVED"), [data.items]);
+  const approvedItems = useMemo(() => data.items.filter((i) => i.reviewStatus === "APPROVED"), [data.items]);
 
-  // Entry counts by review status. Removed items are kept for Restore but never counted with the rest.
+  // Entry counts by review status. Rejected items are final and are not counted with the rest.
   const counts = useMemo(() => {
     const sum = (f: (i: ContentItem) => boolean) => data.items.filter(f).reduce((n, i) => n + i.itemCount, 0);
     return {
-      total: sum((i) => !i.removed),
-      needReview: sum((i) => !i.removed && i.reviewStatus === "IN_REVIEW"),
-      approved: sum((i) => !i.removed && i.reviewStatus === "APPROVED"),
-      rejected: sum((i) => !i.removed && i.reviewStatus === "REJECTED"),
-      removed: sum((i) => i.removed),
+      total: sum((i) => i.reviewStatus !== "REJECTED"),
+      needReview: sum((i) => i.reviewStatus === "IN_REVIEW"),
+      approved: sum((i) => i.reviewStatus === "APPROVED"),
+      rejected: sum((i) => i.reviewStatus === "REJECTED"),
     };
   }, [data.items]);
 
@@ -112,22 +110,6 @@ function useWorkspaceState() {
 
   const MAX_PARALLEL_UPLOADS = 2;
   const newRowId = () => `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  // Same as applyItem for mutations that change or add several items (merge, split).
-  const applyItems = async (fn: () => Promise<ContentItem[]>) => {
-    const changed = await fn();
-    setData((d) => {
-      const byId = new Map(changed.map((i) => [i.id, i]));
-      const kept = d.items.map((i) => byId.get(i.id) ?? i);
-      const added = changed.filter((i) => !d.items.some((x) => x.id === i.id));
-      // Server renumbers `order`, so re-read the list to keep source order right.
-      return { ...d, items: [...kept, ...added] };
-    });
-    if (currentId) {
-      const [items, checks] = await Promise.all([api.listContentItems(currentId), api.listPublicationChecks(currentId)]);
-      setData((d) => ({ ...d, items, checks }));
-    }
-    return changed;
-  };
 
   const localRow = (file: File, id: string, status: SourceFile["status"]): SourceFile => ({
     id, name: file.name, format: file.name.split(".").pop()?.toUpperCase() ?? "FILE", summary: null,
@@ -183,11 +165,8 @@ function useWorkspaceState() {
       await loadWorkspace();
     },
     signOut: () => run(async () => { await api.signOut(); resetSession(); }),
-    updateMe: (patch: Pick<Me, "name">) => run(async () => {
-      const user = await api.updateMe(patch);
-      setMe(user);
-      return user;
-    }),
+    /** Errors stay on the account form (not the app banner). */
+    changePassword: (currentPassword: string, newPassword: string) => api.changePassword(currentPassword, newPassword),
 
     createExhibition: () => run(async () => {
       const e = await api.createExhibition();
@@ -204,11 +183,6 @@ function useWorkspaceState() {
       replaceExhibition(await api.publishExhibition(currentId));
     }),
     unpublishExhibition: (id: string) => run(async () => replaceExhibition(await api.unpublishExhibition(id))),
-    duplicateExhibition: (id: string) => run(async () => {
-      const copy = await api.duplicateExhibition(id);
-      setExhibitions((list) => [copy, ...list]);
-      return copy;
-    }),
 
     /** Queues each file on its own: one failure never discards the others (handoff 12). */
     uploadFiles: (files: File[]) => {
@@ -253,18 +227,18 @@ function useWorkspaceState() {
 
     updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch))),
     approveItem: (itemId: string) => run(() => applyItem(itemId, () => api.approveContentItem(itemId))),
-    rejectItem: (itemId: string) => run(() => applyItem(itemId, () => api.rejectContentItem(itemId))),
+    // Rejecting also takes the item out of the guide draft on the server (SPEC §10.8), so re-read the guide.
+    rejectItem: (itemId: string) => run(async () => {
+      await applyItem(itemId, () => api.rejectContentItem(itemId));
+      if (currentId) { const guide = await api.getGuide(currentId); setData((d) => ({ ...d, guide })); }
+    }),
     reopenItem: (itemId: string) => run(() => applyItem(itemId, () => api.reopenContentItem(itemId))),
     updateAsset: (itemId: string, assetId: string, patch: MediaAssetPatch) => run(() => applyItem(itemId, () => api.updateMediaAsset(itemId, assetId, patch))),
-    removeItem: (itemId: string) => run(() => applyItem(itemId, () => api.removeContentItem(itemId))),
-    restoreItem: (itemId: string) => run(() => applyItem(itemId, () => api.restoreContentItem(itemId))),
     dismissDuplicate: (itemId: string) => run(() => applyItem(itemId, () => api.dismissDuplicate(itemId))),
-    mergeItems: (itemId: string, intoId: string, keep: "this" | "into") => run(() => applyItems(() => api.mergeContentItems(itemId, intoId, keep))),
-    splitItem: (itemId: string, at: number) => run(() => applyItems(() => api.splitContentItem(itemId, at))),
 
-    saveGuide: (guide: Pick<Guide, "sections" | "themes">) => run(async () => {
+    saveGuide: (sections: GuideSection[]) => run(async () => {
       if (!currentId) return;
-      const saved = await api.saveGuide(currentId, guide);
+      const saved = await api.saveGuide(currentId, sections);
       setData((d) => ({ ...d, guide: saved }));
     }),
     publishGuide: () => run(async () => {
@@ -277,7 +251,7 @@ function useWorkspaceState() {
   return {
     status, dataStatus, error, workspace, me, exhibitions, exhibition, counts,
     files: [...data.files, ...localFiles], items: data.items, approvedItems,
-    can: (action: Action) => can(me, action), events: data.events, checks: data.checks, guide: data.guide,
+    events: data.events, checks: data.checks, guide: data.guide,
     ...actions,
   };
 }

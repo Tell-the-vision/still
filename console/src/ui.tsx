@@ -12,8 +12,8 @@ export function StatusText({ tone, children }: { tone: Tone; children: ReactNode
 }
 
 export function PageHead({
-  eyebrow, title, lede, actions, children,
-}: { eyebrow?: ReactNode; title: ReactNode; lede?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
+  eyebrow, title, lede, actions, actionsBottom, children,
+}: { eyebrow?: ReactNode; title: ReactNode; lede?: ReactNode; actions?: ReactNode; actionsBottom?: boolean; children?: ReactNode }) {
   return (
     <header className="page-head">
       <div className="page-head__main">
@@ -22,7 +22,8 @@ export function PageHead({
         {lede && <p className="lede">{lede}</p>}
         {children}
       </div>
-      {actions && <div className="page-head__actions">{actions}</div>}
+      {/* actionsBottom: buttons line up with the status badge under the title (Figma 03–06). */}
+      {actions && <div className={`page-head__actions${actionsBottom ? " page-head__actions--bottom" : ""}`}>{actions}</div>}
     </header>
   );
 }

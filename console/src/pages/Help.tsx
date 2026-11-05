@@ -1,13 +1,14 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api";
-import { useWorkspace } from "../store";
-import { Arrow, Badge, PageHead } from "../ui";
+import { UPLOAD_FORMATS_LABEL } from "../constants";
+import { Arrow, PageHead } from "../ui";
+
+// Static help only (issue #61): no support form. Questions go to STILL directly.
 
 const FAQ = [
   {
     q: "Which files can I upload?",
-    a: "PDF, DOCX, XLSX, CSV and plain text (TXT), up to 100 MB per file. Exhibition texts, artwork checklists, wall labels, audio scripts and press kits all work. HWP/HWPX, PPTX and website links are not supported yet, and scanned PDFs without a text layer cannot be read yet.",
+    a: `${UPLOAD_FORMATS_LABEL}, up to 100 MB per file. Exhibition texts, artwork checklists, wall labels, audio scripts and press kits all work. Other formats and website links are not supported yet, and scanned PDFs without a text layer cannot be read yet.`,
   },
   {
     q: "What does analysis do with my files?",
@@ -15,7 +16,7 @@ const FAQ = [
   },
   {
     q: "Why do some items need review?",
-    a: "Items are marked for review when the text was hard to read, was split across pages, or could belong to more than one section. Check the wording, set the theme and content type, then approve. An item that looks like a copy of another is marked as a possible duplicate: remove one or keep both. Items with images need their credit line and usage rights confirmed before they can be approved. Remove anything that should not be in the guide; removed items can be restored.",
+    a: "Items are marked for review when the text was hard to read, was split across pages, or could belong to more than one section. Check the wording, set the theme and content type, then approve. An item that looks like a copy of another is marked as a possible duplicate: reject one or keep both. Images need their rights confirmed before they can be published. Reject anything that should not be in the guide; a rejected item cannot be brought back.",
   },
   {
     q: "What do visitors see?",
@@ -37,89 +38,32 @@ const GUIDES = [
   { title: "Publish a visitor guide", detail: "Set the visitor address and confirm content rights.", to: "/materials/publish" },
 ];
 
-const TOPICS = ["Uploading files", "Content extraction", "Publishing", "Team & access", "Something else"];
-
 export default function Help() {
-  const { exhibitions, reportError } = useWorkspace();
   const [open, setOpen] = useState<number | null>(0);
-  const [form, setForm] = useState({ topic: TOPICS[0], exhibitionId: "", message: "" });
-  const [sending, setSending] = useState(false);
-  const [ticket, setTicket] = useState<string | null>(null);
-  const valid = form.message.trim().length >= 10;
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!valid || sending) return;
-    setSending(true);
-    try {
-      const res = await api.sendSupportRequest({ topic: form.topic, exhibitionId: form.exhibitionId || null, message: form.message.trim() });
-      setTicket(res.ticketId);
-      setForm({ ...form, message: "" });
-    } catch (err) {
-      reportError(err);
-    } finally {
-      setSending(false);
-    }
-  };
 
   return (
     <>
       <PageHead
         eyebrow={<>Account <span aria-hidden>/</span> Support</>}
         title="Help & support"
-        lede="Answers to common questions, step-by-step guides and a direct line to the STILL team."
+        lede="Answers to common questions and step-by-step guides. For anything else, contact your STILL representative."
       />
       <hr className="rule" />
 
-      <div className="split split--publish">
-        <section>
-          <h2 className="h2 section__title">Frequently asked</h2>
-          <ul className="faq">
-            {FAQ.map((f, i) => (
-              <li key={f.q} className={open === i ? "is-open" : ""}>
-                <button type="button" className="faq__q" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
-                  <span>{f.q}</span>
-                  <span aria-hidden className="faq__icon">{open === i ? "–" : "+"}</span>
-                </button>
-                {open === i && <p className="faq__a">{f.a}</p>}
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section>
-          <h2 className="h2 section__title">Contact support</h2>
-          <form className="panel panel--padded support" onSubmit={submit}>
-            {ticket && (
-              <div className="support__done" role="status">
-                <Badge tone="green" className="badge--wide">Request sent</Badge>
-                <p className="caption-sm">Reference {ticket}. We reply by email within one working day.</p>
-              </div>
-            )}
-            <label className="field field--first">
-              <span className="field__label">Topic</span>
-              <select className="input" value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })}>
-                {TOPICS.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </label>
-            <label className="field">
-              <span className="field__label">Related exhibition (optional)</span>
-              <select className="input" value={form.exhibitionId} onChange={(e) => setForm({ ...form, exhibitionId: e.target.value })}>
-                <option value="">None</option>
-                {exhibitions.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
-              </select>
-            </label>
-            <label className="field">
-              <span className="field__label">Message</span>
-              <textarea className="input input--note input--message" rows={5} value={form.message} placeholder="Tell us what happened and what you expected." onChange={(e) => { setTicket(null); setForm({ ...form, message: e.target.value }); }} />
-            </label>
-            <div className="support__actions">
-              <span className="caption-sm">Please don't include visitor personal data.</span>
-              <button type="submit" className="btn btn--primary" aria-disabled={!valid || sending}>{sending ? "Sending…" : "Send request"}</button>
-            </div>
-          </form>
-        </section>
-      </div>
+      <section>
+        <h2 className="h2 section__title">Frequently asked</h2>
+        <ul className="faq">
+          {FAQ.map((f, i) => (
+            <li key={f.q} className={open === i ? "is-open" : ""}>
+              <button type="button" className="faq__q" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
+                <span>{f.q}</span>
+                <span aria-hidden className="faq__icon">{open === i ? "–" : "+"}</span>
+              </button>
+              {open === i && <p className="faq__a">{f.a}</p>}
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="section">
         <h2 className="h2 section__title">Guides</h2>

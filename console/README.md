@@ -3,7 +3,7 @@
 Staff-only web app for museum curators: upload exhibition materials, review extracted content, build the visitor guide and publish it.
 Visitors never use it.
 
-**Status: front-end draft.** The screens are done; the server endpoints they call (`console.*`) do not exist yet. See [API.md](./API.md).
+**Status: front-end draft.** The screens call the console procedures of SPEC §9.5 (`console.*`); see [API.md](./API.md).
 
 ## How it sits next to the visitor app
 
@@ -17,7 +17,7 @@ still.art/api/trpc    → one server for both; staff procedures go under console
 Separation:
 - Own workspace package (`@still/console`) and own Vite build. Visitor pages never load its code, and its pages never load the visitor shell (`next.config.ts` rewrites `/console/*` to `public/console/index.html` and excludes it from the visitor fallback).
 - `/console` is sent with `X-Robots-Tag: noindex, nofollow` and has a robots meta tag.
-- Access control must be enforced by the server (`console.*` procedures check the curator session and role). Hiding buttons in the UI is not security.
+- Access control is enforced by the server (`console.*` procedures check the console session). Everyone in one institution has the same permissions (SPEC §9.2).
 
 ## Commands (from the repo root)
 
@@ -40,7 +40,7 @@ Screens never hold data. Everything goes through `src/store.tsx` → `src/api`:
 
 `VITE_API_MODE=mock|server` overrides the default.
 
-In mock mode, `?as=curator`, `?as=reviewer` or `?as=readonly` shows the screens as that role (default: institution admin). The mock starts signed in; add `?signedOut` (or use Sign out) to see the sign-in screen (Figma 10). Mock login: institution ID `STL-MMCA-0002`, email `curator@museum.example`, any password except `wrong`. An upload whose file name contains `fail` fails once, so the retry path can be tried.
+In mock mode, the app starts signed in; add `?signedOut` (or use Sign out) to see the sign-in screen (Figma 10). Mock login: institution ID `STL-MMCA-0002`, email `curator@museum.example`, any password except `wrong`. An upload whose file name contains `fail` fails once, so the retry path can be tried.
 
 ## Screens
 
@@ -55,10 +55,10 @@ In mock mode, `?as=curator`, `?as=reviewer` or `?as=readonly` shows the screens 
 | `/materials/published` | Publication complete | Figma (06) |
 | `/guide` | Digital guide management | Figma (07) |
 | `/exhibitions` | Published exhibitions | Figma (08) |
-| `/workspace` | Museum-wide home (sidebar WORKSPACE) | not in Figma, needs design review |
-| `/account` | Your account (sidebar ACCOUNT) | not in Figma, needs design review |
-| `/settings` | Workspace settings: profile, venues, team, publishing defaults | not in Figma, needs design review |
-| `/help` | Help & support: FAQ, contact form, guides | not in Figma, needs design review |
+| `/workspace` | Museum-wide home: the institution's exhibitions (A8) | not in Figma, needs design review |
+| `/account` | Your account: profile, change password, sign out | not in Figma, needs design review |
+| `/settings` | Workspace settings: venues (shared across STILL) | not in Figma, needs design review |
+| `/help` | Help: FAQ and guides (static) | not in Figma, needs design review |
 
 ## Notes
 
