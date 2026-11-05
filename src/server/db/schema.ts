@@ -382,7 +382,12 @@ export const contents = pgTable(
     exhibitionId: uuid().notNull().references(() => exhibitions.id, { onDelete: 'cascade' }),
     kind: text().notNull(),
     status: text().notNull(),
-    blocks: jsonb().notNull(),
+    // Being replaced by `doc` (SPEC 2026-11-05 Tiptap update); dropped once nothing reads it.
+    blocks: jsonb().notNull().default(sql`'[]'::jsonb`),
+    // Tiptap document in the STILL schema (shared/src/still-doc.ts, SPEC §10.8).
+    doc: jsonb().notNull().default(sql`'{"type":"doc","content":[]}'::jsonb`),
+    // Top-level node id → source refs and character range (SPEC §10.8 sources).
+    sources: jsonb().notNull().default(sql`'{}'::jsonb`),
     fields: jsonb(),
     suggestions: jsonb().notNull().default(sql`'[]'::jsonb`),
     editorialNote: text(),

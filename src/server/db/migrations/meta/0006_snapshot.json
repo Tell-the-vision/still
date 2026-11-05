@@ -1,0 +1,2148 @@
+{
+  "id": "53c08074-6815-4fcb-80f2-b2b67b4281cf",
+  "prevId": "fab6a071-771f-47ff-980f-8aefa83d6da8",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.archives": {
+      "name": "archives",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exhibition_id": {
+          "name": "exhibition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_visited_at": {
+          "name": "last_visited_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "archives_user_id_last_visited_at_id_index": {
+          "name": "archives_user_id_last_visited_at_id_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_visited_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "first"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "first"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "archives_exhibition_id_index": {
+          "name": "archives_exhibition_id_index",
+          "columns": [
+            {
+              "expression": "exhibition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "archives_user_id_users_id_fk": {
+          "name": "archives_user_id_users_id_fk",
+          "tableFrom": "archives",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "archives_exhibition_id_exhibitions_id_fk": {
+          "name": "archives_exhibition_id_exhibitions_id_fk",
+          "tableFrom": "archives",
+          "tableTo": "exhibitions",
+          "columnsFrom": [
+            "exhibition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "archives_userId_exhibitionId_unique": {
+          "name": "archives_userId_exhibitionId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "exhibition_id"
+          ]
+        },
+        "archives_id_exhibitionId_unique": {
+          "name": "archives_id_exhibitionId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "exhibition_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.contents": {
+      "name": "contents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "exhibition_id": {
+          "name": "exhibition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocks": {
+          "name": "blocks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "doc": {
+          "name": "doc",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"type\":\"doc\",\"content\":[]}'::jsonb"
+        },
+        "sources": {
+          "name": "sources",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "fields": {
+          "name": "fields",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suggestions": {
+          "name": "suggestions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "editorial_note": {
+          "name": "editorial_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "approved_by": {
+          "name": "approved_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "contents_exhibition_id_status_index": {
+          "name": "contents_exhibition_id_status_index",
+          "columns": [
+            {
+              "expression": "exhibition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "contents_exhibition_id_exhibitions_id_fk": {
+          "name": "contents_exhibition_id_exhibitions_id_fk",
+          "tableFrom": "contents",
+          "tableTo": "exhibitions",
+          "columnsFrom": [
+            "exhibition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "contents_approved_by_users_id_fk": {
+          "name": "contents_approved_by_users_id_fk",
+          "tableFrom": "contents",
+          "tableTo": "users",
+          "columnsFrom": [
+            "approved_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "contents_exhibitionId_id_unique": {
+          "name": "contents_exhibitionId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "exhibition_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "contents_kind_check": {
+          "name": "contents_kind_check",
+          "value": "\"contents\".\"kind\" IN ('INTRODUCTION', 'ARTIST', 'CURATOR_STATEMENT', 'THEME', 'ARTWORK', 'GALLERY_SECTION', 'AUDIO_NARRATION', 'PRESS_EXCERPT', 'CLOSING', 'OTHER')"
+        },
+        "contents_status_check": {
+          "name": "contents_status_check",
+          "value": "\"contents\".\"status\" IN ('READY', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED')"
+        },
+        "contents_approved_check": {
+          "name": "contents_approved_check",
+          "value": "(\"contents\".\"status\" = 'APPROVED') = (\"contents\".\"approved_at\" IS NOT NULL)"
+        },
+        "contents_approved_by_check": {
+          "name": "contents_approved_by_check",
+          "value": "\"contents\".\"approved_at\" IS NOT NULL OR \"contents\".\"approved_by\" IS NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.digital_keepsakes": {
+      "name": "digital_keepsakes",
+      "schema": "",
+      "columns": {
+        "archive_id": {
+          "name": "archive_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_data": {
+          "name": "content_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "digital_keepsakes_archive_id_archives_id_fk": {
+          "name": "digital_keepsakes_archive_id_archives_id_fk",
+          "tableFrom": "digital_keepsakes",
+          "tableTo": "archives",
+          "columnsFrom": [
+            "archive_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.documents": {
+      "name": "documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "exhibition_id": {
+          "name": "exhibition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_name": {
+          "name": "original_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "media_type": {
+          "name": "media_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "byte_size": {
+          "name": "byte_size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error_code": {
+          "name": "error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duplicate_of_id": {
+          "name": "duplicate_of_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manifest_object_key": {
+          "name": "manifest_object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analyzed_at": {
+          "name": "analyzed_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "documents_exhibition_id_sha256_index": {
+          "name": "documents_exhibition_id_sha256_index",
+          "columns": [
+            {
+              "expression": "exhibition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sha256",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "documents_exhibition_id_exhibitions_id_fk": {
+          "name": "documents_exhibition_id_exhibitions_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "exhibitions",
+          "columnsFrom": [
+            "exhibition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "documents_uploaded_by_users_id_fk": {
+          "name": "documents_uploaded_by_users_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "users",
+          "columnsFrom": [
+            "uploaded_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "documents_parent_fk": {
+          "name": "documents_parent_fk",
+          "tableFrom": "documents",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "exhibition_id",
+            "parent_id"
+          ],
+          "columnsTo": [
+            "exhibition_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "documents_duplicate_of_fk": {
+          "name": "documents_duplicate_of_fk",
+          "tableFrom": "documents",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "exhibition_id",
+            "duplicate_of_id"
+          ],
+          "columnsTo": [
+            "exhibition_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "documents_objectKey_unique": {
+          "name": "documents_objectKey_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "object_key"
+          ]
+        },
+        "documents_exhibitionId_id_unique": {
+          "name": "documents_exhibitionId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "exhibition_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "documents_byte_size_check": {
+          "name": "documents_byte_size_check",
+          "value": "\"documents\".\"byte_size\" > 0"
+        },
+        "documents_category_check": {
+          "name": "documents_category_check",
+          "value": "\"documents\".\"category\" IN ('EXHIBITION_TEXT', 'ARTWORK_LIST', 'WALL_LABELS', 'AUDIO_SCRIPT', 'PRESS_KIT', 'IMAGE', 'OTHER')"
+        },
+        "documents_status_check": {
+          "name": "documents_status_check",
+          "value": "\"documents\".\"status\" IN ('UPLOADING', 'STORED', 'EXTRACTED', 'FAILED', 'DUPLICATE')"
+        },
+        "documents_error_code_check": {
+          "name": "documents_error_code_check",
+          "value": "\"documents\".\"error_code\" IN ('UNSUPPORTED_FORMAT', 'ENCRYPTED', 'CORRUPTED', 'ENCODING_UNKNOWN', 'EMPTY', 'MANIFEST_INVALID')"
+        },
+        "documents_failed_error_check": {
+          "name": "documents_failed_error_check",
+          "value": "(\"documents\".\"status\" = 'FAILED') = (\"documents\".\"error_code\" IS NOT NULL)"
+        },
+        "documents_duplicate_check": {
+          "name": "documents_duplicate_check",
+          "value": "(\"documents\".\"status\" = 'DUPLICATE') = (\"documents\".\"duplicate_of_id\" IS NOT NULL)"
+        },
+        "documents_extracted_manifest_check": {
+          "name": "documents_extracted_manifest_check",
+          "value": "(\"documents\".\"status\" = 'EXTRACTED') = (\"documents\".\"manifest_object_key\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.exhibition_playlists": {
+      "name": "exhibition_playlists",
+      "schema": "",
+      "columns": {
+        "exhibition_id": {
+          "name": "exhibition_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "exhibition_playlists_exhibition_id_exhibitions_id_fk": {
+          "name": "exhibition_playlists_exhibition_id_exhibitions_id_fk",
+          "tableFrom": "exhibition_playlists",
+          "tableTo": "exhibitions",
+          "columnsFrom": [
+            "exhibition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "exhibition_playlists_provider_check": {
+          "name": "exhibition_playlists_provider_check",
+          "value": "\"exhibition_playlists\".\"provider\" IN ('APPLE_MUSIC', 'SPOTIFY')"
+        },
+        "exhibition_playlists_url_check": {
+          "name": "exhibition_playlists_url_check",
+          "value": "(\"exhibition_playlists\".\"provider\" = 'SPOTIFY' AND \"exhibition_playlists\".\"url\" LIKE 'https://open.spotify.com/%') OR (\"exhibition_playlists\".\"provider\" = 'APPLE_MUSIC' AND \"exhibition_playlists\".\"url\" LIKE 'https://music.apple.com/%')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.exhibitions": {
+      "name": "exhibitions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "institution_id": {
+          "name": "institution_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "venue_id": {
+          "name": "venue_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subtitle": {
+          "name": "subtitle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guide": {
+          "name": "guide",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cover_image_id": {
+          "name": "cover_image_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ambience_enabled": {
+          "name": "ambience_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "first_published_at": {
+          "name": "first_published_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "draft": {
+          "name": "draft",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "draft_revision": {
+          "name": "draft_revision",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "analysis": {
+          "name": "analysis",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_revision": {
+          "name": "published_revision",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_by": {
+          "name": "published_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rights_statement_version": {
+          "name": "rights_statement_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "exhibitions_state_start_date_index": {
+          "name": "exhibitions_state_start_date_index",
+          "columns": [
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "start_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "exhibitions_institution_id_state_index": {
+          "name": "exhibitions_institution_id_state_index",
+          "columns": [
+            {
+              "expression": "institution_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "exhibitions_institution_id_institutions_id_fk": {
+          "name": "exhibitions_institution_id_institutions_id_fk",
+          "tableFrom": "exhibitions",
+          "tableTo": "institutions",
+          "columnsFrom": [
+            "institution_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "exhibitions_venue_id_venues_id_fk": {
+          "name": "exhibitions_venue_id_venues_id_fk",
+          "tableFrom": "exhibitions",
+          "tableTo": "venues",
+          "columnsFrom": [
+            "venue_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "exhibitions_published_by_users_id_fk": {
+          "name": "exhibitions_published_by_users_id_fk",
+          "tableFrom": "exhibitions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "published_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "exhibitions_created_by_users_id_fk": {
+          "name": "exhibitions_created_by_users_id_fk",
+          "tableFrom": "exhibitions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "exhibitions_code_unique": {
+          "name": "exhibitions_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "exhibitions_code_check": {
+          "name": "exhibitions_code_check",
+          "value": "\"exhibitions\".\"code\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        },
+        "exhibitions_dates_check": {
+          "name": "exhibitions_dates_check",
+          "value": "\"exhibitions\".\"end_date\" >= \"exhibitions\".\"start_date\""
+        },
+        "exhibitions_state_check": {
+          "name": "exhibitions_state_check",
+          "value": "\"exhibitions\".\"state\" IN ('DRAFT', 'PUBLISHED', 'UNPUBLISHED')"
+        },
+        "exhibitions_published_fields_check": {
+          "name": "exhibitions_published_fields_check",
+          "value": "\"exhibitions\".\"state\" = 'DRAFT' OR (\"exhibitions\".\"venue_id\" IS NOT NULL AND \"exhibitions\".\"start_date\" IS NOT NULL AND \"exhibitions\".\"end_date\" IS NOT NULL)"
+        },
+        "exhibitions_first_published_check": {
+          "name": "exhibitions_first_published_check",
+          "value": "(\"exhibitions\".\"state\" = 'DRAFT') = (\"exhibitions\".\"first_published_at\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.guide_sentences": {
+      "name": "guide_sentences",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "exhibition_id": {
+          "name": "exhibition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "guide_sentences_exhibition_id_index": {
+          "name": "guide_sentences_exhibition_id_index",
+          "columns": [
+            {
+              "expression": "exhibition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"guide_sentences\".\"deleted_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "guide_sentences_exhibition_id_exhibitions_id_fk": {
+          "name": "guide_sentences_exhibition_id_exhibitions_id_fk",
+          "tableFrom": "guide_sentences",
+          "tableTo": "exhibitions",
+          "columnsFrom": [
+            "exhibition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "guide_sentences_exhibitionId_id_unique": {
+          "name": "guide_sentences_exhibitionId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "exhibition_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.images": {
+      "name": "images",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "exhibition_id": {
+          "name": "exhibition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alt_text": {
+          "name": "alt_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit": {
+          "name": "credit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manifest_asset_id": {
+          "name": "manifest_asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rights": {
+          "name": "rights",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verification": {
+          "name": "verification",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "images_exhibition_id_exhibitions_id_fk": {
+          "name": "images_exhibition_id_exhibitions_id_fk",
+          "tableFrom": "images",
+          "tableTo": "exhibitions",
+          "columnsFrom": [
+            "exhibition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "images_document_fk": {
+          "name": "images_document_fk",
+          "tableFrom": "images",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "exhibition_id",
+            "document_id"
+          ],
+          "columnsTo": [
+            "exhibition_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "images_objectKey_unique": {
+          "name": "images_objectKey_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "object_key"
+          ]
+        },
+        "images_exhibitionId_id_unique": {
+          "name": "images_exhibitionId_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "exhibition_id",
+            "id"
+          ]
+        },
+        "images_documentId_manifestAssetId_unique": {
+          "name": "images_documentId_manifestAssetId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "document_id",
+            "manifest_asset_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "images_width_check": {
+          "name": "images_width_check",
+          "value": "\"images\".\"width\" > 0"
+        },
+        "images_height_check": {
+          "name": "images_height_check",
+          "value": "\"images\".\"height\" > 0"
+        },
+        "images_rights_check": {
+          "name": "images_rights_check",
+          "value": "\"images\".\"rights\" IN ('UNCONFIRMED', 'CONFIRMED', 'RESTRICTED')"
+        },
+        "images_verification_check": {
+          "name": "images_verification_check",
+          "value": "\"images\".\"verification\" IN ('UNVERIFIED', 'VERIFIED', 'MISMATCH', 'NOT_APPLICABLE')"
+        },
+        "images_manifest_pair_check": {
+          "name": "images_manifest_pair_check",
+          "value": "(\"images\".\"document_id\" IS NULL) = (\"images\".\"manifest_asset_id\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.institutions": {
+      "name": "institutions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "analysis_daily_token_limit": {
+          "name": "analysis_daily_token_limit",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "institutions_code_unique": {
+          "name": "institutions_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "institutions_code_check": {
+          "name": "institutions_code_check",
+          "value": "\"institutions\".\"code\" ~ '^[A-Z0-9]+(-[A-Z0-9]+)*$'"
+        },
+        "institutions_status_check": {
+          "name": "institutions_status_check",
+          "value": "\"institutions\".\"status\" IN ('ACTIVE', 'SUSPENDED')"
+        },
+        "institutions_analysis_daily_token_limit_check": {
+          "name": "institutions_analysis_daily_token_limit_check",
+          "value": "\"institutions\".\"analysis_daily_token_limit\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.journals": {
+      "name": "journals",
+      "schema": "",
+      "columns": {
+        "archive_id": {
+          "name": "archive_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audio_type": {
+          "name": "audio_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "journals_archive_id_archives_id_fk": {
+          "name": "journals_archive_id_archives_id_fk",
+          "tableFrom": "journals",
+          "tableTo": "archives",
+          "columnsFrom": [
+            "archive_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "journals_audio_type_check": {
+          "name": "journals_audio_type_check",
+          "value": "\"journals\".\"audio_type\" IN ('EXTERNAL', 'AMBIENCE', 'NONE')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.scraps": {
+      "name": "scraps",
+      "schema": "",
+      "columns": {
+        "archive_id": {
+          "name": "archive_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exhibition_id": {
+          "name": "exhibition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "guide_sentence_id": {
+          "name": "guide_sentence_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sentence_content_snapshot": {
+          "name": "sentence_content_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "scraps_exhibition_id_guide_sentence_id_index": {
+          "name": "scraps_exhibition_id_guide_sentence_id_index",
+          "columns": [
+            {
+              "expression": "exhibition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "guide_sentence_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "scraps_archive_id_exhibition_id_archives_id_exhibition_id_fk": {
+          "name": "scraps_archive_id_exhibition_id_archives_id_exhibition_id_fk",
+          "tableFrom": "scraps",
+          "tableTo": "archives",
+          "columnsFrom": [
+            "archive_id",
+            "exhibition_id"
+          ],
+          "columnsTo": [
+            "id",
+            "exhibition_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "scraps_sentence_fk": {
+          "name": "scraps_sentence_fk",
+          "tableFrom": "scraps",
+          "tableTo": "guide_sentences",
+          "columnsFrom": [
+            "exhibition_id",
+            "guide_sentence_id"
+          ],
+          "columnsTo": [
+            "exhibition_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "scraps_archive_id_guide_sentence_id_pk": {
+          "name": "scraps_archive_id_guide_sentence_id_pk",
+          "columns": [
+            "archive_id",
+            "guide_sentence_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_consents": {
+      "name": "user_consents",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terms_version": {
+          "name": "terms_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "privacy_version": {
+          "name": "privacy_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agreed_at": {
+          "name": "agreed_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_consents_user_id_users_id_fk": {
+          "name": "user_consents_user_id_users_id_fk",
+          "tableFrom": "user_consents",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_consents_user_id_terms_version_privacy_version_pk": {
+          "name": "user_consents_user_id_terms_version_privacy_version_pk",
+          "columns": [
+            "user_id",
+            "terms_version",
+            "privacy_version"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_sessions": {
+      "name": "user_sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_token_id": {
+          "name": "user_token_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_token_hash": {
+          "name": "previous_token_hash",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rotated_at": {
+          "name": "rotated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_sessions_previous_token_hash_index": {
+          "name": "user_sessions_previous_token_hash_index",
+          "columns": [
+            {
+              "expression": "previous_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"user_sessions\".\"previous_token_hash\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_sessions_user_id_index": {
+          "name": "user_sessions_user_id_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_sessions_expires_at_index": {
+          "name": "user_sessions_expires_at_index",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "user_sessions_user_id_users_id_fk": {
+          "name": "user_sessions_user_id_users_id_fk",
+          "tableFrom": "user_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_sessions_user_token_id_user_tokens_id_fk": {
+          "name": "user_sessions_user_token_id_user_tokens_id_fk",
+          "tableFrom": "user_sessions",
+          "tableTo": "user_tokens",
+          "columnsFrom": [
+            "user_token_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_sessions_tokenHash_unique": {
+          "name": "user_sessions_tokenHash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "user_sessions_kind_check": {
+          "name": "user_sessions_kind_check",
+          "value": "\"user_sessions\".\"kind\" IN ('WEB', 'APP')"
+        },
+        "user_sessions_previous_token_hash_app_only": {
+          "name": "user_sessions_previous_token_hash_app_only",
+          "value": "\"user_sessions\".\"kind\" = 'APP' OR \"user_sessions\".\"previous_token_hash\" IS NULL"
+        },
+        "user_sessions_rotation_pair": {
+          "name": "user_sessions_rotation_pair",
+          "value": "(\"user_sessions\".\"previous_token_hash\" IS NULL) = (\"user_sessions\".\"rotated_at\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.user_settings": {
+      "name": "user_settings",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "audio_mode": {
+          "name": "audio_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_settings_user_id_users_id_fk": {
+          "name": "user_settings_user_id_users_id_fk",
+          "tableFrom": "user_settings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "user_settings_audio_mode_check": {
+          "name": "user_settings_audio_mode_check",
+          "value": "\"user_settings\".\"audio_mode\" IN ('AUTO', 'NONE')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.user_tokens": {
+      "name": "user_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_ciphertext": {
+          "name": "refresh_token_ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "must_change_password": {
+          "name": "must_change_password",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "failed_login_count": {
+          "name": "failed_login_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_login_at": {
+          "name": "last_login_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_tokens_user_id_created_at_id_index": {
+          "name": "user_tokens_user_id_created_at_id_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "user_tokens_user_id_users_id_fk": {
+          "name": "user_tokens_user_id_users_id_fk",
+          "tableFrom": "user_tokens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_tokens_provider_subject_unique": {
+          "name": "user_tokens_provider_subject_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "provider",
+            "subject"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "user_tokens_provider_check": {
+          "name": "user_tokens_provider_check",
+          "value": "\"user_tokens\".\"provider\" IN ('GOOGLE', 'PASSWORD')"
+        },
+        "user_tokens_password_hash_check": {
+          "name": "user_tokens_password_hash_check",
+          "value": "(\"user_tokens\".\"provider\" = 'PASSWORD') = (\"user_tokens\".\"password_hash\" IS NOT NULL)"
+        },
+        "user_tokens_refresh_token_google_only": {
+          "name": "user_tokens_refresh_token_google_only",
+          "value": "\"user_tokens\".\"provider\" = 'GOOGLE' OR \"user_tokens\".\"refresh_token_ciphertext\" IS NULL"
+        },
+        "user_tokens_password_subject_check": {
+          "name": "user_tokens_password_subject_check",
+          "value": "\"user_tokens\".\"provider\" <> 'PASSWORD' OR (\"user_tokens\".\"subject\" = lower(\"user_tokens\".\"subject\") AND \"user_tokens\".\"subject\" ~ '^[^@\\s]+@[^@\\s]+$')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "institution_id": {
+          "name": "institution_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "users_institution_id_index": {
+          "name": "users_institution_id_index",
+          "columns": [
+            {
+              "expression": "institution_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "users_institution_id_institutions_id_fk": {
+          "name": "users_institution_id_institutions_id_fk",
+          "tableFrom": "users",
+          "tableTo": "institutions",
+          "columnsFrom": [
+            "institution_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "users_role_check": {
+          "name": "users_role_check",
+          "value": "\"users\".\"role\" IN ('VISITOR', 'INSTITUTION', 'ADMIN')"
+        },
+        "users_status_check": {
+          "name": "users_status_check",
+          "value": "\"users\".\"status\" IN ('ACTIVE', 'SUSPENDED')"
+        },
+        "users_institution_role_check": {
+          "name": "users_institution_role_check",
+          "value": "(\"users\".\"role\" = 'INSTITUTION') = (\"users\".\"institution_id\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.venues": {
+      "name": "venues",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_institution_id": {
+          "name": "created_by_institution_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "venues_created_by_institution_id_institutions_id_fk": {
+          "name": "venues_created_by_institution_id_institutions_id_fk",
+          "tableFrom": "venues",
+          "tableTo": "institutions",
+          "columnsFrom": [
+            "created_by_institution_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "venues_code_unique": {
+          "name": "venues_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "venues_code_check": {
+          "name": "venues_code_check",
+          "value": "\"venues\".\"code\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

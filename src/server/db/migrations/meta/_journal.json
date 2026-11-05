@@ -43,6 +43,13 @@
       "when": 1793867669850,
       "tag": "0005_drop_exhibition_status",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793871725710,
+      "tag": "0006_contents_doc",
+      "breakpoints": true
     }
   ]
 }
