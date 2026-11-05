@@ -5,7 +5,8 @@ import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead } from "../ui";
 
 export default function Guide() {
-  const { exhibition, guide, counts, saveGuide, publishGuide, createExhibition } = useWorkspace();
+  const { exhibition, guide, counts, saveGuide, publishGuide, createExhibition, can } = useWorkspace();
+  const editable = can("edit");
   const navigate = useNavigate();
 
   // Local working copy; saved to the server on "Publish changes".
@@ -84,9 +85,11 @@ export default function Guide() {
         actions={
           <>
             <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Preview guide</button>
-            <button type="button" className="btn btn--primary btn--xwide" aria-disabled={!unpublished || busy} onClick={() => unpublished && !busy && publish()}>
-              {busy ? "Publishing…" : "Publish changes"}
-            </button>
+            {can("publish") && (
+              <button type="button" className="btn btn--primary btn--xwide" aria-disabled={!unpublished || busy} onClick={() => unpublished && !busy && publish()}>
+                {busy ? "Publishing…" : "Publish changes"}
+              </button>
+            )}
           </>
         }
       >
@@ -128,13 +131,16 @@ export default function Guide() {
               ))}
             </ul>
           )}
-          <div className="panel__foot">
-            <button type="button" className="btn btn--secondary btn--wide" onClick={addSection}>+ Add guide section</button>
-          </div>
+          {editable && (
+            <div className="panel__foot">
+              <button type="button" className="btn btn--secondary btn--wide" onClick={addSection}>+ Add guide section</button>
+            </div>
+          )}
         </section>
 
         {selected ? (
-          <section className="panel panel--padded">
+          // Read-only roles see the section but every control inside is disabled.
+          <fieldset className="panel panel--padded plain-fieldset--panel" disabled={!editable}>
             <div className="editor__title editor__title--top">
               <p className="eyebrow">Section {selectedNo} <span aria-hidden>/</span> {selected.title}</p>
               {selected.visible ? <Badge tone="green">Visible</Badge> : <Badge>Hidden</Badge>}
@@ -202,7 +208,7 @@ export default function Guide() {
             <button type="button" className="btn btn--secondary theme-add" onClick={addTheme}>+ Add theme card</button>
             <hr className="rule rule--light" />
             <p className="caption-sm">Only approved content is available to add to the guide. Draft edits do not affect the live version.</p>
-          </section>
+          </fieldset>
         ) : (
           <EmptyState title="No section selected" body="Add a guide section to start building the visitor guide." />
         )}

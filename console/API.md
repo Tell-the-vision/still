@@ -31,8 +31,14 @@ No screen code changes. Types, field names and inputs are in `src/api/types.ts`;
 | `startAnalysis` | mutation | `{ exhibitionId }` | `void` |
 | `listProcessingEvents` | query | `{ exhibitionId }` | `ProcessingEvent[]` |
 | `listContentItems` | query | `{ exhibitionId }` | `ContentItem[]` |
-| `updateContentItem` | mutation | `{ itemId, text?, theme?, contentType?, note? }` | `ContentItem` |
-| `approveContentItem` | mutation | `{ itemId }` | `ContentItem` (pendingCount 0) |
+| `updateContentItem` | mutation | `{ itemId, text?, theme?, contentType?, note? }` | `ContentItem` (sets `updatedBy`, `updatedAt`; keeps `originalText`) |
+| `approveContentItem` | mutation | `{ itemId }` | `ContentItem` (`APPROVED`). Refuse while the item is removed or an unresolved duplicate (`approvalBlocker` in `src/rules.ts`). Image rights do **not** block approval |
+| `rejectContentItem` | mutation | `{ itemId }` | `ContentItem` (`REJECTED`, left out of the guide) |
+| `reopenContentItem` | mutation | `{ itemId }` | `ContentItem` (back to `IN_REVIEW`) |
+| `removeContentItem` | mutation | `{ itemId }` | `ContentItem` (`removed: true`). "Delete from guide dataset": kept for Restore, never shown to visitors or counted |
+| `restoreContentItem` | mutation | `{ itemId }` | `ContentItem` (`removed: false`) |
+| `dismissDuplicate` | mutation | `{ itemId }` | `ContentItem` (`duplicateOf: null`, "Keep both") |
+| `updateMediaAsset` | mutation | `{ itemId, assetId, creator?, copyrightHolder?, imageSource?, usagePermission?, usageScope?, expiresOn?, excluded? }` | parent `ContentItem` (sets `reviewedBy`, `reviewedAt` on the asset) |
 | `listPublicationChecks` | query | `{ exhibitionId }` | `PublicationCheck[]` |
 | `getGuide` | query | `{ exhibitionId }` | `Guide` |
 | `saveGuide` | mutation | `{ exhibitionId, sections, themes }` | `Guide` |
@@ -54,13 +60,39 @@ No screen code changes. Types, field names and inputs are in `src/api/types.ts`;
 | `createVenue` | mutation | `{ code, name, city }` | `Venue` (`venues` table) |
 | `listMembers` | query | — | `Member[]` |
 | `inviteMember` | mutation | `{ email, role }` | `Member` (INVITED) |
-| `updateMemberRole` | mutation | `{ memberId, role }` | `Member` |
+| `updateMember` | mutation | `{ memberId, role?, canPublish? }` | `Member` |
 | `removeMember` | mutation | `{ memberId }` | `void` |
 | `sendSupportRequest` | mutation | `{ topic, exhibitionId, message }` | `{ ticketId }` |
 
-Roles: `ADMIN` (settings, team, publishing), `CURATOR` (review, approve, publish), `EDITOR` (upload, edit drafts). The screens hide admin-only controls for non-admins, but the server must enforce roles too.
+Roles (handoff 3; the final matrix is open decision 13). The checks live in `can()` in `src/rules.ts`; the mock enforces them too, and the server must.
 
-Upload: `POST /api/console/exhibitions/:exhibitionId/files` as `multipart/form-data` with a `file` field. Returns `SourceFile`. Limit: 100 MB, PDF/DOCX/XLSX/PPTX/TXT. A presigned-URL flow also works; only `uploadFile` in `src/api/trpc.ts` changes.
+| Role | manageWorkspace | edit (create, upload, edit content, compose guide) | review (approve/reject, confirm rights) | publish / unpublish |
+|---|---|---|---|---|
+| `INSTITUTION_ADMIN` | ✓ | ✓ | ✓ | ✓ always |
+| `CURATOR` (Curator / Editor) | | ✓ | | only if `canPublish` |
+| `REVIEWER` (Reviewer / Approver) | | | ✓ | |
+| `READ_ONLY` | | | | |
+
+Who creates accounts: STILL operators create the institution and invite its first `INSTITUTION_ADMIN`; that admin invites everyone else. There is no self sign-up. Sign-in method is not decided (proposal: one-time code to the invited work email).
+
+Upload: `POST /api/console/exhibitions/:exhibitionId/files` as `multipart/form-data` with a `file` field. Returns `SourceFile`. Limit: 100 MB, PDF/DOCX/XLSX/CSV/TXT (plus `.md` as plain text), the initial formats in the developer handoff. HWP/HWPX, PPTX and web URLs are not accepted until extraction for them is validated. The server must check the type; the screen's check is only a convenience. A presigned-URL flow also works; only `uploadFile` in `src/api/trpc.ts` changes.
+
+### Review fields (handoff 2.5, 4.2, 5, 6)
+
+| Field | Set by | Meaning |
+|---|---|---|
+| `reviewStatus` | reviewer | `IN_REVIEW` → `APPROVED` / `REJECTED`. Only `APPROVED` reaches the guide |
+| `sourceFileName`, `sourceLocation` | server | provenance: file and page/row |
+| `confidence` | server | 0–1 or null. Below 0.7 is flagged and never bulk-approved |
+| `origin` | server | `AI_SUGGESTION` is labelled as a suggestion, never attributed to the curator or artist |
+| `originalText`, `updatedBy`, `updatedAt` | server | extracted value and last editor. A full `ContentRevision` history is still to do |
+| `removed` | curator (`removeContentItem` / `restoreContentItem`) | deleted from the guide dataset, excluded from counts, checks and the guide |
+| `duplicateOf` | server (on extraction), curator clears it with `dismissDuplicate` | id of the item this looks like a copy of |
+| `assets[]` | server creates, curator/reviewer fill in (`updateMediaAsset`) | one rights record per image: creator, copyright holder, source, permission, scope, expiry, `excluded` |
+
+Publishing is blocked (`publishExhibition` must refuse) when the caller cannot publish, no item is approved, or an image in approved content has no confirmed rights and is not `excluded` (`blockingAssets` in `src/rules.ts`).
+
+`SourceFile.status`: `UPLOADING` → `UPLOADED` → `PROCESSING` → `PROCESSED` / `FAILED`, with `error` saying why.
 
 ## Mapping to the existing DB
 

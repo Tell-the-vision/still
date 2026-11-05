@@ -12,13 +12,13 @@ const EVENT_LABEL: Record<EventStatus, [string, Tone]> = {
 };
 
 export default function Overview() {
-  const { exhibition, counts, files, items, events, createExhibition } = useWorkspace();
+  const { exhibition, counts, files, events, createExhibition } = useWorkspace();
   const navigate = useNavigate();
 
   if (!exhibition) return <NoExhibition title="Overview" onCreate={createExhibition} />;
 
   const published = exhibition.status === "PUBLISHED";
-  const step = published ? 4 : !files.length ? 1 : counts.needReview > 0 || !items.length ? 2 : 3;
+  const step = published ? 4 : !files.length ? 1 : counts.needReview > 0 || !counts.total ? 2 : 3;
   const next =
     step === 1 ? { label: "Upload materials", to: "/materials" }
     : step === 2 ? { label: "Continue review", to: "/materials/review" }

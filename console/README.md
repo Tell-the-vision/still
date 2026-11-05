@@ -40,6 +40,8 @@ Screens never hold data. Everything goes through `src/store.tsx` → `src/api`:
 
 `VITE_API_MODE=mock|server` overrides the default.
 
+In mock mode, `?as=curator`, `?as=reviewer` or `?as=readonly` shows the screens as that role (default: institution admin). An upload whose file name contains `fail` fails once, so the retry path can be tried.
+
 ## Screens
 
 | Route (under /console) | Screen | Source |

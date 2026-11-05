@@ -51,7 +51,7 @@ export function createTrpcApi(): ConsoleApi {
     createVenue: (venue) => m("createVenue", venue),
     listMembers: () => q("listMembers"),
     inviteMember: (email, role) => m("inviteMember", { email, role }),
-    updateMemberRole: (memberId, role) => m("updateMemberRole", { memberId, role }),
+    updateMember: (memberId, patch) => m("updateMember", { memberId, ...patch }),
     removeMember: (memberId) => m("removeMember", { memberId }),
     sendSupportRequest: (request) => m("sendSupportRequest", request),
 
@@ -80,6 +80,12 @@ export function createTrpcApi(): ConsoleApi {
     listContentItems: (exhibitionId) => q("listContentItems", { exhibitionId }),
     updateContentItem: (itemId, patch) => m("updateContentItem", { itemId, ...patch }),
     approveContentItem: (itemId) => m("approveContentItem", { itemId }),
+    rejectContentItem: (itemId) => m("rejectContentItem", { itemId }),
+    reopenContentItem: (itemId) => m("reopenContentItem", { itemId }),
+    removeContentItem: (itemId) => m("removeContentItem", { itemId }),
+    restoreContentItem: (itemId) => m("restoreContentItem", { itemId }),
+    dismissDuplicate: (itemId) => m("dismissDuplicate", { itemId }),
+    updateMediaAsset: (itemId, assetId, patch) => m("updateMediaAsset", { itemId, assetId, ...patch }),
 
     listPublicationChecks: (exhibitionId) => q("listPublicationChecks", { exhibitionId }),
 

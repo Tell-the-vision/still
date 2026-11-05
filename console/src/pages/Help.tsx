@@ -7,7 +7,7 @@ import { Arrow, Badge, PageHead } from "../ui";
 const FAQ = [
   {
     q: "Which files can I upload?",
-    a: "PDF, DOCX, XLSX, PPTX and TXT, up to 100 MB per file. Exhibition texts, artwork checklists, wall labels, audio scripts and press kits all work. Scanned PDFs without a text layer cannot be read yet.",
+    a: "PDF, DOCX, XLSX, CSV and plain text (TXT), up to 100 MB per file. Exhibition texts, artwork checklists, wall labels, audio scripts and press kits all work. HWP/HWPX, PPTX and website links are not supported yet, and scanned PDFs without a text layer cannot be read yet.",
   },
   {
     q: "What does analysis do with my files?",
@@ -15,7 +15,7 @@ const FAQ = [
   },
   {
     q: "Why do some items need review?",
-    a: "Items are marked for review when the text was hard to read, was split across pages, or could belong to more than one section. Check the wording, set the theme and content type, then approve.",
+    a: "Items are marked for review when the text was hard to read, was split across pages, or could belong to more than one section. Check the wording, set the theme and content type, then approve. An item that looks like a copy of another is marked as a possible duplicate: remove one or keep both. Items with images need their credit line and usage rights confirmed before they can be approved. Remove anything that should not be in the guide; removed items can be restored.",
   },
   {
     q: "What do visitors see?",

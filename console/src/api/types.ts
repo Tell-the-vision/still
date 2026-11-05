@@ -25,7 +25,8 @@ export interface Exhibition {
   updatedAt: ISODateTime;
 }
 
-export type FileStatus = "UPLOADING" | "READY" | "FAILED";
+// Handoff 5: queued → uploading → uploaded → processing → processed / failed.
+export type FileStatus = "UPLOADING" | "UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED";
 export interface SourceFile {
   id: string;
   name: string;
@@ -34,7 +35,12 @@ export interface SourceFile {
   sizeBytes: number;
   uploadedAt: ISODateTime;
   status: FileStatus;
+  error: string | null; // why it failed, shown on the row
 }
+
+// Handoff 5: extracted → in_review → approved / rejected. Only APPROVED items reach the visitor guide.
+export type ReviewStatus = "IN_REVIEW" | "APPROVED" | "REJECTED";
+export type ContentOrigin = "SOURCE" | "AI_SUGGESTION";
 
 export interface ContentItem {
   id: string;
@@ -43,17 +49,47 @@ export interface ContentItem {
   kind: string; // "Curator statement", "Section text", ...
   summary: string; // "Key statement · 5 sentences"
   itemCount: number; // extracted entries in this group
-  pendingCount: number; // entries still needing review; 0 = approved
+  reviewStatus: ReviewStatus;
   sourceFileName: string;
   sourceLocation: string; // "Curator statement · Page 2"
   heading: string; // editor title
   fieldLabel: string; // "Extracted sentence 01"
-  text: string;
+  text: string; // current (edited) value
+  originalText: string; // value as extracted; kept so edits can be compared and reverted
   theme: string;
   contentType: string;
   note: string;
+  /** Extractor confidence 0–1, null when the extractor does not give one. Low confidence is flagged, never auto-approved. */
+  confidence: number | null;
+  /** AI_SUGGESTION = a sentence STILL proposed. Must be labelled as a suggestion, never attributed to the curator or artist. */
+  origin: ContentOrigin;
+  updatedBy: string | null; // last editor
+  updatedAt: ISODateTime | null;
+  /** Deleted from the guide dataset. Kept so it can be restored; never shown to visitors or counted. */
+  removed: boolean;
+  /** Set by the server when this item looks like a copy of another item. null = no match, or the curator chose to keep both. */
+  duplicateOf: string | null;
+  /** Images and other media extracted with this item, each with its own rights record. */
+  assets: MediaAsset[];
 }
 export type ContentItemPatch = Partial<Pick<ContentItem, "text" | "theme" | "contentType" | "note">>;
+
+// Handoff 6 MediaAsset / RightsRecord. Uploading a file never grants publication rights.
+export type UsagePermission = "UNKNOWN" | "GRANTED" | "DENIED";
+export interface MediaAsset {
+  id: string;
+  caption: string;
+  creator: string;
+  copyrightHolder: string;
+  imageSource: string;
+  usagePermission: UsagePermission;
+  usageScope: string; // "Digital guide, exhibition period"
+  expiresOn: ISODate | null;
+  excluded: boolean; // curator chose not to publish this asset
+  reviewedBy: string | null;
+  reviewedAt: ISODateTime | null;
+}
+export type MediaAssetPatch = Partial<Pick<MediaAsset, "creator" | "copyrightHolder" | "imageSource" | "usagePermission" | "usageScope" | "expiresOn" | "excluded">>;
 
 export type EventStatus = "COMPLETE" | "IN_PROGRESS" | "PENDING" | "FAILED";
 export interface ProcessingEvent {
@@ -100,13 +136,15 @@ export interface PublicationDetails {
 }
 
 // ── Account & workspace settings ──────────────────────
-export type MemberRole = "ADMIN" | "CURATOR" | "EDITOR";
+// Handoff 3. Final role matrix is an open decision (13).
+export type MemberRole = "INSTITUTION_ADMIN" | "CURATOR" | "REVIEWER" | "READ_ONLY";
 
 export interface Me {
   id: string;
   name: string;
   email: string;
   role: MemberRole;
+  canPublish: boolean; // granted per person; always true for INSTITUTION_ADMIN
 }
 
 export interface WorkspaceSettings {
@@ -132,6 +170,7 @@ export interface Member {
   name: string | null; // null until an invite is accepted
   email: string;
   role: MemberRole;
+  canPublish: boolean;
   status: "ACTIVE" | "INVITED";
 }
 
@@ -170,7 +209,7 @@ export interface ConsoleApi {
   createVenue(venue: Omit<Venue, "id">): Promise<Venue>;
   listMembers(): Promise<Member[]>;
   inviteMember(email: string, role: MemberRole): Promise<Member>;
-  updateMemberRole(memberId: string, role: MemberRole): Promise<Member>;
+  updateMember(memberId: string, patch: Partial<Pick<Member, "role" | "canPublish">>): Promise<Member>;
   removeMember(memberId: string): Promise<void>;
   sendSupportRequest(request: SupportRequest): Promise<{ ticketId: string }>;
 
@@ -187,7 +226,18 @@ export interface ConsoleApi {
 
   listContentItems(exhibitionId: string): Promise<ContentItem[]>;
   updateContentItem(itemId: string, patch: ContentItemPatch): Promise<ContentItem>;
+  /** Server must refuse while the item is removed or an unresolved duplicate (`approvalBlocker`). */
   approveContentItem(itemId: string): Promise<ContentItem>;
+  rejectContentItem(itemId: string): Promise<ContentItem>;
+  /** Back to IN_REVIEW from APPROVED or REJECTED. */
+  reopenContentItem(itemId: string): Promise<ContentItem>;
+  /** Delete from the guide dataset (restorable). */
+  removeContentItem(itemId: string): Promise<ContentItem>;
+  restoreContentItem(itemId: string): Promise<ContentItem>;
+  /** "Keep both": clears duplicateOf. */
+  dismissDuplicate(itemId: string): Promise<ContentItem>;
+  /** Edits one asset's rights record; returns the parent item. */
+  updateMediaAsset(itemId: string, assetId: string, patch: MediaAssetPatch): Promise<ContentItem>;
 
   listPublicationChecks(exhibitionId: string): Promise<PublicationCheck[]>;
 
