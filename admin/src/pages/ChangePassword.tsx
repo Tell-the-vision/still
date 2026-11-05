@@ -38,7 +38,6 @@ export default function ChangePassword() {
       </header>
       <main className="pa-signin__body">
         <form className="pa-signin__card" onSubmit={submit} noValidate>
-          <p className="pa-signin__temp">Temporary screen (임시) · not designed yet</p>
           <p className="pa-side__heading pa-signin__eyebrow">STILL internal</p>
           <h1 className="pa-title pa-signin__title">Choose a new password</h1>
           <p className="pa-desc">You signed in with a temporary password. Choose your own to continue. Other devices are signed out.</p>

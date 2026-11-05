@@ -74,7 +74,11 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
   });
   useEffect(() => () => {
     window.clearTimeout(timer.current);
-    if (pending.current) void api.saveContentDoc(itemId, pending.current).catch(() => {});
+    // The editor is gone, so the app-wide banner reports a failed last save instead of dropping it (#125).
+    if (pending.current) {
+      void api.saveContentDoc(itemId, pending.current).catch((e) =>
+        reportError(new Error(`Your last edit was not saved: ${e instanceof Error ? e.message : String(e)}`)));
+    }
   }, [itemId]);
   if (!editor) return null;
 

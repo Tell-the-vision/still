@@ -39,7 +39,6 @@ export default function SignIn() {
       </header>
       <main className="pa-signin__body">
         <form className="pa-signin__card" onSubmit={submit} noValidate>
-          <p className="pa-signin__temp">Temporary screen (임시) · not designed yet</p>
           <p className="pa-side__heading pa-signin__eyebrow">STILL internal</p>
           <h1 className="pa-title pa-signin__title">Sign in to platform admin</h1>
           <p className="pa-desc">For STILL operators only. Use the email and password you were issued.</p>

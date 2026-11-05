@@ -9,6 +9,13 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() +
 const now = () => new Date().toISOString();
 const slug = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+// The text of a doc's top-level paragraphs, blank-line separated, or null when the doc is not one.
+function paragraphText(doc: unknown): string | null {
+  const content = (doc as { content?: { type: string; content?: { text?: string }[] }[] })?.content;
+  if (!Array.isArray(content)) return null;
+  return content.filter((b) => b.type === "paragraph").map((b) => (b.content ?? []).map((t) => t.text ?? "").join("")).join("\n\n");
+}
+
 export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
   const db: Seed = kind === "empty" ? emptySeed() : sampleSeed();
   // Starts signed in so every screen opens directly; ?signedOut (or Sign out) shows the sign-in screen.
@@ -30,6 +37,8 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
   const touch = (id: string) => { exhibition(id).updatedAt = now(); };
   const edited = (item: ContentItem) => { item.updatedBy = db.me.name; item.updatedAt = now(); return wait(item); };
   const setStatus = (itemId: string, status: ReviewStatus) => { findItem(itemId).reviewStatus = status; return edited(findItem(itemId)); };
+  // Edited Tiptap docs per item (mock only; the server keeps them in contents.doc).
+  const docs = new Map<string, unknown>();
   // Uploads whose name contains "fail" fail once, so the retry path can be tried in the mock.
   const failedOnce = new Set<string>();
 
@@ -148,12 +157,18 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
     listProcessingEvents: (id) => wait(db.events[id] ?? []),
 
     listContentItems: (id) => wait([...(db.items[id] ?? [])].sort((a, b) => a.order - b.order)),
-    listImages: () => wait([]),
-    getContentDoc: (itemId) => ({
+    // The exhibition's images are the images found in its items (#125: the editor's image picker has something to offer).
+    listImages: (id) => wait((db.items[id] ?? []).flatMap((i) => i.assets.map((a) => ({ id: a.id, altText: a.altText ?? a.name })))),
+    getContentDoc: (itemId) => docs.get(itemId) ?? {
       type: "doc",
       content: findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
-    }),
-    async saveContentDoc() {
+    },
+    // Keeps the edited doc and its paragraph text, so reopening the item and the preview show the edit (#125).
+    async saveContentDoc(itemId, doc) {
+      docs.set(itemId, structuredClone(doc));
+      const text = paragraphText(doc);
+      if (text !== null) findItem(itemId).text = text;
+      await edited(findItem(itemId));
     },
     async updateContentItem(itemId, patch) {
       const item = findItem(itemId);

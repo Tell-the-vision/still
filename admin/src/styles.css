@@ -177,7 +177,6 @@ button { cursor: pointer; }
 .pa-signin__head { display: flex; align-items: center; height: var(--header-h); padding: 0 48px; border-bottom: 1px solid var(--line); }
 .pa-signin__body { flex: 1; display: grid; place-items: center; padding: 32px 16px; background: var(--panel); }
 .pa-signin__card { width: min(440px, 100%); padding: 36px 36px 32px; background: var(--white); border: 1px solid var(--line); border-radius: 6px; }
-.pa-signin__temp { display: inline-block; margin-bottom: 24px; padding: 4px 10px; border-radius: 13px; background: var(--amber-bg); color: var(--amber); font-size: 11px; font-weight: 500; line-height: 18px; }
 .pa-signin__eyebrow { padding-left: 0; }
 .pa-signin__title { margin-top: 10px; font-size: 28px; line-height: 38px; }
 .pa-signin__field { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }

@@ -61,7 +61,6 @@ export default function Users() {
           <p className="pa-crumb">Platform admin&nbsp;&nbsp;/&nbsp;&nbsp;Users &amp; access</p>
           <h1 className="pa-title">Users &amp; access</h1>
           <p className="pa-desc">Operators and institution staff who can sign in.</p>
-          <p className="pa-signin__temp">Temporary screen (임시) · not designed yet</p>
         </div>
         <button type="button" className="pa-btn pa-btn--primary pa-head__action" onClick={() => setAdding(true)}>Add operator</button>
       </div>

@@ -10,7 +10,7 @@ test("the operator manages accounts from Users & access", async ({ page }) => {
   await signInAdmin(page, await seedOperator());
   await page.goto("/admin/institutions");
   await page.getByRole("link", { name: "Users & access" }).click();
-  await expect(page.getByText("Temporary screen (임시) · not designed yet")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Users & access" })).toBeVisible();
 
   // Add an operator: the temporary password appears once.
   const spare = `spare-${Date.now()}@still.test`;
