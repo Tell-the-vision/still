@@ -581,9 +581,9 @@ export function createTrpcApi(): InstitutionsApi {
       const rows = await q<(Omit<EditSuggestion, "proposalText" | "rationale"> & { proposal?: { text?: string }; rationale?: string })[]>("console.suggestion.list", { code: exhibitionId });
       return rows.map(({ proposal, rationale, ...s }) => ({ ...s, proposalText: proposal?.text ?? null, rationale: rationale ?? null }));
     },
-    decideSuggestion: async ({ contentId, id, revision }, status) => {
+    decideSuggestion: async ({ contentId, id, revision }, status, exhibitionId) => {
       try {
-        await m("console.suggestion.update", { contentId, id, revision, status });
+        await m("console.suggestion.update", { ...(contentId ? { contentId } : { code: exhibitionId }), id, revision, status });
       } catch (e) {
         if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") throw new ApiError(CHANGED_ELSEWHERE, e.code, e.appCode);
         throw e;

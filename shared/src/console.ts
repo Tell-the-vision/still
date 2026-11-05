@@ -112,12 +112,16 @@ export const consoleContentBatchUpdateInput = z.object({
 
 // Suggestions (SPEC §9.4 편집 제안, §9.5 console.suggestion.*)
 export const consoleSuggestionListInput = exhibitionCode;
-export const consoleSuggestionUpdateInput = z.object({
-  contentId: z.uuid().optional(),
-  id: z.string().min(1).max(100),
-  status: z.enum(["ACCEPTED", "DISMISSED"]),
-  revision: z.uuid(),
-});
+// `code` names the exhibition for an exhibition-wide suggestion (no contentId); SPEC's input has no way to say it.
+export const consoleSuggestionUpdateInput = z
+  .object({
+    contentId: z.uuid().optional(),
+    code: codeSchema.optional(),
+    id: z.string().min(1).max(100),
+    status: z.enum(["ACCEPTED", "DISMISSED"]),
+    revision: z.uuid(),
+  })
+  .refine((v) => v.contentId !== undefined || v.code !== undefined, { message: "contentId or code is required" });
 
 // Preview and publication (SPEC §9.4 미리보기와 발행 점검, §10.9)
 export const consolePreviewGetInput = exhibitionCode;

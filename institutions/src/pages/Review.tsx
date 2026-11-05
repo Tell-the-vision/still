@@ -10,6 +10,7 @@ import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, NO
 import { VisitorPreview, VISITOR_PREVIEW_NOTICE } from "../editor/VisitorPreview";
 import { SourceMarks } from "../editor/SourceMarks";
 import { Suggestions } from "../editor/Suggestions";
+import { WideSuggestions } from "../editor/WideSuggestions";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead, type Tone } from "../ui";
 
@@ -131,6 +132,7 @@ export default function Review() {
             </button>
           </div>
           {flash && <p className="flash" role="status">{flash}</p>}
+          <WideSuggestions editable={can("edit")} flash={showFlash} />
           {reviewer && pickedItems.length > 0 && (
             <div className="bulkbar" role="region" aria-label="Selected items">
               {confirming ? (

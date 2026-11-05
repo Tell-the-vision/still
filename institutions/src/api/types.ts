@@ -327,7 +327,8 @@ export interface InstitutionsApi {
 
   listSuggestions(exhibitionId: string): Promise<EditSuggestion[]>;
   /** Accepting applies the proposal text to its node. A stale revision throws REVISION_MISMATCH. */
-  decideSuggestion(suggestion: EditSuggestion, status: "ACCEPTED" | "DISMISSED"): Promise<void>;
+  /** `exhibitionId` (the code) names the exhibition of an exhibition-wide suggestion. */
+  decideSuggestion(suggestion: EditSuggestion, status: "ACCEPTED" | "DISMISSED", exhibitionId?: string): Promise<void>;
 
   listPublicationChecks(exhibitionId: string): Promise<PublicationCheck[]>;
 
