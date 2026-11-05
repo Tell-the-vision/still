@@ -28,11 +28,14 @@ export const hashToken = (token: string) => hash("sha256", token);
 export const cookieDefaults = () =>
   ({ httpOnly: true, sameSite: "lax", secure: process.env.STILL_ORIGIN?.startsWith("https:") ?? false }) as const;
 
+// The plain client or a transaction that must include the new session row.
+type Executor = Pick<typeof db, "insert" | "delete">;
+
 // SPEC §2.3: opaque token in the cookie, only its sha256 in the database.
-async function insertWebSession(userId: string, userTokenId: string, seconds: number) {
+async function insertWebSession(userId: string, userTokenId: string, seconds: number, executor: Executor = db) {
   const token = randomBytes(32).toString("base64url");
-  await db.delete(userSessions).where(lt(userSessions.expiresAt, new Date())); // lazy cleanup of expired rows
-  await db.insert(userSessions).values({
+  await executor.delete(userSessions).where(lt(userSessions.expiresAt, new Date())); // lazy cleanup of expired rows
+  await executor.insert(userSessions).values({
     userId,
     userTokenId,
     kind: "WEB",
@@ -45,8 +48,8 @@ async function insertWebSession(userId: string, userTokenId: string, seconds: nu
 export const createWebSession = (userId: string, userTokenId: string) =>
   insertWebSession(userId, userTokenId, WEB_SESSION_SECONDS);
 
-export const createStaffSession = (userId: string, userTokenId: string, remember: boolean) =>
-  insertWebSession(userId, userTokenId, remember ? REMEMBERED_STAFF_SESSION_SECONDS : STAFF_SESSION_SECONDS);
+export const createStaffSession = (userId: string, userTokenId: string, remember: boolean, executor: Executor = db) =>
+  insertWebSession(userId, userTokenId, remember ? REMEMBERED_STAFF_SESSION_SECONDS : STAFF_SESSION_SECONDS, executor);
 
 export async function setSessionCookie(token: string) {
   (await cookies()).set(SESSION_COOKIE, token, { ...cookieDefaults(), path: "/", maxAge: WEB_SESSION_SECONDS });
