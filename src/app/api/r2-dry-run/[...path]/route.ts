@@ -17,8 +17,16 @@ export async function PUT(request: Request, ctx: Params) {
   return new Response(null, { status: 200 });
 }
 
-export async function GET(_request: Request, ctx: Params) {
+// A single `bytes=start-end` / `bytes=start-` range answers 206 like R2; one past the end answers 416.
+export async function GET(request: Request, ctx: Params) {
   const object = await objectOf(ctx);
-  const bytes = object && (await dryRunGet(object.bucket, object.key));
-  return bytes ? new Response(new Uint8Array(bytes)) : notFound();
+  const stored = object && (await dryRunGet(object.bucket, object.key));
+  if (!stored) return notFound();
+  const bytes = new Uint8Array(stored);
+  const match = /^bytes=(\d+)-(\d*)$/.exec(request.headers.get("range") ?? "");
+  if (!match) return new Response(bytes);
+  const start = Number(match[1]);
+  const end = Math.min(match[2] === "" ? bytes.length - 1 : Number(match[2]), bytes.length - 1);
+  if (start >= bytes.length || start > end) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${bytes.length}` } });
+  return new Response(bytes.slice(start, end + 1), { status: 206, headers: { "Content-Range": `bytes ${start}-${end}/${bytes.length}` } });
 }
