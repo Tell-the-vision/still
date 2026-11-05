@@ -1,7 +1,9 @@
 import { codeSchema } from "@still/shared/code";
-import { storedDocument, type StoredDocument } from "@still/shared/document";
+import { storedDocument } from "@still/shared/document";
+import { scrapRuns, stillDocument, type StillDocument } from "@still/shared/still-doc";
 import { extname } from "node:path";
 import type { ContentPackage } from "./content";
+import { blocksToStill } from "./convert";
 
 type PackageExhibition = ContentPackage["exhibitions"][number];
 
@@ -24,13 +26,17 @@ export function imageContentType(file: string) {
 }
 
 // Sentence ids referenced by a guide, in order (duplicates kept).
-export function sentenceRefs(guide: StoredDocument | null): string[] {
-  return (guide?.blocks ?? []).flatMap((b) => (b.type === "sentence" ? [b.sentenceId] : []));
+export function sentenceRefs(guide: StillDocument | null): string[] {
+  return scrapRuns(guide ?? { content: [] }).flatMap((r) => (r.sentenceId ? [r.sentenceId] : []));
 }
 
-function parseDocument(label: string, doc: unknown): StoredDocument | null {
+// Packages are written in blocks v1; the stored form is a STILL document (SPEC §11.8).
+export function toStillDocument(label: string, doc: unknown, sentences: { id: string; content: string }[]): StillDocument | null {
   if (doc === null) return null;
-  const parsed = storedDocument.safeParse(doc);
+  const blocks = storedDocument.safeParse(doc);
+  const text = (id: string) => sentences.find((s) => s.id === id)?.content ?? "";
+  const converted = blocks.success ? blocksToStill(blocks.data, text) : doc;
+  const parsed = stillDocument.safeParse(converted);
   if (!parsed.success) throw new Error(`${label}: invalid document (${parsed.error.issues[0].message})`);
   return parsed.data;
 }
@@ -47,15 +53,15 @@ function validateExhibition(e: PackageExhibition) {
     }
   }
 
-  const description = parseDocument(`${label} description`, e.description);
-  const guide = parseDocument(`${label} guide`, e.guide);
+  const description = toStillDocument(`${label} description`, e.description, e.sentences);
+  const guide = toStillDocument(`${label} guide`, e.guide, e.sentences);
   for (const image of e.images ?? []) imageContentType(image.file);
   const imageIds = new Set((e.images ?? []).map((i) => i.id));
   if (e.cover != null && !e.images?.[e.cover]) throw new Error(`${label}: cover index out of range`);
   for (const doc of [description, guide]) {
-    if (doc?.blocks.some((b) => b.type === "image" && !imageIds.has(b.imageId))) throw new Error(`${label}: image block references an unknown image`);
+    if (doc?.content.some((b) => b.type === "stillImage" && !imageIds.has(b.attrs.imageId))) throw new Error(`${label}: image block references an unknown image`);
   }
-  if (description?.blocks.some((b) => b.type === "sentence")) {
+  if (description && scrapRuns(description).length > 0) {
     throw new Error(`${label}: description must not contain sentence blocks`);
   }
 
