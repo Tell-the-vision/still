@@ -2,7 +2,7 @@
 // Calls with a full path ("console.session.create", "me.get") use the SPEC procedures (console.*, SPEC §9.5);
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
-import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, Workspace } from "./types";
+import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, ProcessingEvent, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -161,6 +161,44 @@ export function toContentItem(row: ConsoleContentRow, order: number, documents: 
   };
 }
 
+// console.analysis.get (src/server/trpc/routers/console/analysis.ts, SPEC §9.5).
+export type ConsoleAnalysis = {
+  analysis: { startedAt: string; result: "SUCCEEDED" | "FAILED" | "CANCELLED" | null } | null;
+  documents: { total: number; uploading: number; stored: number; extracted: number; failed: number; duplicate: number };
+  contents: { total: number; open: number };
+  jobs: unknown[]; // pg-boss jobs; always empty until pg-boss exists
+};
+
+// The four steps of SPEC §9.4 진행 표시, derived from the counts and the analysis summary.
+// `at` is only known for the analysis itself, so the other steps have none.
+export function toProcessingEvents({ analysis, documents: d, contents: c }: ConsoleAnalysis): ProcessingEvent[] {
+  const live = d.total - d.failed - d.duplicate;
+  const classification: Pick<ProcessingEvent, "detail" | "status"> = !analysis
+    ? { status: "PENDING", detail: "Analysis has not started." }
+    : analysis.result === "SUCCEEDED" ? { status: "COMPLETE", detail: "Content items were extracted." }
+    : analysis.result === "FAILED" ? { status: "FAILED", detail: "The analysis failed." }
+    : analysis.result === "CANCELLED" ? { status: "FAILED", detail: "The analysis was cancelled." }
+    : { status: "IN_PROGRESS", detail: "Analysis is running." };
+  return [
+    {
+      id: "upload", at: null, title: "Upload",
+      status: d.stored + d.extracted > 0 ? "COMPLETE" : d.uploading > 0 ? "IN_PROGRESS" : "PENDING",
+      detail: `${d.total} files, ${d.uploading} uploading`,
+    },
+    {
+      id: "extraction", at: null, title: "Text extraction",
+      status: live > 0 && d.extracted === live ? "COMPLETE" : "PENDING",
+      detail: `${d.extracted} of ${live} files extracted (extraction runs in the browser, which is not built yet)`,
+    },
+    { id: "classification", at: analysis?.startedAt ?? null, title: "Content classification", ...classification },
+    {
+      id: "review", at: null, title: "Curator review",
+      status: c.total === 0 ? "PENDING" : c.open > 0 ? "IN_PROGRESS" : "COMPLETE",
+      detail: `${c.open} of ${c.total} items need review`,
+    },
+  ];
+}
+
 export function createTrpcApi(): InstitutionsApi {
   return {
     getWorkspace: async () => toWorkspace(await q<StaffMe>("me.get")),
@@ -222,8 +260,11 @@ export function createTrpcApi(): InstitutionsApi {
       });
     },
     deleteFile: (exhibitionId, fileId) => m("deleteFile", { exhibitionId, fileId }),
-    startAnalysis: (exhibitionId) => m("startAnalysis", { exhibitionId }),
-    listProcessingEvents: (exhibitionId) => q("listProcessingEvents", { exhibitionId }),
+    // console.analysis.create needs pg-boss and the Worker (SPEC §10.10); no procedure to call yet.
+    startAnalysis: async () => {
+      throw new ApiError("Analysis is not available yet.");
+    },
+    listProcessingEvents: async (exhibitionId) => toProcessingEvents(await q<ConsoleAnalysis>("console.analysis.get", { code: exhibitionId })),
 
     listContentItems: async (exhibitionId) => {
       const [rows, files] = await Promise.all([
