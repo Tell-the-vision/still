@@ -8,6 +8,7 @@ import { CONTENT_TYPE_OPTIONS, THEME_OPTIONS } from "../constants";
 import { formatAdded } from "../format";
 import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, NO_PERMISSION, rightsIssue } from "../rules";
 import { VisitorPreview, VISITOR_PREVIEW_NOTICE } from "../editor/VisitorPreview";
+import { SourceMarks } from "../editor/SourceMarks";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead, type Tone } from "../ui";
 
@@ -318,7 +319,7 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
       <fieldset className="plain-fieldset" disabled={!editable}>
         <div className="field field--first" role="group" aria-labelledby="editor-label">
           <span className="field__label" id="editor-label">{item.fieldLabel}</span>
-          <RichEditor key={item.id} itemId={item.id} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} />
+          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} />
           <span className="field__foot">
             <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
           </span>
@@ -353,6 +354,8 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
           <textarea className="input input--note" rows={2} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
         </label>
       </fieldset>
+
+      <SourceMarks item={item} />
 
       {item.assets.length > 0 && <Assets item={item} canEditRights={editable || reviewer} flash={flash} />}
 

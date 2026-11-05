@@ -291,6 +291,10 @@ export interface InstitutionsApi {
   getContentDoc(itemId: string): unknown;
   /** Autosave of the editor: replaces the whole document. REVISION_MISMATCH reads as "changed elsewhere". */
   saveContentDoc(itemId: string, doc: unknown): Promise<void>;
+  /** The text blocks of an item with the source text each is traced to (`sourceText` is null without a source entry). */
+  listBlockSources(itemId: string): Promise<BlockSource[]>;
+  /** Rewrites one block to its source text (no scrap marks) and saves. */
+  revertBlockToSource(itemId: string, nodeId: string): Promise<ContentItem>;
   /** Server must refuse while the item is removed or an unresolved duplicate (`approvalBlocker`). */
   approveContentItem(itemId: string): Promise<ContentItem>;
   rejectContentItem(itemId: string): Promise<ContentItem>;
@@ -313,4 +317,11 @@ export interface InstitutionsApi {
   getGuide(exhibitionId: string): Promise<Guide>;
   saveGuide(exhibitionId: string, guide: Pick<Guide, "sections" | "themes">): Promise<Guide>;
   publishGuide(exhibitionId: string): Promise<Guide>;
+}
+
+/** One top-level text block of a content item (SPEC §9.4 원문 대조 표시). */
+export interface BlockSource {
+  nodeId: string;
+  text: string;
+  sourceText: string | null;
 }
