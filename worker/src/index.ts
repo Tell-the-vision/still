@@ -26,6 +26,10 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 
 const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const failure = (error: FailureCode, status = 502) => json({ error }, status);
+// INVALID_OUTPUT with the first schema issues (paths and codes only, never source or model text), so a
+// failed analysis says which rule the answer broke.
+const invalidOutput = (error: z.ZodError) =>
+  json({ error: "INVALID_OUTPUT", issues: error.issues.slice(0, 5).map((i) => ({ path: i.path.join("."), code: i.code })) }, 502);
 
 const refs = { type: "ARRAY", items: { type: "STRING" } };
 // Gemini's responseSchema has no free-form maps, so artwork fields are a list of { name, ref }.
@@ -227,15 +231,34 @@ function clampLevels(blocks: unknown): unknown {
   return blocks.map((b) => (b?.type === "heading" && typeof b.level === "number" ? { ...b, level: b.level <= 2 ? 2 : 3 } : b));
 }
 
+// What the schema cannot express is cleaned here: the model may only place images it was offered (it
+// invents ids otherwise, which failed whole chunks), and empty texts or list items carry nothing.
+type WireBlock = { type?: string; text?: unknown; items?: unknown; imageId?: unknown };
+function cleanBlocks(blocks: unknown, offered: Set<string>): unknown {
+  if (!Array.isArray(blocks)) return blocks;
+  const filled = (t: unknown) => typeof t === "string" && t.trim().length > 0;
+  return (clampLevels(blocks) as WireBlock[]).flatMap((b): WireBlock[] => {
+    if (b?.type === "stillImage") return typeof b.imageId === "string" && offered.has(b.imageId) ? [b] : [];
+    if (b?.type === "bulletList" || b?.type === "orderedList") {
+      const items = Array.isArray(b.items) ? b.items.filter(filled) : [];
+      return items.length ? [{ ...b, items }] : [];
+    }
+    return b && "text" in b && !filled(b.text) ? [] : [b];
+  });
+}
+
 async function structureText(input: StructureInput, env: Env, fetcher: Fetcher): Promise<Response> {
   const result = await generate(textPrompt(input), textSchema, env, fetcher);
   if (result instanceof Response) return result;
+  const offered = new Set(input.images.map((i) => i.id));
   const wire = result.output as { items?: { blocks?: unknown; fields?: { name: string; value: string }[] }[] } | null;
+  const fieldsOf = (fields: { name: string; value: string }[]) =>
+    Object.fromEntries(fields.filter((f) => typeof f?.name === "string" && f.name.trim() && f.name.length <= 64 && typeof f.value === "string").map((f) => [f.name.trim(), f.value]));
   const items = Array.isArray(wire?.items)
-    ? wire.items.map((item) => (item && Array.isArray(item.fields) ? { ...item, suggestions: [], blocks: clampLevels(item.blocks), fields: Object.fromEntries(item.fields.map((f) => [f?.name, f?.value])) } : item))
+    ? wire.items.map((item) => (item && Array.isArray(item.fields) ? { ...item, suggestions: [], blocks: cleanBlocks(item.blocks, offered), fields: fieldsOf(item.fields) } : item))
     : wire?.items;
   const parsed = structureOutput.safeParse({ ...(wire ?? {}), items, usage: result.usage });
-  return parsed.success ? json(parsed.data, 200) : failure("INVALID_OUTPUT");
+  return parsed.success ? json(parsed.data, 200) : invalidOutput(parsed.error);
 }
 
 // SPEC §9.4 제안: Gemini proposes edits to the text blocks. The proposal is a free map on the wire, so it
