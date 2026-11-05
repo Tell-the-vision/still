@@ -4,6 +4,7 @@ import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, Review
 import { CONTENT_TYPE_OPTIONS, THEME_OPTIONS } from "../constants";
 import { formatAdded } from "../format";
 import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, NO_PERMISSION, rightsIssue } from "../rules";
+import { VisitorPreview, VISITOR_PREVIEW_NOTICE } from "../editor/VisitorPreview";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead, type Tone } from "../ui";
 
@@ -192,6 +193,13 @@ export default function Review() {
                 onOpen={(id) => { setFilter("all"); setSelectedId(id); }}
                 onGone={() => setSelectedId(null)}
               />
+            )}
+
+            {selected?.doc && (
+              <aside className="visitor-preview-pane">
+                <p className="visitor-preview-pane__notice">{VISITOR_PREVIEW_NOTICE}</p>
+                <VisitorPreview doc={selected.doc} />
+              </aside>
             )}
           </div>
         </>
