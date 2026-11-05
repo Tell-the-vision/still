@@ -229,8 +229,9 @@ export interface ConsoleApi {
   updateContentItem(itemId: string, patch: ContentItemPatch): Promise<ContentItem>;
   /** The item's document (Tiptap JSON, SPEC §9.4 schema) as last loaded. */
   getContentDoc(itemId: string): unknown;
-  /** Autosave of the editor: replaces the whole document. REVISION_MISMATCH reads as "changed elsewhere". */
-  saveContentDoc(itemId: string, doc: unknown): Promise<void>;
+  /** Autosave of the editor: replaces the whole document and returns the item as saved (new revision, text and
+   *  status: editing an approved item sends it back to review). REVISION_MISMATCH reads as "changed elsewhere". */
+  saveContentDoc(itemId: string, doc: unknown): Promise<ContentItem>;
   /** The text blocks of an item with the source text each is traced to (`sourceText` is null without a source entry). */
   listBlockSources(itemId: string): Promise<BlockSource[]>;
   /** Rewrites one block to its source text (no scrap marks) and saves. */

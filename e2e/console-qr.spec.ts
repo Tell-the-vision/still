@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import sharp from "sharp";
-import { readBarcodes } from "zxing-wasm/reader";
+import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 import { expect, test } from "next/experimental/testmode/playwright";
 import { seedExhibition } from "./support/console";
 import { seedInstitutionAccount, signInConsole } from "./support/staff";
@@ -8,6 +10,9 @@ import { seedInstitutionAccount, signInConsole } from "./support/staff";
 // console session's own exhibitions, and SPEC §9.4 the publication-complete page that downloads it.
 
 test.use({ viewport: { width: 1440, height: 900 } });
+
+// The CommonJS build cannot locate its wasm by URL under Node; hand it the bytes from the package.
+prepareZXingModule({ overrides: { wasmBinary: readFileSync(path.resolve(require.resolve("zxing-wasm/reader"), "../../../reader/zxing_reader.wasm")) } });
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 

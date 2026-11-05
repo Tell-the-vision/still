@@ -3,7 +3,7 @@ import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
 import { Mark, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import UniqueID from "@tiptap/extension-unique-id";
-import { api } from "../api";
+import { api, type ContentItem } from "../api";
 import { ImagePicker, StillImage } from "./StillImage";
 
 // SPEC §9.4 편집기: the STILL schema only. Nothing outside it can be typed, pasted or toggled.
@@ -19,7 +19,7 @@ const AUTOSAVE_MS = 1000;
 
 type Saved = "idle" | "saving" | "saved";
 
-export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { itemId: string; exhibitionId: string; doc: JSONContent; editable: boolean; onChange?: (doc: JSONContent) => void }) {
+export function Editor({ itemId, exhibitionId, doc, editable, onChange, onSaved }: { itemId: string; exhibitionId: string; doc: JSONContent; editable: boolean; onChange?: (doc: JSONContent) => void; onSaved?: (item: ContentItem) => void }) {
   const [state, setState] = useState<Saved>("idle");
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number>(0);
@@ -48,7 +48,8 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
       timer.current = window.setTimeout(async () => {
         try {
           pending.current = null;
-          await api.saveContentDoc(itemId, ed.getJSON());
+          const saved = await api.saveContentDoc(itemId, ed.getJSON());
+          onSaved?.(saved);
           setError(null);
           setState("saved");
         } catch (e) {
@@ -58,9 +59,12 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
       }, AUTOSAVE_MS);
     },
   });
+  // The latest callback, so the unmount flush below reports to the current screen.
+  const saved = useRef(onSaved);
+  saved.current = onSaved;
   useEffect(() => () => {
     window.clearTimeout(timer.current);
-    if (pending.current) void api.saveContentDoc(itemId, pending.current).catch(() => {});
+    if (pending.current) void api.saveContentDoc(itemId, pending.current).then((item) => saved.current?.(item)).catch(() => {});
   }, [itemId]);
   if (!editor) return null;
 

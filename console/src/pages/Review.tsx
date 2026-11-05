@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, ReviewStatus, StillDoc } from "../api";
 import type { JSONContent } from "@tiptap/react";
@@ -8,6 +8,7 @@ import { CONTENT_TYPE_OPTIONS, THEME_OPTIONS } from "../constants";
 import { formatAdded } from "../format";
 import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, RIGHTS_LABEL, rightsIssue } from "../rules";
 import { VisitorPreview, VISITOR_PREVIEW_NOTICE } from "../editor/VisitorPreview";
+import { SourceMarks } from "../editor/SourceMarks";
 import { Suggestions } from "../editor/Suggestions";
 import { WideSuggestions } from "../editor/WideSuggestions";
 import { useWorkspace } from "../store";
@@ -236,12 +237,25 @@ interface EditorProps {
 }
 
 function Editor({ item, flash, onOpen, onDoc }: EditorProps) {
-  const { exhibition, items, updateItem, approveItem, rejectItem, reopenItem, dismissDuplicate } = useWorkspace();
+  const { exhibition, items, updateItem, approveItem, rejectItem, reopenItem, dismissDuplicate, syncItem } = useWorkspace();
   // Everyone in an institution has the same permissions (SPEC §9.2); a rejected item is final (§10.8).
   const editable = item.reviewStatus !== "REJECTED";
   const themeSuggestions = [...new Set([...THEME_OPTIONS, ...items.map((i) => i.theme)])].filter(Boolean);
-  const initial = { text: item.text, theme: item.theme, contentType: item.contentType, note: item.note };
+  // The text itself lives in the rich editor, which saves on its own; this form holds the details only.
+  // (Sending the text from here too used to overwrite the editor's saves with the text the form was opened with.)
+  const initial = { theme: item.theme, contentType: item.contentType, note: item.note };
   const [draft, setDraft] = useState(initial);
+  // The editor remounts (and reloads the document) only when the item changed outside it: a suggestion
+  // accepted, a block reverted, another tab. Its own autosaves move the revision without a remount.
+  const ownRevisions = useRef(new Set<string>());
+  const [mountedRevision, setMountedRevision] = useState(item.revision);
+  useEffect(() => {
+    if (item.revision && !ownRevisions.current.has(item.revision)) setMountedRevision(item.revision);
+  }, [item.revision]);
+  const saved = (next: ContentItem) => {
+    if (next.revision) ownRevisions.current.add(next.revision);
+    syncItem(next);
+  };
   const [saving, setSaving] = useState(false);
   // Rejecting is final (SPEC §10.8), so it always asks once on the page.
   const [confirmReject, setConfirmReject] = useState(false);
@@ -318,19 +332,16 @@ function Editor({ item, flash, onOpen, onDoc }: EditorProps) {
       <fieldset className="plain-fieldset" disabled={!editable}>
         <div className="field field--first" role="group" aria-labelledby="editor-label">
           <span className="field__label" id="editor-label">{item.fieldLabel}</span>
-          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} exhibitionId={exhibition?.id ?? ""} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} />
+          <RichEditor key={`${item.id}:${mountedRevision ?? ""}`} itemId={item.id} exhibitionId={exhibition?.id ?? ""} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} onSaved={saved} />
           <span className="field__foot">
             <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
           </span>
         </div>
-        {draft.text !== item.originalText && (
-          <details className="original">
-            <summary className="caption-sm">Original extracted text</summary>
-            <p>{item.originalText}</p>
-            <button type="button" className="link-btn" onClick={() => setDraft({ ...draft, text: item.originalText })}>Use original</button>
-          </details>
-        )}
-
+        {/* SPEC §9.4 원문 대조 표시: which blocks still read as their source, with "Revert to source" for the edited ones. */}
+        <details className="original">
+          <summary className="caption-sm">Source comparison</summary>
+          <SourceMarks item={item} />
+        </details>
       </fieldset>
 
       <section className="details" aria-labelledby="details-label">

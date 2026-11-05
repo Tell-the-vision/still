@@ -153,7 +153,10 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
       type: "doc",
       content: findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
     }),
-    async saveContentDoc() {
+    async saveContentDoc(itemId, doc) {
+      const text = ((doc as { content?: { type: string; content?: { text?: string }[] }[] }).content ?? [])
+        .filter((b) => b.type === "paragraph").map((b) => (b.content ?? []).map((t) => t.text ?? "").join("")).join("\n\n");
+      return this.updateContentItem(itemId, { text });
     },
     async updateContentItem(itemId, patch) {
       const item = findItem(itemId);

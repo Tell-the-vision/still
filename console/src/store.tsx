@@ -274,6 +274,8 @@ function useWorkspaceState() {
       await loadExhibitionData(currentId);
     }),
 
+    /** The editor saved the item's document itself: take its new revision, text and status (an approved item goes back to review). */
+    syncItem: (item: ContentItem) => setData((d) => ({ ...d, items: d.items.map((i) => (i.id === item.id ? item : i)) })),
     updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch))),
     revertBlock: (itemId: string, nodeId: string) => run(() => applyItem(itemId, () => api.revertBlockToSource(itemId, nodeId))),
     approveItem: (itemId: string) => run(() => applyItem(itemId, () => api.approveContentItem(itemId))),

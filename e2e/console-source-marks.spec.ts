@@ -71,7 +71,6 @@ async function extract(page: Page, s: Setup, manifest: unknown, version = 1) {
 const text = (value: string) => ({ type: "text", text: value });
 const paragraph = (id: string, value: string) => ({ type: "paragraph", attrs: { id }, content: [text(value)] });
 const SHOTS = "/Users/phihu/Desktop/still-wt/shots/edsources";
-
 // SPEC §9.4 원문 대조 표시, §10.8 sources: the label is computed against the manifest text, and
 // "Revert to source" writes the source text back.
 test("blocks are labelled Source / Edited / No source and an edited one reverts to its source", async ({ page }) => {
@@ -90,6 +89,8 @@ test("blocks are labelled Source / Edited / No source and an edited one reverts 
   await page.goto("/console/exhibitions");
   await page.getByText(s.exhibition.title, { exact: true }).click();
   await page.goto("/console/materials/review");
+  // The comparison sits folded under the editor.
+  await page.getByText("Source comparison", { exact: true }).click();
   const rows = page.locator(".source-marks__row");
   await expect(rows.nth(0).locator(".source-marks__label")).toHaveText("Source");
   await expect(rows.nth(1).locator(".source-marks__label")).toHaveText("Edited");
@@ -119,6 +120,7 @@ test("a block traced to a document without a manifest reads No source and cannot
   await page.goto("/console/exhibitions");
   await page.getByText(s.exhibition.title, { exact: true }).click();
   await page.goto("/console/materials/review");
+  await page.getByText("Source comparison", { exact: true }).click();
   await expect(page.locator(".source-marks__row").first().locator(".source-marks__label")).toHaveText("No source");
   await expect(page.getByRole("button", { name: "Revert to source" })).toHaveCount(0);
 });

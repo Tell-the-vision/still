@@ -26,7 +26,6 @@ export function SourceMarks({ item }: { item: ContentItem }) {
   };
   return (
     <section className="source-marks" aria-label="Source comparison">
-      <p className="field__label">Source comparison</p>
       <ul className="source-marks__list" aria-live="polite">
         {blocks.map((block) => {
           const label = labelOf(block);

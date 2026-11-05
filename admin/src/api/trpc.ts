@@ -65,7 +65,8 @@ type IssuedAccount = { account: { email: string }; temporaryPassword: string };
 
 // The number in STL-<CODE>-<NNNN> is platform-wide; a taken ID (someone else just added one) moves on to the next number.
 const ID_ATTEMPTS = 3;
-const numberOf = (publicId: string) => Number(publicId.split("-").pop()) || 0;
+// Only a decimal suffix counts: Number() would read a code like STL-E2E-4E309 as 4e309 = Infinity.
+const numberOf = (publicId: string) => Number(/-(\d+)$/.exec(publicId)?.[1] ?? 0);
 
 async function issueAccount(institution: Institution, { adminName, adminEmail }: Pick<NewInstitution, "adminName" | "adminEmail">) {
   const issued = await call<IssuedAccount>("admin.account.create", { role: "INSTITUTION", institutionId: institution.id, email: adminEmail, displayName: adminName });

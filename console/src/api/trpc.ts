@@ -474,9 +474,7 @@ export function createTrpcApi(): ConsoleApi {
     },
     listImages: (exhibitionId) => q<ExhibitionImage[]>("console.image.list", { code: exhibitionId }),
     getContentDoc: (itemId) => knownItem(itemId).row.doc,
-    saveContentDoc: async (itemId, doc) => {
-      await updateRow(itemId, { doc });
-    },
+    saveContentDoc: (itemId, doc) => updateRow(itemId, { doc }),
     listBlockSources: async (itemId) => {
       const row = await q<Omit<ConsoleContentRow, "sources"> & { sources: ConsoleSources }>("console.content.get", { id: itemId });
       return row.doc.content.filter((b) => b.type === "paragraph" || b.type === "heading")
@@ -520,9 +518,12 @@ export function createTrpcApi(): ConsoleApi {
       const rows = await q<(Omit<EditSuggestion, "proposalText" | "rationale"> & { proposal?: { text?: string }; rationale?: string })[]>("console.suggestion.list", { code: exhibitionId });
       return rows.map(({ proposal, rationale, ...s }) => ({ ...s, proposalText: proposal?.text ?? null, rationale: rationale ?? null }));
     },
+    // An item suggestion is decided under the item's revision: the one this tab last saw (the editor's autosave
+    // moves it on), not the one the suggestion list was read with.
     decideSuggestion: async ({ contentId, id, revision }, status, exhibitionId) => {
+      const current = contentId ? known.get(contentId)?.row.revision ?? revision : revision;
       try {
-        await m("console.suggestion.update", { ...(contentId ? { contentId } : { code: exhibitionId }), id, revision, status });
+        await m("console.suggestion.update", { ...(contentId ? { contentId } : { code: exhibitionId }), id, revision: current, status });
       } catch (e) {
         if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") throw new ApiError(CHANGED_ELSEWHERE, e.code, e.appCode);
         throw e;

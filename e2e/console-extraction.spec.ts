@@ -86,7 +86,7 @@ test("a PDF is extracted in the browser into a manifest with line segments per p
   expect(seen.manifests).toHaveLength(1);
   const manifest = seen.manifests[0];
 
-  const [stored] = await e2eSql<{ id: string }>("SELECT id FROM documents WHERE original_name = 'two-pages.pdf'");
+  const [stored] = await e2eSql<{ id: string }>("SELECT id FROM documents WHERE exhibition_id = $1 AND original_name = 'two-pages.pdf'", [exhibition.id]);
   expect(manifest.version).toBe(1);
   expect(manifest.document).toEqual({ documentId: stored.id, sha256: sha256(buffer), mediaType: "application/pdf", pages: 2 });
   expect(manifest.extractor).toEqual({ name: "console-extract", version: "1" });
