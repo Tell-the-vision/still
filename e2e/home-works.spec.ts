@@ -8,30 +8,44 @@ async function signedInHome(page: Parameters<typeof signIn>[0], next: Parameters
   await page.goto("/");
 }
 
-test("Home lists exhibitions on view, not drafts or past ones", async ({ page, next }) => {
+// The seeded guides are imported whole (plain block ids, no per-work prefix): each heading starts a work, named by it.
+test("Home lists the works on view, not drafts or past ones", async ({ page, next }) => {
   await signedInHome(page, next);
   await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Forms of Stillness/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Quiet Rooms/ })).toBeVisible();
-  await expect(page.getByText("Draft Preview")).toHaveCount(0);
-  await expect(page.getByText("Past Light")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^Guide Seoul Hall/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Guide Busan Gallery/ })).toBeVisible();
+  await expect(page.locator('a[href^="/e/draft-preview/"]')).toHaveCount(0);
+  await expect(page.locator('a[href^="/e/past-light/"]')).toHaveCount(0);
   await expect(page.getByText("YOUR ARCHIVE")).toHaveCount(0);
 });
 
-test("ALL shows more exhibitions and the choice survives a reload", async ({ page, next }) => {
+test("ALL shows more works and the choice survives a reload", async ({ page, next }) => {
   await signedInHome(page, next);
-  const group = page.getByRole("radiogroup", { name: "Show exhibitions" });
+  const group = page.getByRole("radiogroup", { name: "Show works" });
   await group.getByRole("radio", { name: "ALL" }).click();
   await expect(page.getByRole("link", { name: /Ended · Busan Gallery/ })).toBeVisible();
-  await expect(page.getByText("Draft Preview")).toHaveCount(0);
+  await expect(page.locator('a[href^="/e/draft-preview/"]')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("link", { name: /Ended · Busan Gallery/ })).toBeVisible();
 });
 
-test("tapping an exhibition opens its guide", async ({ page, next }) => {
+test("tapping a work opens its own page", async ({ page, next }) => {
   await signedInHome(page, next);
-  await page.getByRole("link", { name: /Quiet Rooms/ }).click();
-  await expect(page).toHaveURL(/\/e\/quiet-rooms$/);
+  await page.getByRole("link", { name: /^Guide Busan Gallery/ }).click();
+  await expect(page).toHaveURL(/\/e\/quiet-rooms\/[0-9a-f]{8}$/);
+  await expect(page.getByText("Quiet is the space between things.")).toBeVisible();
+});
+
+test("exhibition.pages names each work of a guide imported whole the same way every time", async ({ request }) => {
+  const pages = async () => {
+    const res = await request.get(`/api/trpc/exhibition.pages?input=${encodeURIComponent(JSON.stringify({ scope: "ALL" }))}`);
+    return (await res.json()).result.data.items as { code: string; page: string; title: string }[];
+  };
+  const first = await pages();
+  const forms = first.filter((i) => i.code === "forms-of-stillness");
+  expect(forms).toEqual([expect.objectContaining({ title: "Guide", page: expect.stringMatching(/^[0-9a-f]{8}$/) })]);
+  expect(first.map((i) => i.code)).not.toContain("draft-preview");
+  expect((await pages()).filter((i) => i.code === "forms-of-stillness")).toEqual(forms);
 });
 
 test("exhibition.list is public, cacheable and filtered by scope", async ({ request }) => {
@@ -57,7 +71,7 @@ test("exhibition.list uses a short public cache without a long stale window", as
 
 test("the ON VIEW/ALL control exposes its selected state", async ({ page, next }) => {
   await signedInHome(page, next);
-  const group = page.getByRole("radiogroup", { name: "Show exhibitions" });
+  const group = page.getByRole("radiogroup", { name: "Show works" });
   await expect(group.getByRole("radio", { name: "ON VIEW" })).toHaveAttribute("aria-checked", "true");
   await expect(group.getByRole("radio", { name: "ALL" })).toHaveAttribute("aria-checked", "false");
   await group.getByRole("radio", { name: "ALL" }).click();
@@ -68,11 +82,11 @@ test.describe("desktop guest", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
   // Desktop guests get the same Home 01 as phones: wordmark, Login and QR Scan, with no list (SPEC §1.1).
-  test("Home shows Login and QR Scan without the exhibition list", async ({ page }) => {
+  test("Home shows Login and QR Scan without the list of works", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
     await expect(page.getByRole("link", { name: "QR Scan" })).toBeVisible();
-    await expect(page.getByRole("radiogroup", { name: "Show exhibitions" })).toHaveCount(0);
+    await expect(page.getByRole("radiogroup", { name: "Show works" })).toHaveCount(0);
     await expect(page.locator('a[href^="/e/"]')).toHaveCount(0);
   });
 });
