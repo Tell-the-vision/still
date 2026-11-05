@@ -4,7 +4,7 @@
 import { ApiError } from "./errors";
 import { RIGHTS_STATEMENT_VERSION, UPLOAD_FORMATS } from "../constants";
 import { extractManifest } from "../extract";
-import type { ContentItem, EditSuggestion, Exhibition, Guide, GuideSection, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
+import type { ContentItem, EditSuggestion, Exhibition, ExhibitionImage, Guide, GuideSection, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -522,6 +522,7 @@ export function createTrpcApi(): InstitutionsApi {
     },
     // `theme` has no SPEC field and is ignored. The review screen's content-type options are not the SPEC
     // kinds, so a label that is not a kind is refused.
+    listImages: (exhibitionId) => q<ExhibitionImage[]>("console.image.list", { code: exhibitionId }),
     getContentDoc: (itemId) => knownItem(itemId).row.doc,
     saveContentDoc: async (itemId, doc) => {
       await updateRow(itemId, { doc });

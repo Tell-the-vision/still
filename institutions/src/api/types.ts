@@ -65,6 +65,9 @@ export type StillNode = {
   content?: StillNode[];
 };
 
+/** An image of the exhibition (SPEC §10.3 images) the editor can place in a document. */
+export interface ExhibitionImage { id: string; altText: string | null }
+
 export interface ContentItem {
   id: string;
   order: number;
@@ -298,6 +301,7 @@ export interface InstitutionsApi {
   startAnalysis(exhibitionId: string): Promise<void>;
   listProcessingEvents(exhibitionId: string): Promise<ProcessingEvent[]>;
 
+  listImages(exhibitionId: string): Promise<ExhibitionImage[]>;
   listContentItems(exhibitionId: string): Promise<ContentItem[]>;
   updateContentItem(itemId: string, patch: ContentItemPatch): Promise<ContentItem>;
   /** The item's document (Tiptap JSON, SPEC §9.4 schema) as last loaded. */

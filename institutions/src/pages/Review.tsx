@@ -241,7 +241,7 @@ interface EditorProps {
 }
 
 function Editor({ item, flash, onOpen, onGone, onDoc }: EditorProps) {
-  const { items, guide, can, updateItem, approveItem, rejectItem, reopenItem, removeItem, restoreItem, dismissDuplicate, mergeItems } = useWorkspace();
+  const { exhibition, items, guide, can, updateItem, approveItem, rejectItem, reopenItem, removeItem, restoreItem, dismissDuplicate, mergeItems } = useWorkspace();
   const editable = can("edit");
   const reviewer = can("review");
   // Suggestions = defaults + guide theme cards + themes already used on other items.
@@ -328,7 +328,7 @@ function Editor({ item, flash, onOpen, onGone, onDoc }: EditorProps) {
       <fieldset className="plain-fieldset" disabled={!editable}>
         <div className="field field--first" role="group" aria-labelledby="editor-label">
           <span className="field__label" id="editor-label">{item.fieldLabel}</span>
-          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} />
+          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} exhibitionId={exhibition?.id ?? ""} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} />
           <span className="field__foot">
             <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
           </span>

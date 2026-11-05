@@ -1,20 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
-import { Mark, Node, mergeAttributes } from "@tiptap/core";
+import { Mark, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import UniqueID from "@tiptap/extension-unique-id";
 import { api } from "../api";
+import { ImagePicker, StillImage } from "./StillImage";
 
 // SPEC §9.4 편집기: the STILL schema only. Nothing outside it can be typed, pasted or toggled.
-const StillImage = Node.create({
-  name: "stillImage",
-  group: "block",
-  atom: true,
-  addAttributes: () => ({ imageId: { default: null }, display: { default: "FULL" }, caption: { default: null } }),
-  parseHTML: () => [{ tag: "figure[data-still-image]" }],
-  renderHTML: ({ HTMLAttributes }) => ["figure", mergeAttributes(HTMLAttributes, { "data-still-image": "" })],
-});
-
 const Scrap = Mark.create({
   name: "scrap",
   addAttributes: () => ({ sentenceId: { default: null } }),
@@ -27,7 +19,7 @@ const AUTOSAVE_MS = 1000;
 
 type Saved = "idle" | "saving" | "saved";
 
-export function Editor({ itemId, doc, editable, onChange }: { itemId: string; doc: JSONContent; editable: boolean; onChange?: (doc: JSONContent) => void }) {
+export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { itemId: string; exhibitionId: string; doc: JSONContent; editable: boolean; onChange?: (doc: JSONContent) => void }) {
   const [state, setState] = useState<Saved>("idle");
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number>(0);
@@ -93,6 +85,7 @@ export function Editor({ itemId, doc, editable, onChange }: { itemId: string; do
           {tools.map((t) => (
             <button key={t.label} type="button" className="btn" aria-pressed={t.active} onClick={t.run}>{t.label}</button>
           ))}
+          <ImagePicker editor={editor} exhibitionId={exhibitionId} />
         </div>
       )}
       <EditorContent editor={editor} className="input input--lg still-editor__body" />
