@@ -37,6 +37,11 @@ async function stubServer(page: Page): Promise<Stub> {
     else seen.originalPuts += 1;
     return route.fulfill({ status: 200, body: "" });
   });
+  // Originals go to the app's dry-run R2 store (src/server/media/r2-dry-run.ts): count them and let them through.
+  await page.route("**/api/r2-dry-run/**", (route) => {
+    if (route.request().method() === "PUT") seen.originalPuts += 1;
+    return route.fallback();
+  });
   await page.route("**/api/trpc/console.documentUpload.create", (route) => {
     const input = route.request().postDataJSON();
     seen.creates.push(input);
