@@ -143,7 +143,8 @@ export const consoleDocumentRouter = router({
     if (input.uploaded && current.status === "UPLOADING") {
       // The declared size is only a claim until R2 says what it holds.
       const stored = await privateObjectSize(objectKey);
-      if (stored !== undefined && stored !== current.byteSize) {
+      // A missing object is as bad as a wrong-sized one: the browser reported an upload that is not there.
+      if (stored === null || stored !== current.byteSize) {
         await db.update(documents).set({ status: "FAILED", errorCode: "CORRUPTED" }).where(and(eq(documents.id, input.id), eq(documents.status, "UPLOADING")));
       } else {
         // The oldest finished document of this exhibition with the same hash is the original (SPEC §10.6).

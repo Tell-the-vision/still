@@ -1,5 +1,5 @@
-import type { ContentBlock } from "../../../../shared/src/console-content";
-import { scrapRuns, stillDocument, type StillDocument } from "../../../../shared/src/still-doc";
+import type { ContentBlock } from "@still/shared/console-content";
+import { scrapRuns, stillDocument, type StillDocument } from "@still/shared/still-doc";
 import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "../../db/client";

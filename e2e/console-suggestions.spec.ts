@@ -34,7 +34,7 @@ test("accept applies the proposal and clears review; dismiss records; stale revi
   await expect(page.getByRole("region", { name: "Suggestions" })).toBeHidden();
   // The rich editor reopens on the new revision, so it shows the accepted text.
   await expect(page.locator(".ProseMirror")).toContainText("The Secret Show");
-  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/sugg/accepted.png" });
+  await page.screenshot({ path: test.info().outputPath("accepted.png") });
   const accepted = await read(one.id);
   expect(accepted.doc.content[1].content![0].text).toBe("The Secret Show");
   expect(accepted.status).toBe("READY");
@@ -42,7 +42,7 @@ test("accept applies the proposal and clears review; dismiss records; stale revi
 
   await page.locator(".item", { hasText: "Bravo piece" }).click();
   await expect(page.getByRole("region", { name: "Suggestions" })).toBeVisible();
-  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/sugg/open.png" });
+  await page.screenshot({ path: test.info().outputPath("open.png") });
   await page.getByRole("button", { name: "Dismiss" }).click();
   await expect(page.getByRole("region", { name: "Suggestions" })).toBeHidden();
   expect((await read(two.id)).suggestions[0].status).toBe("DISMISSED");

@@ -10,7 +10,6 @@ import { consoleCall, e2eSql, seedInstitutionAccount, signInConsole } from "./su
 test.use({ viewport: { width: 1440, height: 900 } });
 
 const TEXT = "One two. Three.";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 
 test("Start analysis fills the review screen with the manifest text", async ({ page }) => {
   const { exhibition } = await extractedExhibition(page, TEXT);

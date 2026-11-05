@@ -22,8 +22,12 @@ export type Suggestion = {
 const NEEDS_CHECK = ["TEXT_MISMATCH", "LABEL_GENERATED", "IMAGE_NOT_ANALYZED", "SOURCE_CONFLICT"];
 
 const parse = (value: unknown) => (Array.isArray(value) ? (value as Suggestion[]) : []);
+// A suggestion is decided once: accepting again would apply its edit twice (a second MISSING_HEADING heading,
+// a paragraph split again), so anything but OPEN is a CONFLICT.
 const decide = (list: Suggestion[], id: string, status: "ACCEPTED" | "DISMISSED", userId: string) => {
-  if (!list.some((s) => s.id === id)) throw new TRPCError({ code: "NOT_FOUND" });
+  const current = list.find((s) => s.id === id);
+  if (!current) throw new TRPCError({ code: "NOT_FOUND" });
+  if (current.status !== "OPEN") throw new TRPCError({ code: "CONFLICT", message: "The suggestion is already decided." });
   return list.map((s) => (s.id === id ? { ...s, status, decidedBy: userId, decidedAt: new Date().toISOString() } : s));
 };
 export async function decideSuggestion(

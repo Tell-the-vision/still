@@ -60,10 +60,12 @@ const edits: Record<string, Edit> = {
   PUNCTUATION_CONSISTENCY: onChars((old, p) => {
     const from = str(p.from);
     if (!from || typeof p.to !== "string") return null;
-    const text = old.map((c) => c.ch).join("");
+    // Compared per code point, like `old` is indexed: a UTF-16 offset would drift after any astral character.
+    const fromChars = [...from];
+    const at = (i: number) => fromChars.every((ch, k) => old[i + k]?.ch === ch);
     const out: Char[] = [];
     for (let i = 0; i < old.length; ) {
-      if (text.startsWith(from, i)) { out.push(...[...p.to].map((ch) => ({ ch, mark: old[i].mark }))); i += [...from].length; }
+      if (at(i)) { out.push(...[...p.to].map((ch) => ({ ch, mark: old[i].mark }))); i += fromChars.length; }
       else out.push(old[i++]);
     }
     return out;
