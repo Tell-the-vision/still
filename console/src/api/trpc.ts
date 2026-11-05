@@ -1,15 +1,10 @@
 // ConsoleApi over the existing `still` server (Next.js, tRPC at /api/trpc, no transformer = plain JSON).
 // Expects a future `console` router whose procedure names match the ConsoleApi methods
 // (console.listFiles, console.updateContentItem, ...). See API.md for the list.
+import { ApiError } from "./errors";
 import type { ConsoleApi } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
-
-export class ApiError extends Error {
-  constructor(message: string, readonly code?: string, readonly appCode?: string) {
-    super(message);
-  }
-}
 
 async function call<T>(kind: "query" | "mutation", path: string, input?: unknown): Promise<T> {
   // "console.*" unless a full router path is given (e.g. "session.delete").
@@ -39,12 +34,13 @@ export function createTrpcApi(): ConsoleApi {
     getWorkspace: () => q("getWorkspace"),
 
     getWorkspaceSummary: () => q("getWorkspaceSummary"),
+    signIn: (request) => m("signIn", request),
     getMe: () => q("getMe"),
     updateMe: (patch) => m("updateMe", patch),
     getNotificationPrefs: () => q("getNotificationPrefs"),
     updateNotificationPrefs: (patch) => m("updateNotificationPrefs", patch),
-    // Existing still procedure: ends the current session.
-    signOut: () => m("session.delete"),
+    // Ends the staff session (separate from the visitor session.* procedures).
+    signOut: () => m("signOut"),
     getWorkspaceSettings: () => q("getWorkspaceSettings"),
     updateWorkspaceSettings: (patch) => m("updateWorkspaceSettings", patch),
     listVenues: () => q("listVenues"),

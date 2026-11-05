@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import { ROLES } from "./rules";
 import { useWorkspace } from "./store";
 
@@ -38,6 +38,9 @@ export default function Layout() {
   }, [accountOpen]);
 
   const link = ({ isActive }: { isActive: boolean }) => `nav__link${isActive ? " is-active" : ""}`;
+
+  // No staff session: go to sign-in and come back to this page afterwards.
+  if (status === "signed-out") return <Navigate to="/sign-in" replace state={{ from: pathname }} />;
 
   return (
     <div className="app">

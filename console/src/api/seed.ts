@@ -23,7 +23,7 @@ export interface Seed {
   guides: Record<string, Guide>;
 }
 
-const workspace: Workspace = { institutionName: "MMCA Seoul", role: "Curator" };
+const workspace: Workspace = { institutionName: "MMCA Seoul", institutionId: "STL-MMCA-0002", role: "Curator" };
 // Even an empty workspace has a signed-in user and settings.
 // ?as=curator | reviewer | readonly (mock only) previews the screens with another role.
 const ROLE_PREVIEW: Record<string, MemberRole> = { curator: "CURATOR", reviewer: "REVIEWER", readonly: "READ_ONLY" };

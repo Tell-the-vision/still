@@ -24,3 +24,4 @@ function mockSeed(): "sample" | "empty" {
 export const api: ConsoleApi = apiMode === "mock" ? createMockApi(mockSeed()) : createTrpcApi();
 
 export * from "./types";
+export { ApiError, isUnauthorized } from "./errors";

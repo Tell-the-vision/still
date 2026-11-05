@@ -24,11 +24,20 @@ test("console deep links load the console app, and the sidebar labels navigate",
   await expect(page).toHaveURL(/\/console\/account$/);
 });
 
+test("/console/sign-in shows the staff sign-in form", async ({ page }) => {
+  await page.goto("/console/sign-in");
+  await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toBeVisible();
+  await expect(page.getByLabel("Institution ID")).toBeVisible();
+  await expect(page.getByLabel("Work email")).toBeVisible();
+  await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+});
+
 test("visitor pages never load the console bundle", async ({ page }) => {
   const consoleRequests: string[] = [];
   page.on("request", (r) => { if (new URL(r.url()).pathname.startsWith("/console")) consoleRequests.push(r.url()); });
   await page.goto("/");
-  await expect(page.getByText("Art stays with you.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "QR Scan" })).toBeVisible();
   await expect(page.getByText("Museum workspace", { exact: true })).toHaveCount(0);
   expect(consoleRequests).toEqual([]);
 });

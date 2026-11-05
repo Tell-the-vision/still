@@ -14,7 +14,7 @@ No screen code changes. Types, field names and inputs are in `src/api/types.ts`;
   - query: `GET /api/trpc/console.listFiles?input=<url-encoded JSON>`
   - mutation: `POST /api/trpc/console.updateContentItem` with the JSON input as the body
   - success: `{ "result": { "data": … } }`. Error: `{ "error": { "message", "data": { "code", "appCode" } } }` (the existing `errorFormatter`)
-- Requests send cookies (`credentials: "include"`). All console procedures need a curator session. Staff sign-in does not exist in the server yet.
+- Requests send cookies (`credentials: "include"`). Every console procedure except `signIn` needs a staff session and answers `UNAUTHORIZED` without one; the app then shows `/console/sign-in`. See [Staff sign-in](#staff-sign-in-figma-10).
 - In production the app is served from the same origin (`/console`), so no CORS. In dev, Vite proxies `/api` to `VITE_API_PROXY` (default `http://localhost:3000`).
 
 ## Procedures
@@ -53,11 +53,12 @@ No screen code changes. Types, field names and inputs are in `src/api/types.ts`;
 | Procedure | Kind | Input | Returns |
 |---|---|---|---|
 | `getWorkspaceSummary` | query | — | `WorkspaceSummary` (WORKSPACE home: attention list, activity, member count) |
+| `signIn` | mutation | `{ institutionId, email, password, remember }` | `Me`, and sets the staff session cookie |
 | `getMe` | query | — | `Me` |
 | `updateMe` | mutation | `{ name }` | `Me` |
 | `getNotificationPrefs` | query | — | `NotificationPrefs` |
 | `updateNotificationPrefs` | mutation | `Partial<NotificationPrefs>` | `NotificationPrefs` |
-| `session.delete` (existing) | mutation | — | ends the session (Sign out) |
+| `signOut` | mutation | — | ends the staff session (separate from the visitor `session.*` procedures) |
 | `getWorkspaceSettings` | query | — | `WorkspaceSettings` |
 | `updateWorkspaceSettings` | mutation | `Partial<WorkspaceSettings>` | `WorkspaceSettings` |
 | `listVenues` | query | — | `Venue[]` |
@@ -77,7 +78,20 @@ Roles (handoff 3; the final matrix is open decision 13). The checks live in `can
 | `REVIEWER` (Reviewer / Approver) | | | ✓ | |
 | `READ_ONLY` | | | | |
 
-Who creates accounts: STILL operators create the institution and invite its first `INSTITUTION_ADMIN`; that admin invites everyone else. There is no self sign-up. Sign-in method is not decided (proposal: one-time code to the invited work email).
+Who creates accounts: STILL operators create the institution and invite its first `INSTITUTION_ADMIN`; that admin invites everyone else. There is no self sign-up.
+
+## Staff sign-in (Figma 10)
+
+Decided: **institution ID + work email + password**, kept alive by a server-side session. No OAuth or social login (museum staff use work accounts STILL issues), no self sign-up.
+
+- **Institution ID**: issued by STILL in the platform admin app (`/admin`, Figma 09), e.g. `STL-MMCA-0002`. Unique, never reused, case-insensitive on input.
+- **Getting a password**: platform admin invites the institution's first `INSTITUTION_ADMIN` by email; that admin invites the others (`inviteMember`). The invite email has a one-time link (single use, expires, e.g. 72 h) where the person sets their own password. Password reset works the same way (link valid ~1 h), requested by the institution admin or STILL support. Nobody sends passwords by email or chat.
+- **`signIn`** checks that the email is an `ACTIVE` member of that institution and the institution is not `SUSPENDED`. Every mismatch gives the same `UNAUTHORIZED` message ("Institution ID, email or password is incorrect."), so the form never reveals which IDs or emails exist. Rate-limit failures per account and per IP (e.g. 5 failures → 15 min wait).
+- **Passwords**: stored as argon2id (or bcrypt) hashes, minimum 10 characters.
+- **Session**: random token in an `httpOnly`, `Secure`, `SameSite=Lax` cookie, stored server-side so it can be revoked. Without "Remember this device" it ends when the browser closes (and after ~12 h idle); with it, 30 days. `signOut` deletes it. Suspending an institution, removing a member or resetting a password deletes their sessions.
+- Later, if needed: two-step verification for `INSTITUTION_ADMIN`.
+
+Why not tokens only: a password the person sets is what staff can realistically use day to day; the security comes from the server-side session token (`httpOnly` cookie, revocable) that the password starts, plus rate limits and one-time links for invites and resets.
 
 Upload: `POST /api/console/exhibitions/:exhibitionId/files` as `multipart/form-data` with a `file` field. Returns `SourceFile`. Limit: 100 MB, PDF/DOCX/XLSX/CSV/TXT (plus `.md` as plain text), the initial formats in the developer handoff. HWP/HWPX, PPTX and web URLs are not accepted until extraction for them is validated. The server must check the type; the screen's check is only a convenience. The screen uploads two files at a time, shows progress and can cancel (XMLHttpRequest with an abort signal). A presigned-URL flow also works; only `uploadFile` in `src/api/trpc.ts` changes.
 
@@ -105,6 +119,7 @@ Publishing is blocked (`publishExhibition` must refuse) when the caller cannot p
 | `Exhibition.code`, `title`, `startDate`, `endDate`, `status` | `exhibitions.code`, `title`, `start_date`, `end_date`, `status` (`DRAFT` / `PUBLISHED`) |
 | `Exhibition.venueName` | `venues.name` via `exhibitions.venue_id` |
 | `Workspace.institutionName` | `institutions.name` |
+| `Workspace.institutionId` | new unique column on `institutions` (e.g. `public_id`), issued by platform admin |
 | Library status (live / scheduled / ended / draft) | derived in the front end from `status` + dates (`src/format.ts`). Not stored |
 
 ### Questions for the backend
@@ -112,5 +127,5 @@ Publishing is blocked (`publishExhibition` must refuse) when the caller cannot p
 - `exhibitions.start_date` / `end_date` are `NOT NULL`, but a new draft has no dates yet. Allow null for DRAFT, or have `createExhibition` take dates?
 - `subtitle` has no column. Add one, or keep it inside `description` (jsonb)?
 - New tables needed: source files, extracted content items, processing events, guide sections and theme cards (or a structure inside `exhibitions.guide` jsonb).
-- Account: workspace members and roles (linked to `institutions`), invitations, workspace settings, support requests. How curators sign in (separate from visitor sign-in?) still needs a decision.
+- Account: workspace members and roles (linked to `institutions`), password hashes, staff sessions (separate from visitor sessions), invitations and reset links, workspace settings, support requests.
 - `requireRightsConfirmation` / `allowVisitorScrap` / `ambienceDefaultOn` should be enforced by the server and the visitor app, not only shown here.

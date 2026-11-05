@@ -40,12 +40,13 @@ Screens never hold data. Everything goes through `src/store.tsx` → `src/api`:
 
 `VITE_API_MODE=mock|server` overrides the default.
 
-In mock mode, `?as=curator`, `?as=reviewer` or `?as=readonly` shows the screens as that role (default: institution admin). An upload whose file name contains `fail` fails once, so the retry path can be tried.
+In mock mode, `?as=curator`, `?as=reviewer` or `?as=readonly` shows the screens as that role (default: institution admin). The mock starts signed in; add `?signedOut` (or use Sign out) to see the sign-in screen (Figma 10). Mock login: institution ID `STL-MMCA-0002`, email `curator@museum.example`, any password except `wrong`. An upload whose file name contains `fail` fails once, so the retry path can be tried.
 
 ## Screens
 
 | Route (under /console) | Screen | Source |
 |---|---|---|
+| `/sign-in` | Staff sign-in: institution ID, work email, password | Figma (10): widths from Figma; vertical spacing fits the window so the screen sits centered without scrolling |
 | `/overview` | Exhibition workspace overview | Figma 169-186 (03) |
 | `/materials` | Bulk material upload | Figma (01) |
 | `/materials/review` | Extracted content review | Figma (02) |
