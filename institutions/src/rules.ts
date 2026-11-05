@@ -46,7 +46,7 @@ export function approvalBlocker(item: ContentItem, items: ContentItem[]): string
 
 /** "Approve all ready" only takes items a person would not need to read closely. */
 export const bulkApprovable = (item: ContentItem, items: ContentItem[]) =>
-  item.reviewStatus === "IN_REVIEW" && !approvalBlocker(item, items) && !isLowConfidence(item) && item.origin === "SOURCE";
+  item.reviewStatus === "IN_REVIEW" && !approvalBlocker(item, items) && !isLowConfidence(item) && !item.needsReview && item.origin === "SOURCE";
 
 // ── Rights (handoff 4.6, 9, 10) ─────────────────────────
 const today = () => new Date().toISOString().slice(0, 10);

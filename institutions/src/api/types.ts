@@ -79,6 +79,10 @@ export interface ContentItem {
   duplicateOf: string | null;
   /** Images and other media extracted with this item, each with its own rights record. */
   assets: MediaAsset[];
+  /** Server revision the item was read at; every write sends it (SPEC §10.8). Absent in the mock. */
+  revision?: string;
+  /** The server wants a person to look at it (NEEDS_REVIEW): approvable one by one, never in bulk. */
+  needsReview?: boolean;
 }
 export type ContentItemPatch = Partial<Pick<ContentItem, "text" | "theme" | "contentType" | "note">>;
 

@@ -92,6 +92,7 @@ export type ConsoleContentRow = {
   status: "READY" | "NEEDS_REVIEW" | "APPROVED" | "REJECTED";
   blocks: ContentBlock[];
   editorialNote: string | null;
+  revision: string;
   updatedAt: string;
   images: { id: string; altText: string | null; credit: string | null; rights: string; width: number; height: number }[];
 };
@@ -165,8 +166,56 @@ export function toContentItem(row: ConsoleContentRow, order: number, documents: 
     removed: false,
     duplicateOf: null,
     assets,
+    revision: row.revision,
+    needsReview: row.status === "NEEDS_REVIEW",
   };
 }
+
+// The latest row and item this tab knows per id. The adapter's write methods take only an item id, so the
+// revision they must send (SPEC §10.8) comes from here; every read and write result refreshes it.
+const known = new Map<string, { row: ConsoleContentRow; item: ContentItem }>();
+let knownFiles: ConsoleFile[] = [];
+const remember = (row: ConsoleContentRow, order: number) => {
+  const item = toContentItem(row, order, knownFiles);
+  known.set(row.id, { row, item });
+  return item;
+};
+const knownItem = (itemId: string) => {
+  const entry = known.get(itemId);
+  if (!entry) throw new ApiError("This item is not loaded. Reload to see the latest.");
+  return entry;
+};
+
+const NOT_YET = "Not available yet.";
+const unavailable = async (): Promise<never> => {
+  throw new ApiError(NOT_YET);
+};
+const CHANGED_ELSEWHERE = "This item changed elsewhere. Reload to see the latest.";
+
+// console.content.update with the revision this tab last saw; a stale one reads as a plain sentence.
+async function updateRow(itemId: string, change: Record<string, unknown>): Promise<ContentItem> {
+  const { row, item } = knownItem(itemId);
+  try {
+    return remember(await m<ConsoleContentRow>("console.content.update", { id: itemId, revision: row.revision, ...change }), item.order);
+  } catch (e) {
+    if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") throw new ApiError(CHANGED_ELSEWHERE, e.code, e.appCode);
+    throw e;
+  }
+}
+
+// The item's text blocks (paragraph and sentence: what `text` shows) with `text` spread over them.
+// One block takes the text as is; several take blank-line separated parts, in order, when the counts match.
+function blocksWithText(row: ConsoleContentRow, text: string): ContentBlock[] {
+  const isText = (b: ContentBlock) => b.type === "paragraph" || b.type === "sentence";
+  const count = row.blocks.filter(isText).length;
+  const parts = count === 1 ? [text] : text.split(/\n\s*\n/);
+  if (count === 0) throw new ApiError("This item has no text to edit.");
+  if (parts.length !== count) throw new ApiError(`This item has ${count} text blocks; separate the text into ${count} parts with blank lines.`);
+  let next = 0;
+  return row.blocks.map((b) => (isText(b) && "text" in b ? { ...b, text: parts[next++] } : b));
+}
+
+const KIND_BY_LABEL = Object.fromEntries(Object.entries(KIND_LABELS).map(([kind, label]) => [label, kind]));
 
 // console.analysis.get (src/server/trpc/routers/console/analysis.ts, SPEC §9.5).
 export type ConsoleAnalysis = {
@@ -342,18 +391,34 @@ export function createTrpcApi(): InstitutionsApi {
         q<ConsoleContentRow[]>("console.content.list", { code: exhibitionId }),
         q<ConsoleFile[]>("console.document.list", { code: exhibitionId }),
       ]);
-      return rows.map((row, i) => toContentItem(row, i, files));
+      knownFiles = files;
+      known.clear();
+      return rows.map((row, i) => remember(row, i));
     },
-    updateContentItem: (itemId, patch) => m("updateContentItem", { itemId, ...patch }),
-    approveContentItem: (itemId) => m("approveContentItem", { itemId }),
-    rejectContentItem: (itemId) => m("rejectContentItem", { itemId }),
-    reopenContentItem: (itemId) => m("reopenContentItem", { itemId }),
-    removeContentItem: (itemId) => m("removeContentItem", { itemId }),
-    restoreContentItem: (itemId) => m("restoreContentItem", { itemId }),
-    dismissDuplicate: (itemId) => m("dismissDuplicate", { itemId }),
-    updateMediaAsset: (itemId, assetId, patch) => m("updateMediaAsset", { itemId, assetId, ...patch }),
-    mergeContentItems: (itemId, intoId, keep) => m("mergeContentItems", { itemId, intoId, keep }),
-    splitContentItem: (itemId, at) => m("splitContentItem", { itemId, at }),
+    // `theme` has no SPEC field and is ignored. The review screen's content-type options are not the SPEC
+    // kinds, so a label that is not a kind is refused.
+    updateContentItem: async (itemId, patch) => {
+      const { row, item } = knownItem(itemId);
+      const change: Record<string, unknown> = {};
+      if (patch.note !== undefined && patch.note !== item.note) change.editorialNote = patch.note || null;
+      if (patch.text !== undefined && patch.text !== item.text) change.blocks = blocksWithText(row, patch.text);
+      if (patch.contentType !== undefined && patch.contentType !== item.contentType) {
+        const kind = KIND_BY_LABEL[patch.contentType];
+        if (!kind) throw new ApiError(`"${patch.contentType}" is not a content type the server knows yet.`);
+        change.kind = kind;
+      }
+      return Object.keys(change).length ? updateRow(itemId, change) : item;
+    },
+    approveContentItem: (itemId) => updateRow(itemId, { status: "APPROVED" }),
+    rejectContentItem: (itemId) => updateRow(itemId, { status: "REJECTED" }),
+    // No SPEC procedure yet (issue #62).
+    reopenContentItem: unavailable,
+    removeContentItem: unavailable,
+    restoreContentItem: unavailable,
+    dismissDuplicate: unavailable,
+    updateMediaAsset: unavailable,
+    mergeContentItems: unavailable,
+    splitContentItem: unavailable,
 
     listPublicationChecks: async (exhibitionId) => toPublicationChecks((await q<{ checks: ConsoleCheck[] }>("console.preview.get", { code: exhibitionId })).checks),
 

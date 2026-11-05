@@ -70,7 +70,7 @@ export default function Review() {
     setBulkBusy(false);
     setConfirming(null);
     setPicked(new Set());
-    showFlash(`${done} groups ${kind === "approve" ? "approved" : "rejected"}${skipped ? ` · ${skipped} skipped (duplicate to resolve first)` : ""}`);
+    showFlash(`${done} groups ${kind === "approve" ? "approved" : "rejected"}${skipped ? ` · ${skipped} skipped (needs a closer look or could not be saved)` : ""}`);
   };
 
   const filters: [Filter, string][] = [
@@ -372,12 +372,13 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
             <button type="button" className="link-btn link-btn--strong" disabled={saving} onClick={() => act(() => rejectItem(item.id), `${item.title} rejected`)}>Reject</button>
           </>
         )}
-        {reviewer && item.reviewStatus !== "IN_REVIEW" && (
+        {reviewer && item.reviewStatus === "APPROVED" && (
           <button type="button" className="link-btn link-btn--strong" disabled={saving} onClick={() => act(() => reopenItem(item.id), `${item.title} returned to review`)}>Return to review</button>
         )}
         {editable && <button type="button" className="link-btn editor__remove" disabled={saving} onClick={remove}>Delete from guide data</button>}
       </div>
       {reviewer && item.reviewStatus === "IN_REVIEW" && blocker && <p className="caption-sm tone-amber">{blocker}</p>}
+      {item.reviewStatus === "REJECTED" && <p className="caption-sm">A rejected item is final. To use the text again, add it as a new item.</p>}
       {!editable && !reviewer && <p className="caption-sm">{NO_PERMISSION.edit}</p>}
       <p className="caption-sm">Only approved content appears in the visitor guide. Rejected and in-review items are left out; deleted items can be restored from Removed.</p>
     </section>
