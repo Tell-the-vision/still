@@ -7,7 +7,7 @@ import {
   DOCUMENT_FORMATS,
   DOCUMENT_MAX_BYTES,
 } from "@still/shared/console";
-import { getBoss } from "../../../services/console/analysis-jobs";
+import { getBoss, VERIFY_QUEUE } from "../../../services/console/analysis-jobs";
 import { enqueueStorageDeletes } from "../../../services/console/storage-jobs";
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
@@ -126,6 +126,8 @@ export const consoleDocumentRouter = router({
 
     if (input.manifestKey !== undefined) {
       await recordManifest(ctx.institutionId, input.id, input.manifestKey);
+      const [unverified] = await db.select({ id: images.id }).from(images).where(and(eq(images.documentId, input.id), eq(images.verification, "UNVERIFIED"))).limit(1);
+      if (unverified) await (await getBoss()).send(VERIFY_QUEUE, { documentId: input.id }, { retryLimit: 2 });
       return documentView(ctx.institutionId, input.id);
     }
 

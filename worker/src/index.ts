@@ -3,6 +3,7 @@ import { structureInput, structureOutput, type StructureInput } from "../../shar
 import { verifyWorkerRequest } from "../../shared/src/analysis-worker-signature";
 import { CONTENT_KINDS } from "../../shared/src/console-content";
 import { SECTION_KINDS } from "../../shared/src/console-draft";
+import { z } from "zod";
 import { IMAGE_DISPLAYS } from "../../shared/src/still-doc";
 
 // Cloudflare Worker for institution-console analysis (SPEC §9.4 처리 구조, §10.10). It holds the Gemini
@@ -236,12 +237,37 @@ async function structureText(input: StructureInput, env: Env, fetcher: Fetcher):
   return parsed.success ? json(parsed.data, 200) : failure("INVALID_OUTPUT");
 }
 
+// SPEC §10.7 검증: each asset's bytes are read from the original by range and hashed. The presigned `url`
+// is a credential, so it is never logged.
+const verifyInput = z.object({
+  url: z.url(),
+  ranges: z.array(z.object({ assetId: z.string(), offset: z.number().int().nonnegative(), length: z.number().int().positive(), sha256: z.string() })),
+});
+
+async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function verify(input: z.infer<typeof verifyInput>, fetcher: Fetcher): Promise<Response> {
+  const results = [];
+  for (const { assetId, offset, length, sha256 } of input.ranges) {
+    const res = await fetcher(input.url, { headers: { Range: `bytes=${offset}-${offset + length - 1}` } });
+    if (!res.ok) return failure("UPSTREAM");
+    const bytes = await res.arrayBuffer();
+    // A server that ignores Range answers 200 with the whole file.
+    const range = res.status === 206 ? bytes : bytes.slice(offset, offset + length);
+    results.push({ assetId, ok: (await sha256Hex(range)) === sha256 });
+  }
+  return json({ results }, 200);
+}
+
 export function createWorker(fetcher: Fetcher = (url, init) => fetch(url, init)) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
       const isText = url.pathname === "/structure/text";
-      if (url.pathname !== "/structure" && !isText) return json({ error: "NOT_FOUND" }, 404);
+      const isVerify = url.pathname === "/verify";
+      if (url.pathname !== "/structure" && !isText && !isVerify) return json({ error: "NOT_FOUND" }, 404);
       if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
 
       const body = await request.text();
@@ -256,6 +282,10 @@ export function createWorker(fetcher: Fetcher = (url, init) => fetch(url, init))
         raw = JSON.parse(body);
       } catch {
         return json({ error: "BAD_REQUEST" }, 400);
+      }
+      if (isVerify) {
+        const input = verifyInput.safeParse(raw);
+        return input.success ? verify(input.data, fetcher) : json({ error: "BAD_REQUEST" }, 400);
       }
       if (isText) {
         const input = structureInput.safeParse(raw);
