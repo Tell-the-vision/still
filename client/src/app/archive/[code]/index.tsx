@@ -9,12 +9,9 @@ import { ScrapSection } from "../../../features/scrap/ScrapSection";
 import { JournalSection } from "../../../features/journal/JournalSection";
 import { announce } from "../../../features/journal/announce";
 import { journalStrings } from "../../../features/journal/strings";
-import { KeepsakeSection } from "../../../features/keepsake/KeepsakeSection";
-import { useDevelop } from "../../../features/keepsake/develop";
-import { keepsakeQueryOptions } from "../../../features/keepsake/keepsakeQuery";
 import { longDate, year } from "../../../lib/dates";
 import { useTRPC } from "../../../lib/trpc";
-import { KeepsakeHero } from "../../../features/keepsake/KeepsakeHero";
+import { KeepsakeList } from "../../../features/keepsake/KeepsakeList";
 import { Button } from "../../../ui/Button";
 import { Rule } from "../../../ui/Rule";
 import { Screen } from "../../../ui/Screen";
@@ -37,9 +34,6 @@ export default function ArchiveDetail() {
   }, [saved, router]);
   const trpc = useTRPC();
   const { data: archive, error, refetch } = useQuery(trpc.archive.get.queryOptions({ code }, { enabled: Boolean(me) }));
-  // A save from here lands on the hero: it develops once, and the status settles with it.
-  const { data: keepsake } = useQuery(keepsakeQueryOptions(trpc, code, Boolean(me)));
-  const develop = useDevelop(code, keepsake?.updatedAt, "archive");
   const missing = archive === null || (error instanceof TRPCClientError && error.data?.code === "NOT_FOUND");
   return (
     <Screen tabs>
@@ -56,10 +50,10 @@ export default function ArchiveDetail() {
           <BackLink />
           <Text variant="headline">{archive.exhibition.title}</Text>
           <Text variant="caption">{`${archive.exhibition.venue.name.toUpperCase()} · ${year(archive.exhibition.startDate)}`}</Text>
-          <KeepsakeHero code={code} exhibition={archive.exhibition} develop={develop} />
+          {/* One card per artwork the visitor made one for; a card just saved here develops once. */}
+          <KeepsakeList code={code} />
           <Rule />
           <Stack gap="section">
-            <KeepsakeSection code={code} exhibition={archive.exhibition} statusDevelop={develop} />
             <ScrapSection code={code} />
             <JournalSection code={code} />
           </Stack>

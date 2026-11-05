@@ -11,7 +11,6 @@ import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { useDraft } from "./drafts";
-import { useSavedLabel } from "./saved-label";
 import { journalSectionStrings as strings } from "./strings";
 
 // Archive Detail section: the saved journal with Edit and Delete, or an invitation to write one.
@@ -20,7 +19,6 @@ export function JournalSection({ code }: { code: string }) {
   const queryClient = useQueryClient();
   const { data: journal } = useQuery(trpc.journal.get.queryOptions({ code }));
   const draft = useDraft(code, useMe()?.id ?? null);
-  const savedLabel = useSavedLabel(code);
   const [confirming, setConfirming] = useState(false);
   const remove = useMutation(
     trpc.journal.delete.mutationOptions({
@@ -47,7 +45,6 @@ export function JournalSection({ code }: { code: string }) {
     <Section labelVariant="row" label={strings.present}>
       <Stack>
         <Text variant="action" numberOfLines={3}>{journal.content}</Text>
-        {savedLabel && <Text variant="secondary">{savedLabel}</Text>}
         <Stack direction="row" gap="section">
           <TextAction label={strings.edit} trailing="→" href={href} />
           <TextAction label={strings.delete} tone="secondary" onPress={() => setConfirming(true)} />

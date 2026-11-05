@@ -2,11 +2,11 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { develop as timing, useReduceMotion, type Develop, type DevelopPhase } from "../../ui/motion";
 
-// Where a saved card can develop: the guide's keepsake panel, or the Archive Detail hero.
+// Where a saved card can develop: the keepsake panel on its artwork's page, or its card on Archive Detail.
 export type DevelopSurface = "guide" | "archive";
 
-// One saved version per exhibition, and the surfaces that still owe it a develop. Memory only:
-// a reload never replays it.
+// One saved version per card, and the surfaces that still owe it a develop. A card is keyed "{code}/{page}" (each
+// artwork page has its own). Memory only: a reload never replays it.
 // `at` is when the save landed.
 const kept = new Map<string, { updatedAt: string; at: number; pending: Set<DevelopSurface> }>();
 

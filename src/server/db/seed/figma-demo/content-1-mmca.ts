@@ -4,7 +4,7 @@ import { exhibitionFromBoard } from "./exhibition";
 // Demo boards "Do Ho Suh" and "Damien Hirst" from the Figma page "04 — Demo Assets".
 // Import by hand, never on deploy: `npm run db:seed src/server/db/seed/figma-demo`.
 const pkg: ContentPackage = {
-  institution: { code: "mmca", name: "National Museum of Modern and Contemporary Art, Korea" },
+  institution: { code: "MMCA", name: "National Museum of Modern and Contemporary Art, Korea" },
   venues: [{ code: "mmca-seoul", name: "MMCA Seoul", city: "Seoul" }],
   exhibitions: [
     exhibitionFromBoard({

@@ -1,9 +1,10 @@
+import { cardBlocks } from "@still/shared/keepsake";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, Image, Platform, StyleSheet, View } from "react-native";
 import { develop as timing, nativeDriver, reduced as reducedTiming, routine, still, tray, useReduceMotion, type Develop } from "./motion";
 import { Text } from "./Text";
 import { Wordmark } from "./Wordmark";
-import { card as cardTokens, colors, coverHeight, spacing } from "./theme";
+import { card as cardTokens, cardBand, cardText, colors, coverHeight, fontFamily, spacing } from "./theme";
 
 type Card = {
   exhibition: { title: string; venue: { name: string; city: string }; startDate: string; endDate: string };
@@ -12,16 +13,16 @@ type Card = {
   journalExcerpt: string | null;
 };
 
-// The shareable web card (SPEC §7.1): black on white, plain text only.
-// `sentence` shows the sentences, `reflection` the first sentence and the excerpt, `cover` neither.
-// src/server/media/keepsake-png.tsx draws the same layout for the PNG; change both together.
+// The shareable web card (SPEC §7.1): black on white, plain text only, in the design the template names
+// (cardBlocks), above a black band with the wordmark and "CITY · YEAR". src/server/media/keepsake-png.tsx draws the
+// same blocks for the PNG; change both together.
 // `placeholder` shows in gray while the card has no personal lines (the preview only).
-// `entering` is the id of a sentence that was just added: only that line inks in.
-// `develop` is the card's one authored moment, set where a save lands (features/keepsake/develop.ts):
-// the sheet stays, the cover comes up like a print in the tray, then the title, the lines, the date.
+// `entering` is the id of a line that was just added: only that line inks in.
+// `develop` is the card's one authored moment, set where a save lands (features/keepsake/develop.ts): the sheet
+// stays, the picture comes up like a print in the tray, then the title, the words one after another, the band last.
 // The card reports when it begins and when it is done; a card mounting after its surface's run began simply rests.
-// `reinkOnLayout` (the editor) lets the lines ink in again when the layout changes.
-// Motion only ever changes opacity (and, on web, the cover's brightness); the geometry is the PNG's.
+// `reinkOnLayout` (the card maker) lets the words ink in again when the design changes.
+// Motion only ever changes opacity (and, on web, the picture's brightness); the geometry is the PNG's.
 export function KeepsakeCard({
   card,
   templateId,
@@ -42,51 +43,55 @@ export function KeepsakeCard({
   accessibilityLabel?: string;
 }) {
   const { exhibition, image } = card;
-  const personal =
-    templateId === "sentence" ? card.sentences.map((s) => ({ id: s.sentenceId, text: s.content }))
-    : templateId === "reflection" ? [card.sentences[0] && { id: card.sentences[0].sentenceId, text: card.sentences[0].content }, card.journalExcerpt && { id: "excerpt", text: card.journalExcerpt }].filter((t) => !!t)
-    : [];
-  const innerWidth = width - 2 * (cardTokens.borderWidth + spacing.gap);
+  const blocks = cardBlocks({ title: exhibition.title, image, sentences: card.sentences, journalExcerpt: card.journalExcerpt }, templateId, placeholder);
   const reduce = useReduceMotion() === true;
   const [coverSettled, setCoverSettled] = useState(false);
   const print = usePrintDevelop(develop ?? resting, reduce, !image || coverSettled);
   useReink(print.lines, templateId, reinkOnLayout === true, reduce);
+  // Drawn at the theme's 360 and scaled, so every size shows the same words in the same places.
+  const scale = width / cardTokens.width;
+  const sheet = cardTokens.width - 2 * cardTokens.borderWidth;
+  // The words ink in one after another, the title with its own layer.
+  let words = 0;
   return (
-    <View
-      accessibilityLabel={accessibilityLabel}
-      {...(develop !== undefined && webData({ develop: print.display }))}
-      style={{
-        width,
-        // A fixed height, not aspectRatio: long text shrinks the cover instead of stretching the sheet.
-        height: width / cardTokens.aspectRatio,
-        padding: spacing.gap,
-        justifyContent: "space-between",
-        overflow: "hidden",
-        backgroundColor: colors.white,
-        borderColor: colors.black,
-        borderWidth: cardTokens.borderWidth,
-      }}
-    >
-      <View style={{ gap: spacing.inset, flexShrink: 1, minHeight: 0, marginBottom: spacing.tight }}>
-        <Wordmark size="card" />
-        {image && <Cover image={image} innerWidth={innerWidth} print={print} onSettle={() => setCoverSettled(true)} />}
-        <Animated.View style={{ opacity: print.title }}>
-          <Text variant="title">{exhibition.title}</Text>
+    <View accessibilityLabel={accessibilityLabel} {...(develop !== undefined && webData({ develop: print.display }))} style={{ width, height: width / cardTokens.aspectRatio, overflow: "hidden" }}>
+      <View
+        style={{
+          width: cardTokens.width,
+          // A fixed height, not aspectRatio: long text shrinks the picture instead of stretching the sheet.
+          height: cardTokens.width / cardTokens.aspectRatio,
+          overflow: "hidden",
+          backgroundColor: colors.white,
+          borderColor: colors.black,
+          borderWidth: cardTokens.borderWidth,
+          transform: [{ scale }],
+          transformOrigin: "top left",
+        }}
+      >
+        <View style={{ flex: 1, minHeight: 0, padding: cardTokens.padding, gap: spacing.inset + 2, overflow: "hidden" }}>
+          {blocks.map((block, i) => {
+            if (block.kind === "picture") {
+              if (!image) return null;
+              return <Cover key={`picture-${i}`} image={image} width={block.full ? sheet : sheet - 2 * cardTokens.padding} full={block.full} first={block.first} print={print} onSettle={() => setCoverSettled(true)} />;
+            }
+            const { variant, gray, rule } = cardText[block.role];
+            const body = (
+              <View style={rule ? { borderTopWidth: 1, borderTopColor: colors.black, paddingTop: spacing.tight } : undefined}>
+                <Text variant={variant} tone={gray ? "secondary" : "primary"}>{block.text}</Text>
+              </View>
+            );
+            if (block.role === "title" || block.role === "titleSmall") return <Animated.View key={block.id} style={{ opacity: print.title }}>{body}</Animated.View>;
+            return <Line key={block.id} ink={print.line(words++)} animate={block.id === entering} reduce={reduce}>{body}</Line>;
+          })}
+        </View>
+        {/* The band: the wordmark, and where and when, white on black. It inks in last. */}
+        <Animated.View style={{ opacity: print.caption, height: cardTokens.band, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: cardTokens.padding, backgroundColor: colors.black }}>
+          <Wordmark size="card" color={colors.white} />
+          <Text style={{ fontFamily: fontFamily.bodyMedium, fontSize: cardBand.size, lineHeight: cardBand.line, letterSpacing: cardBand.tracking, textTransform: "uppercase", color: colors.white }}>
+            {`${exhibition.venue.city} · ${exhibition.startDate.slice(0, 4)}`}
+          </Text>
         </Animated.View>
-        {personal.map(({ id, text }, i) => (
-          <Line key={id} ink={print.line(i)} animate={id === entering} reduce={reduce}>
-            <Text variant="secondary">{text}</Text>
-          </Line>
-        ))}
-        {personal.length === 0 && placeholder && (
-          <Animated.View style={{ opacity: print.line(0) }}>
-            <Text variant="secondary">{placeholder}</Text>
-          </Animated.View>
-        )}
       </View>
-      <Animated.View style={{ opacity: print.caption }}>
-        <Text variant="caption">{`${exhibition.venue.city} / ${exhibition.startDate.slice(0, 4)}`}</Text>
-      </Animated.View>
     </View>
   );
 }
@@ -193,14 +198,15 @@ function useReink(lines: Animated.Value[], templateId: string, enabled: boolean,
   }, [lines, templateId, enabled, reduce]);
 }
 
-// The cover at full width in its own shape; it shrinks, never crops, when the text needs the room.
-// If it fails to load it disappears and the text continues (SPEC §3.4).
+// The picture at its width in its own shape: inside the margins, or edge to edge (`full`, and from the top edge when
+// it comes `first`) on a plate of the light gray kept for image margins (SPEC §0.3). It shrinks, never crops, when the
+// text needs the room. If it fails to load it disappears and the text continues (SPEC §3.4).
 // The filter sits on a wrapper: react-native-web's Image reads `filter` once and wouldn't follow the animation.
-function Cover({ image, innerWidth, print, onSettle }: { image: NonNullable<Card["image"]>; innerWidth: number; print: Print; onSettle: () => void }) {
+function Cover({ image, width, full, first, print, onSettle }: { image: NonNullable<Card["image"]>; width: number; full: boolean; first: boolean; print: Print; onSettle: () => void }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
-    <View style={{ height: coverHeight(innerWidth, image), flexShrink: 1, minHeight: 0 }}>
+    <View style={{ height: coverHeight(width, image), flexShrink: 1, minHeight: 0, marginHorizontal: full ? -cardTokens.padding : 0, marginTop: full && first ? -cardTokens.padding : 0, backgroundColor: full ? colors.placeholder : undefined }}>
       <Animated.View style={[StyleSheet.absoluteFill, print.filter && ({ filter: print.filter } as object)]}>
         <Image
           source={{ uri: image.url }}

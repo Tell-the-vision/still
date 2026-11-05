@@ -22,6 +22,48 @@
       "when": 1793648182835,
       "tag": "0002_worthless_sheva_callister",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793867248085,
+      "tag": "0003_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793867666460,
+      "tag": "0004_console_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793867669850,
+      "tag": "0005_drop_exhibition_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793871725710,
+      "tag": "0006_contents_doc",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793873621536,
+      "tag": "0007_still_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793904418005,
+      "tag": "0008_keepsake_pages",
+      "breakpoints": true
     }
   ]
 }

@@ -10,11 +10,13 @@ type Archive = inferRouterOutputs<AppRouter>["archive"]["list"]["items"][number]
 
 // One grid cell of My Archive (SPEC §8.4): the keepsake card in miniature. The card already shows the
 // title and "CITY / year" and draws its own frame, so the tile adds neither.
-// The list has no kept lines, so only archives that saved a card fetch it; the rest show the cover-and-title card.
+// The list has no kept lines, so only archives with a saved card fetch their cards (one per artwork) and show the latest;
+// the rest show the cover-and-title card.
 export function ArchiveCard({ archive }: { archive: Archive }) {
   const { code, title, coverImage } = archive.exhibition;
   const trpc = useTRPC();
-  const { data: saved } = useQuery(trpc.keepsake.get.queryOptions({ code }, { enabled: archive.hasKeepsake }));
+  const { data: cards } = useQuery(trpc.keepsake.list.queryOptions({ code }, { enabled: archive.hasKeepsake }));
+  const saved = cards?.[0];
   const { onLayout, scale } = useFitScale();
   const card = saved?.card ?? { exhibition: archive.exhibition, image: coverImage, sentences: [], journalExcerpt: null };
   return (

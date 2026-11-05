@@ -30,6 +30,11 @@ test.describe("phone", () => {
   await signIn(page);
   const box = await page.getByRole("navigation", { name: "Main" }).boundingBox();
   expect(box!.y).toBeGreaterThan(600);
+  // Impeccable legibility floor: the tab labels read at 11px or more (they were 9px).
+  const labelSizes = await page.getByRole("navigation", { name: "Main" }).evaluate((nav) =>
+    [...nav.querySelectorAll("*")].filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent?.trim())).map((el) => parseFloat(getComputedStyle(el).fontSize)));
+  expect(labelSizes.length).toBe(3);
+  for (const size of labelSizes) expect(size).toBeGreaterThanOrEqual(11);
   await expect(page.getByRole("link", { name: "MY ARCHIVE" })).toHaveCount(0);
   await page.screenshot({ path: "/tmp/still-shots/shell/phone-home.png" });
 });
