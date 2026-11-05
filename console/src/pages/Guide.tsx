@@ -86,6 +86,12 @@ export default function Guide() {
     );
   };
 
+  // Saves the working copy as the guide draft (live guide unchanged until Publish changes).
+  const saveDraft = async () => {
+    setBusy(true);
+    try { await saveGuide({ sections, themes }); } catch { /* error banner */ } finally { setBusy(false); }
+  };
+
   const publish = async () => {
     setBusy(true);
     try {
@@ -104,7 +110,14 @@ export default function Guide() {
         lede="Build and manage the content visitors see on their phones. Changes stay in draft until you publish them."
         actions={
           <>
-            <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Preview guide</button>
+            {editable && (
+              <button type="button" className="btn btn--secondary btn--wide" aria-disabled={!localDirty || busy} onClick={() => localDirty && !busy && saveDraft()}>
+                Save draft
+              </button>
+            )}
+            <button type="button" className="btn btn--secondary btn--wide" onClick={() => (localDirty && editable ? saveDraft().then(() => navigate("/materials/preview")) : navigate("/materials/preview"))}>
+              Preview guide
+            </button>
             {can("publish") && (
               <button type="button" className="btn btn--primary btn--xwide" aria-disabled={!unpublished || busy} onClick={() => unpublished && !busy && publish()}>
                 {busy ? "Publishing…" : "Publish changes"}
