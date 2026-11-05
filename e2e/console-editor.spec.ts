@@ -60,6 +60,9 @@ test("the visitor preview shows an edit before autosave", async ({ page }) => {
   await page.locator(".ProseMirror").getByText("Old words.").click();
   await page.keyboard.press("End");
   await page.keyboard.type(" Live.");
+  // The preview starts closed below 1600px; open it once.
+  const previewToggle = page.getByRole("button", { name: "Visitor preview" });
+  if ((await previewToggle.getAttribute("aria-pressed")) !== "true") await previewToggle.click();
   await expect(page.getByTestId("visitor-preview").getByText("Old words. Live.")).toBeVisible({ timeout: 500 });
 });
 

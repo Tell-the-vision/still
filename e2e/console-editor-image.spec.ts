@@ -33,6 +33,9 @@ test("the Image button inserts an exhibition image that autosaves and shows in t
 
   await expect(page.locator(".ProseMirror figure[data-still-image]")).toContainText("INLINE");
   // The preview follows the editor live (SPEC §9.4 미리보기 모드), before any save or reload.
+  // The preview starts closed below 1600px; open it once.
+  const previewToggle = page.getByRole("button", { name: "Visitor preview" });
+  if ((await previewToggle.getAttribute("aria-pressed")) !== "true") await previewToggle.click();
   await expect(page.getByTestId("visitor-preview").locator("figure")).toHaveCount(1);
   await expect.poll(async () => {
     const [row] = await e2eSql<{ doc: { content: { type: string; attrs?: { imageId?: string } }[] } }>("SELECT doc FROM contents WHERE id = $1", [item.id]);
@@ -41,5 +44,7 @@ test("the Image button inserts an exhibition image that autosaves and shows in t
   // After a reload the saved doc shows the image too.
   await page.reload();
   await page.locator(".item", { hasText: "Farewell" }).click();
+  // The preview starts closed again after the reload.
+  await page.getByRole("button", { name: "Visitor preview" }).click();
   await expect(page.getByTestId("visitor-preview").locator("figure")).toHaveCount(1);
 });

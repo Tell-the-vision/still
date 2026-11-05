@@ -35,8 +35,9 @@ export default function Review() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<"approve" | "reject" | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  // The visitor preview is a third column from 1280px up; below that it starts hidden.
-  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 1280);
+  // The editor gets the room first: the visitor preview starts open only on wide screens (1600px and up),
+  // where it fits beside a full-width editor. "Visitor preview" opens it anywhere from 1280px up.
+  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 1600);
 
   const visible = useMemo(() => {
     let list = items.filter((i) => filter === "all" || i.reviewStatus === filter);
@@ -100,7 +101,7 @@ export default function Review() {
           <span className="muted">{counts.total} {counts.total === 1 ? "item" : "items"} found · {counts.approved} approved · {counts.needReview} {counts.needReview === 1 ? "needs" : "need"} attention</span>
         </div>
         <div className="toolbar__actions">
-          <button type="button" className="btn btn--secondary" aria-pressed={showPreview} onClick={() => setShowPreview((v) => !v)}>Preview</button>
+          <button type="button" className="btn btn--secondary" aria-pressed={showPreview} onClick={() => setShowPreview((v) => !v)}>Visitor preview</button>
           <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Preview digital guide</button>
           <button type="button" className="btn btn--primary btn--wide" onClick={selectReady} disabled={!counts.total}>
             Approve all ready{ready.length ? ` (${ready.length})` : ""}
