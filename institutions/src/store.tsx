@@ -97,6 +97,14 @@ function useWorkspaceState() {
       .catch((e) => { fail(e); setDataStatus("error"); });
   }, [currentId, loadExhibitionData]);
 
+  // While the analysis has no result, reload every 2 s so the review screen fills in when it is done.
+  const analysing = data.events.some((ev) => ev.id === "classification" && ev.status === "IN_PROGRESS");
+  useEffect(() => {
+    if (!currentId || !analysing) return;
+    const timer = setInterval(() => { loadExhibitionData(currentId).catch(fail); }, 2000);
+    return () => clearInterval(timer);
+  }, [currentId, analysing, loadExhibitionData]);
+
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;
   const replaceExhibition = (e: Exhibition) => setExhibitions((list) => list.map((x) => (x.id === e.id ? e : x)));
   // Approved items in the current exhibition, for the guide's section picker.

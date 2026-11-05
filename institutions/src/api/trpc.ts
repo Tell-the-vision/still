@@ -497,9 +497,13 @@ export function createTrpcApi(): InstitutionsApi {
     uploadFile: (exhibitionId, file, options) => uploadDocument(exhibitionId, file, options),
     deleteFile: (_exhibitionId, fileId) => removeDocument(fileId),
     getFileDownloadUrl: async (fileId) => (await q<{ download: { url: string } }>("console.document.get", { id: fileId })).download.url,
-    // console.analysis.create needs pg-boss and the Worker (SPEC §10.10); no procedure to call yet.
-    startAnalysis: async () => {
-      throw new ApiError("Analysis is not available yet.");
+    startAnalysis: async (exhibitionId) => {
+      try {
+        await m("console.analysis.create", { code: exhibitionId });
+      } catch (e) {
+        if (e instanceof ApiError && e.appCode === "ANALYSIS_IN_PROGRESS") throw new ApiError("An analysis is already running.", e.code, e.appCode);
+        throw e;
+      }
     },
     listProcessingEvents: async (exhibitionId) => toProcessingEvents(await q<ConsoleAnalysis>("console.analysis.get", { code: exhibitionId })),
 
