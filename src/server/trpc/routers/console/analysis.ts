@@ -105,6 +105,9 @@ export const consoleAnalysisRouter = router({
     const inbox: unknown[] = [];
     let wake = () => {};
     listener.on("notification", (m) => { inbox.push(JSON.parse(m.payload ?? "{}")); wake(); });
+    // A dead LISTEN connection ends the stream, so the browser falls back to polling instead of waiting forever.
+    let broken = false;
+    listener.on("error", () => { broken = true; wake(); });
     signal?.addEventListener("abort", () => wake());
     await listener.connect();
     try {
@@ -114,7 +117,7 @@ export const consoleAnalysisRouter = router({
         const latest = await snapshot(ctx.institutionId, input.code);
         while (inbox.length) yield inbox.shift();
         if (latest.analysis?.result) { yield latest; return; }
-        if (signal?.aborted) return;
+        if (signal?.aborted || broken) return;
         if (!inbox.length) await new Promise<void>((resolve) => { wake = resolve; });
       }
     } finally {
