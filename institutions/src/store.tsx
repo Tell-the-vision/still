@@ -97,12 +97,18 @@ function useWorkspaceState() {
       .catch((e) => { fail(e); setDataStatus("error"); });
   }, [currentId, loadExhibitionData]);
 
-  // While the analysis has no result, reload every 2 s so the review screen fills in when it is done.
+  // While the analysis has no result, reload on each server event (console.analysis.watch over SSE, SPEC §11.1);
+  // if the stream errors, reload every 2 s instead so the review screen still fills in when it is done.
   const analysing = data.events.some((ev) => ev.id === "classification" && ev.status === "IN_PROGRESS");
   useEffect(() => {
     if (!currentId || !analysing) return;
-    const timer = setInterval(() => { loadExhibitionData(currentId).catch(fail); }, 2000);
-    return () => clearInterval(timer);
+    const reload = () => { loadExhibitionData(currentId).catch(fail); };
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const input = encodeURIComponent(JSON.stringify({ code: currentId }));
+    const source = new EventSource(`/api/trpc/console.analysis.watch?client=console&input=${input}`);
+    source.onmessage = reload;
+    source.onerror = () => { source.close(); timer ??= setInterval(reload, 2000); };
+    return () => { source.close(); clearInterval(timer); };
   }, [currentId, analysing, loadExhibitionData]);
 
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;

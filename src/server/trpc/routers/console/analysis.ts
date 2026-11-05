@@ -2,6 +2,8 @@ import { consoleAnalysisGetInput } from "@still/shared/console";
 import { TRPCError } from "@trpc/server";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { Client } from "pg";
+import { databaseUrl } from "../../../db/url";
 import { db } from "../../../db/client";
 import { contents, documents, exhibitions } from "../../../db/schema";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
@@ -21,6 +23,29 @@ async function lockExhibition(tx: Parameters<Parameters<typeof db.transaction>[0
   if (!row) throw new TRPCError({ code: "NOT_FOUND" });
   const [{ analysis }] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, row.id)).for("update");
   return { id: row.id, analysis: analysis as { id: string; result: string | null } | null };
+}
+
+// The `console.analysis.get` snapshot, also the first message of `watch`.
+async function snapshot(institutionId: string, code: string) {
+    const [row] = await exhibitionRows(institutionId, { where: eq(exhibitions.code, code) });
+    if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+    const [{ analysis: raw }] = await db.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, row.id));
+    const analysis = raw as { id: string; result: string | null } | null;
+    const docs = await countByStatus(documents, row.id);
+    const items = await countByStatus(contents, row.id);
+    return {
+      analysis,
+      documents: {
+        total: total(docs),
+        uploading: docs.UPLOADING ?? 0,
+        stored: docs.STORED ?? 0,
+        extracted: docs.EXTRACTED ?? 0,
+        failed: docs.FAILED ?? 0,
+        duplicate: docs.DUPLICATE ?? 0,
+      },
+      contents: { total: total(items), open: (items.READY ?? 0) + (items.NEEDS_REVIEW ?? 0) },
+      jobs: [] as never[],
+    };
 }
 
 // console.analysis.* (SPEC §9.4 진행 표시, §9.5, §10.10, Figma A3).
@@ -54,24 +79,33 @@ export const consoleAnalysisRouter = router({
 
   // The overview's processing state: the current analysis plus document and content counts.
   // `jobs` is the pg-boss job list (SPEC §9.5); not built yet.
-  get: consoleProcedure.input(consoleAnalysisGetInput).query(async ({ ctx, input }) => {
-    const [row] = await exhibitionRows(ctx.institutionId, { where: eq(exhibitions.code, input.code) });
-    if (!row) throw new TRPCError({ code: "NOT_FOUND" });
-    const [{ analysis }] = await db.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, row.id));
-    const docs = await countByStatus(documents, row.id);
-    const items = await countByStatus(contents, row.id);
-    return {
-      analysis,
-      documents: {
-        total: total(docs),
-        uploading: docs.UPLOADING ?? 0,
-        stored: docs.STORED ?? 0,
-        extracted: docs.EXTRACTED ?? 0,
-        failed: docs.FAILED ?? 0,
-        duplicate: docs.DUPLICATE ?? 0,
-      },
-      contents: { total: total(items), open: (items.READY ?? 0) + (items.NEEDS_REVIEW ?? 0) },
-      jobs: [] as never[],
-    };
+  get: consoleProcedure.input(consoleAnalysisGetInput).query(({ ctx, input }) => snapshot(ctx.institutionId, input.code)),
+
+  // SPEC §9.5, §11.1: the snapshot first, then one event per pg_notify of the analysis (see analysis-jobs.ts),
+  // then the final snapshot once the analysis has a result. The client falls back to polling `get`.
+  watch: consoleProcedure.input(consoleAnalysisGetInput).subscription(async function* ({ ctx, input, signal }) {
+    const first = await snapshot(ctx.institutionId, input.code);
+    yield first;
+    if (!first.analysis || first.analysis.result) return;
+    const channel = `analysis_${first.analysis.id}`;
+    const listener = new Client({ connectionString: databaseUrl() });
+    const inbox: unknown[] = [];
+    let wake = () => {};
+    listener.on("notification", (m) => { inbox.push(JSON.parse(m.payload ?? "{}")); wake(); });
+    signal?.addEventListener("abort", () => wake());
+    await listener.connect();
+    try {
+      await listener.query(`LISTEN "${channel}"`);
+      for (;;) {
+        // Re-read after each event (and once after LISTEN started, so nothing slips in between).
+        const latest = await snapshot(ctx.institutionId, input.code);
+        while (inbox.length) yield inbox.shift();
+        if (latest.analysis?.result) { yield latest; return; }
+        if (signal?.aborted) return;
+        if (!inbox.length) await new Promise<void>((resolve) => { wake = resolve; });
+      }
+    } finally {
+      await listener.end();
+    }
   }),
 });
