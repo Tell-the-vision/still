@@ -132,3 +132,12 @@ export const consolePublicationDeleteInput = exhibitionCode;
 
 // Analysis (SPEC §9.4 진행 표시): only the read side exists until pg-boss and the Worker land.
 export const consoleAnalysisGetInput = exhibitionCode;
+
+// Images (SPEC §9.5 console.image.*, §10.3)
+export const consoleImageListInput = exhibitionCode;
+export const consoleImageUpdateInput = z.object({
+  id: z.uuid(),
+  altText: z.string().trim().max(1000).nullable().optional(),
+  credit: z.string().trim().max(500).nullable().optional(),
+  rights: z.enum(["UNCONFIRMED", "CONFIRMED", "RESTRICTED"]).optional(),
+});
