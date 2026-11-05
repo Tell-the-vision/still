@@ -104,3 +104,10 @@ export async function currentWebSession() {
   const session = token ? await findWebSession(token) : null;
   return session?.role === "VISITOR" ? session : null;
 }
+
+// Staff-only Route Handlers: the institution console cookie, and only an INSTITUTION user.
+export async function currentConsoleSession() {
+  const token = (await cookies()).get(STAFF_COOKIES.console)?.value;
+  const session = token ? await findWebSession(token) : null;
+  return session?.role === "INSTITUTION" && session.institutionId ? { ...session, institutionId: session.institutionId } : null;
+}
