@@ -48,7 +48,7 @@ export default function Workspace() {
       <section className="section">
         <div className="section__head section__head--plain">
           <h2 className="h2">Exhibitions</h2>
-          <span className="caption">{exhibitions.length} exhibitions</span>
+          <span className="caption">{exhibitions.length} {exhibitions.length === 1 ? "exhibition" : "exhibitions"}</span>
         </div>
         {recent.length === 0 ? (
           <EmptyState title="No exhibitions yet" body="Create the first exhibition to start building a visitor guide." />

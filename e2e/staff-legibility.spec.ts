@@ -91,3 +91,33 @@ test("the review list's select box has a 24px target", async ({ page }) => {
   await target.click({ position: { x: 1, y: 1 } });
   await expect(box).toBeChecked();
 });
+
+// Impeccable audit of the merged console: the sign-in note and placeholders were #999 (2.8:1), and the
+// workspace counted "1 exhibitions".
+test("console sign-in text and placeholders reach 4.5:1, and the workspace counts one exhibition", async ({ page }) => {
+  await page.goto("/console/sign-in");
+  const note = page.getByText("Secure access for registered institution accounts.");
+  await expect(note).toBeVisible();
+  expect(Number.parseFloat(await note.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12);
+  const ratios = await page.evaluate(() => {
+    const lum = (c: string) => {
+      const [r, g, b] = (c.match(/\d+(\.\d+)?/g) ?? ["255", "255", "255"]).slice(0, 3).map(Number).map((v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (fg: string) => (1 + 0.05) / (lum(fg) + 0.05); // both sit on white
+    const secure = document.querySelector(".signin__secure")!;
+    const input = document.querySelector(".signin__input")!;
+    return { note: ratio(getComputedStyle(secure).color), placeholder: ratio(getComputedStyle(input, "::placeholder").color) };
+  });
+  expect(ratios.note).toBeGreaterThanOrEqual(4.5);
+  expect(ratios.placeholder).toBeGreaterThanOrEqual(4.5);
+
+  const account = await seedInstitutionAccount();
+  await seedExhibition(account);
+  await signInConsole(page, account);
+  await page.goto("/console/workspace");
+  await expect(page.getByText("1 exhibition", { exact: true })).toBeVisible();
+});
