@@ -157,8 +157,8 @@ export function sampleSeed(): Seed {
       [ex]: {
         hasUnpublishedChanges: true,
         sections: [
-          { id: "gs1", title: "Exhibition introduction", summary: "Draft · 3 blocks", visible: true, intro: "Section introduction." },
-          { id: "gs2", title: "Themes & keywords", summary: "Draft · 2 blocks", visible: true, intro: "Themes introduction." },
+          { id: "gs1", title: "Exhibition introduction", summary: "Draft · 3 blocks", visible: true, intro: "Section introduction.", itemIds: ["ci1"] },
+          { id: "gs2", title: "Themes & keywords", summary: "Draft · 2 blocks", visible: true, intro: "Themes introduction.", itemIds: ["ci2", "ci3"] },
         ],
         themes: [
           { id: "th1", name: "Life & Death", description: "끝과 시작, 유한한 생명" },

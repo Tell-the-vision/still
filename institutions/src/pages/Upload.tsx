@@ -1,14 +1,16 @@
 import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SourceFile } from "../api";
-import { MATERIAL_TAGS, UPLOAD_ACCEPT, UPLOAD_EXTENSIONS, UPLOAD_FORMATS_LABEL, UPLOAD_MAX_BYTES } from "../constants";
+import { ARTWORK_TEMPLATE_CSV, MATERIAL_TAGS, UPLOAD_ACCEPT, UPLOAD_EXTENSIONS, UPLOAD_FORMATS_LABEL, UPLOAD_MAX_BYTES } from "../constants";
 import { formatAdded, formatMB, formatPeriod } from "../format";
 import { NO_PERMISSION } from "../rules";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead } from "../ui";
 
 const STATUS: Record<SourceFile["status"], { label: string; tone: "green" | "amber" | "gray" }> = {
+  QUEUED: { label: "Queued", tone: "gray" },
   UPLOADING: { label: "Uploading", tone: "gray" },
+  CANCELED: { label: "Canceled", tone: "gray" },
   UPLOADED: { label: "Uploaded", tone: "green" },
   PROCESSING: { label: "Processing", tone: "gray" },
   PROCESSED: { label: "Processed", tone: "green" },
@@ -17,7 +19,7 @@ const STATUS: Record<SourceFile["status"], { label: string; tone: "green" | "amb
 
 export default function Upload() {
   const {
-    exhibition, files, uploadFiles, rejectFiles, retryUpload, canRetry, dismissLocalFile, deleteFile, startAnalysis, createExhibition, can,
+    exhibition, files, uploadFiles, rejectFiles, retryUpload, cancelUpload, canRetry, dismissLocalFile, deleteFile, startAnalysis, createExhibition, can,
   } = useWorkspace();
   const [dragging, setDragging] = useState(false);
   const [duplicates, setDuplicates] = useState<File[]>([]);
@@ -28,9 +30,11 @@ export default function Upload() {
 
   if (!exhibition) return <NoExhibition title="Exhibition materials" onCreate={createExhibition} />;
 
-  const onServer = files.filter((f) => f.status !== "UPLOADING" && f.status !== "FAILED");
+  const isLocal = (f: SourceFile) => ["QUEUED", "UPLOADING", "FAILED", "CANCELED"].includes(f.status);
+  const onServer = files.filter((f) => !isLocal(f));
   const totalBytes = onServer.reduce((n, f) => n + f.sizeBytes, 0);
-  const uploading = files.some((f) => f.status === "UPLOADING");
+  const uploading = files.some((f) => f.status === "UPLOADING" || f.status === "QUEUED");
+  const failed = files.filter((f) => f.status === "FAILED").length;
   // Handoff 4.1: processing is enabled once at least one file uploaded successfully.
   const canAnalyse = onServer.some((f) => f.status === "UPLOADED") && !uploading && !busy;
 
@@ -50,6 +54,13 @@ export default function Upload() {
     if (refused.length) rejectFiles(refused);
     if (dupes.length) setDuplicates((d) => [...d, ...dupes]);
     if (fresh.length) uploadFiles(fresh);
+  };
+
+  const downloadTemplate = () => {
+    const url = URL.createObjectURL(new Blob([ARTWORK_TEMPLATE_CSV], { type: "text/csv" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: "still-artwork-list-template.csv" });
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const resolveDuplicates = async (choice: "keep" | "replace" | "skip") => {
@@ -123,7 +134,10 @@ export default function Upload() {
               <p className="muted">Add multiple files at once. {UPLOAD_FORMATS_LABEL} · up to 100 MB per file</p>
               <div className="dropzone__actions">
                 <button type="button" className="btn btn--secondary" onClick={() => input.current?.click()}>Browse files</button>
-                <span className="small muted">No STILL template needed. HWP/HWPX files and website links are not supported yet.</span>
+                <span className="small muted">
+                  No STILL template needed. HWP/HWPX files and website links are not supported yet.{" "}
+                  <button type="button" className="link-btn link-btn--inline" onClick={downloadTemplate}>Optional artwork list template (CSV)</button>
+                </span>
               </div>
             </div>
           </div>
@@ -152,7 +166,11 @@ export default function Upload() {
       <section className="section">
         <div className="section__head">
           <h2 className="h2">Uploaded materials</h2>
-          <span className="caption">{onServer.length} files · {formatMB(totalBytes)}</span>
+          <span className="caption">
+            {onServer.length} files · {formatMB(totalBytes)}
+            {uploading && " · uploading"}
+            {failed > 0 && ` · ${failed} failed`}
+          </span>
         </div>
         {files.length === 0 ? (
           <EmptyState title="No files uploaded yet" body={`Drop files above or use Browse files. Accepted: ${UPLOAD_FORMATS_LABEL}.`} />
@@ -164,7 +182,7 @@ export default function Upload() {
               </thead>
               <tbody>
                 {files.map((f) => {
-                  const local = f.status === "UPLOADING" || f.status === "FAILED";
+                  const local = isLocal(f);
                   return (
                     <tr key={f.id}>
                       <td>
@@ -173,12 +191,22 @@ export default function Upload() {
                       </td>
                       <td className="muted">{f.format}{f.summary ? ` · ${f.summary}` : ` · ${formatMB(f.sizeBytes)}`}</td>
                       <td className="muted">{formatAdded(f.uploadedAt)}</td>
-                      <td><Badge tone={STATUS[f.status].tone}>{STATUS[f.status].label}</Badge></td>
+                      <td>
+                        <Badge tone={STATUS[f.status].tone}>{STATUS[f.status].label}{f.status === "UPLOADING" && ` ${f.progress ?? 0}%`}</Badge>
+                        {f.status === "UPLOADING" && (
+                          <span className="progress" role="progressbar" aria-valuenow={f.progress ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label={`Uploading ${f.name}`}>
+                            <span style={{ width: `${f.progress ?? 0}%` }} />
+                          </span>
+                        )}
+                      </td>
                       <td className="cell-action">
-                        {editable && f.status === "FAILED" && canRetry(f.id) && (
+                        {editable && (f.status === "QUEUED" || f.status === "UPLOADING") && (
+                          <button type="button" className="link-btn" onClick={() => cancelUpload(f.id)}>Cancel</button>
+                        )}
+                        {editable && (f.status === "FAILED" || f.status === "CANCELED") && canRetry(f.id) && (
                           <button type="button" className="link-btn link-btn--strong" onClick={() => retryUpload(f.id)}>Retry</button>
                         )}
-                        {editable && f.status !== "UPLOADING" && (
+                        {editable && f.status !== "UPLOADING" && f.status !== "QUEUED" && (
                           <button
                             type="button"
                             className="link-btn"

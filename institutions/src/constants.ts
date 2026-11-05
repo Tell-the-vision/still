@@ -9,3 +9,8 @@ export const UPLOAD_EXTENSIONS = ["pdf", "docx", "xlsx", "csv", "txt", "md"];
 export const UPLOAD_ACCEPT = UPLOAD_EXTENSIONS.map((e) => `.${e}`).join(",");
 export const UPLOAD_FORMATS_LABEL = "PDF, DOCX, XLSX, CSV, TXT";
 export const UPLOAD_MAX_BYTES = 100e6;
+
+// Optional convenience only (handoff 4.1): museums never have to use it.
+export const ARTWORK_TEMPLATE_CSV =
+  "title,artist,year,medium,dimensions,credit_line,description,image_file,copyright_holder,usage_permission,usage_scope,permission_expires\n" +
+  "Untitled,Artist Name,2024,Oil on canvas,100 x 80 cm,Collection of the artist,Short description for the guide.,artwork-01.jpg,Artist Name,granted,Digital guide during the exhibition,2027-03-28\n";

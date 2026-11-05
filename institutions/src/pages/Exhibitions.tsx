@@ -1,19 +1,29 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { formatPeriod, formatUpdated, libraryStatus, type LibraryStatus } from "../format";
+import { formatPeriod, formatUpdated, libraryStatus, visitorUrl, type LibraryStatus } from "../format";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, PageHead, StatCard, type Tone } from "../ui";
 
 const FILTERS: ("all" | LibraryStatus)[] = ["all", "live", "scheduled", "ended", "draft"];
 const TONE: Record<LibraryStatus, Tone> = { live: "green", scheduled: "amber", ended: "gray", draft: "gray" };
 const pad = (n: number) => String(n).padStart(2, "0");
+// Handoff 4.8: sort by recently updated, start date or title.
+const SORTS = {
+  updated: { label: "Recently updated", cmp: (a: { updatedAt: string }, b: { updatedAt: string }) => b.updatedAt.localeCompare(a.updatedAt) },
+  start: { label: "Start date", cmp: (a: { startDate: string | null }, b: { startDate: string | null }) => (b.startDate ?? "").localeCompare(a.startDate ?? "") },
+  title: { label: "Title", cmp: (a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title) },
+} as const;
+type SortKey = keyof typeof SORTS;
 
 export default function Exhibitions() {
-  const { exhibitions, selectExhibition, createExhibition, can } = useWorkspace();
+  const { exhibitions, selectExhibition, createExhibition, duplicateExhibition, unpublishExhibition, can } = useWorkspace();
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [confirmUnpublish, setConfirmUnpublish] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
   const navigate = useNavigate();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [query, setQuery] = useState("");
-  const [oldestFirst, setOldestFirst] = useState(false);
+  const [sort, setSort] = useState<SortKey>("updated");
 
   const withStatus = useMemo(() => exhibitions.map((e) => ({ ...e, lib: libraryStatus(e) })), [exhibitions]);
   const count = (s: LibraryStatus) => withStatus.filter((e) => e.lib === s).length;
@@ -23,12 +33,22 @@ export default function Exhibitions() {
     return withStatus
       .filter((e) => filter === "all" || e.lib === filter)
       .filter((e) => !q || `${e.title} ${e.subtitle ?? ""} ${e.venueName}`.toLowerCase().includes(q))
-      .sort((a, b) => (oldestFirst ? 1 : -1) * a.updatedAt.localeCompare(b.updatedAt));
-  }, [withStatus, filter, query, oldestFirst]);
+      .sort(SORTS[sort].cmp);
+  }, [withStatus, filter, query, sort]);
 
   const open = (id: string) => {
     selectExhibition(id);
     navigate("/overview");
+  };
+  const show = (msg: string) => { setFlash(msg); window.setTimeout(() => setFlash(null), 2400); };
+  const duplicate = async (id: string) => {
+    setMenuId(null);
+    try { const copy = await duplicateExhibition(id); show(`${copy.title} created as a draft`); } catch { /* error banner */ }
+  };
+  const unpublish = async (id: string) => {
+    setConfirmUnpublish(null);
+    setMenuId(null);
+    try { await unpublishExhibition(id); show("Guide taken offline. Visitors can no longer open it."); } catch { /* error banner */ }
   };
   const create = async () => {
     try {
@@ -67,10 +87,14 @@ export default function Exhibitions() {
             </button>
           ))}
         </div>
-        <button type="button" className="sort" onClick={() => setOldestFirst((s) => !s)}>
-          Sort: {oldestFirst ? "Oldest updated" : "Recently updated"} <span aria-hidden>▾</span>
-        </button>
+        <label className="sort sort--select">
+          Sort:{" "}
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort exhibitions">
+            {(Object.keys(SORTS) as SortKey[]).map((k) => <option key={k} value={k}>{SORTS[k].label}</option>)}
+          </select>
+        </label>
       </div>
+      {flash && <p className="flash" role="status">{flash}</p>}
 
       {rows.length === 0 ? (
         <EmptyState
@@ -95,8 +119,28 @@ export default function Exhibitions() {
                   <td className="muted">{formatPeriod(e.startDate, e.endDate)}</td>
                   <td><Badge tone={TONE[e.lib]} className="badge--status">{e.lib}</Badge></td>
                   <td className="muted">{formatUpdated(e.updatedAt)}</td>
-                  <td className="cell-action">
-                    <button type="button" className="more" aria-label={`More actions for ${e.title}`} onClick={(ev) => ev.stopPropagation()}>•••</button>
+                  <td className="cell-action" onClick={(ev) => ev.stopPropagation()}>
+                    <div className="row-menu">
+                      <button type="button" className="more" aria-haspopup="menu" aria-expanded={menuId === e.id} aria-label={`More actions for ${e.title}`} onClick={() => { setMenuId(menuId === e.id ? null : e.id); setConfirmUnpublish(null); }}>•••</button>
+                      {menuId === e.id && (
+                        <div className="row-menu__panel" role="menu">
+                          <button type="button" role="menuitem" onClick={() => open(e.id)}>Open workspace</button>
+                          {e.lib === "live" && <a role="menuitem" href={`https://${visitorUrl(e.code)}`} target="_blank" rel="noreferrer">View live guide</a>}
+                          {can("edit") && <button type="button" role="menuitem" onClick={() => duplicate(e.id)}>Duplicate as new draft</button>}
+                          {can("publish") && e.status === "PUBLISHED" && (
+                            confirmUnpublish === e.id ? (
+                              <span className="row-menu__confirm">
+                                <span className="caption-sm">Visitors will lose access.</span>
+                                <button type="button" className="link-btn link-btn--danger" onClick={() => unpublish(e.id)}>Unpublish</button>
+                                <button type="button" className="link-btn" onClick={() => setConfirmUnpublish(null)}>Cancel</button>
+                              </span>
+                            ) : (
+                              <button type="button" role="menuitem" className="danger" onClick={() => setConfirmUnpublish(e.id)}>Unpublish…</button>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

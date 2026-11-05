@@ -127,6 +127,23 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       Object.assign(exhibition(id), patch, { updatedAt: now() });
       return wait(exhibition(id));
     },
+    async unpublishExhibition(id) {
+      allow("publish");
+      Object.assign(exhibition(id), { status: "DRAFT", updatedAt: now() });
+      log(`Unpublished ${exhibition(id).title}`);
+      return wait(exhibition(id), 300);
+    },
+    async duplicateExhibition(id) {
+      allow("edit");
+      const src = exhibition(id);
+      const copy: Exhibition = { ...src, id: uid(), code: `${src.code}-copy-${db.exhibitions.length + 1}`, title: `${src.title} (copy)`, status: "DRAFT", updatedAt: now() };
+      db.exhibitions.unshift(copy);
+      const guide = db.guides[id];
+      // Same structure, no content: the copy's items come from its own uploads.
+      db.guides[copy.id] = { sections: (guide?.sections ?? []).map((s) => ({ ...s, id: uid(), itemIds: [] })), themes: structuredClone(guide?.themes ?? []), hasUnpublishedChanges: true };
+      log(`Duplicated ${src.title} as a new draft`);
+      return wait(copy, 300);
+    },
     async publishExhibition(id) {
       allow("publish");
       const items = active(id);
@@ -138,13 +155,19 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
     },
 
     listFiles: (id) => wait(db.files[id] ?? []),
-    async uploadFile(id, file) {
+    async uploadFile(id, file, options) {
       allow("edit");
-      if (/fail/i.test(file.name) && !failedOnce.has(file.name)) {
-        failedOnce.add(file.name);
-        await wait(null, 600);
-        throw new Error("Upload interrupted");
+      // Simulated progress in 5 steps; the signal cancels between steps.
+      for (const pct of [15, 35, 60, 85]) {
+        await wait(null, 180);
+        if (options?.signal?.aborted) throw new DOMException("Upload canceled", "AbortError");
+        options?.onProgress?.(pct);
+        if (pct === 60 && /fail/i.test(file.name) && !failedOnce.has(file.name)) {
+          failedOnce.add(file.name);
+          throw new Error("Upload interrupted");
+        }
       }
+      options?.onProgress?.(100);
       const f = {
         id: uid(), name: file.name, format: file.name.split(".").pop()?.toUpperCase() ?? "FILE", summary: null,
         sizeBytes: file.size, uploadedAt: now(), status: "UPLOADED" as const, error: null,
@@ -152,7 +175,7 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       (db.files[id] ??= []).push(f);
       touch(id);
       log(`Uploaded ${file.name} to ${exhibition(id).title}`);
-      return wait(f, 800);
+      return wait(f, 100);
     },
     async deleteFile(id, fileId) {
       allow("edit");
@@ -190,6 +213,34 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
     async dismissDuplicate(itemId) {
       allow("edit");
       return edited(Object.assign(findItem(itemId), { duplicateOf: null }));
+    },
+    async mergeContentItems(itemId, intoId, keep) {
+      allow("edit");
+      const dup = findItem(itemId);
+      const into = findItem(intoId);
+      if (keep === "this") into.text = dup.text;
+      into.sourceLocation = `${into.sourceLocation} · also in ${dup.sourceFileName}`;
+      into.assets = [...into.assets, ...dup.assets];
+      Object.assign(dup, { removed: true, duplicateOf: null, note: `Merged into ${into.title}` });
+      into.updatedBy = dup.updatedBy = db.me.name;
+      into.updatedAt = dup.updatedAt = now();
+      return wait([into, dup]);
+    },
+    async splitContentItem(itemId, at) {
+      allow("edit");
+      const item = findItem(itemId);
+      const head = item.text.slice(0, at).trim();
+      const tail = item.text.slice(at).trim();
+      if (!head || !tail) throw new Error("Put the cursor where the second item should start.");
+      const list = siblings(itemId);
+      const part: ContentItem = {
+        ...structuredClone(item), id: uid(), order: item.order + 0.5, title: `${item.title} (2)`, heading: `${item.heading} (2)`,
+        text: tail, originalText: tail, itemCount: 1, reviewStatus: "IN_REVIEW", duplicateOf: null, assets: [], updatedBy: db.me.name, updatedAt: now(),
+      };
+      Object.assign(item, { text: head, itemCount: Math.max(1, item.itemCount - 1), reviewStatus: "IN_REVIEW", updatedBy: db.me.name, updatedAt: now() });
+      list.push(part);
+      list.sort((a, b) => a.order - b.order).forEach((x, i) => { x.order = i + 1; });
+      return wait([item, part]);
     },
     async updateMediaAsset(itemId, assetId, patch) {
       if (!can(db.me, "edit") && !can(db.me, "review")) throw new Error(NO_PERMISSION.edit);

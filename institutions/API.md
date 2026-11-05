@@ -26,6 +26,8 @@ No screen code changes. Types, field names and inputs are in `src/api/types.ts`;
 | `createExhibition` | mutation | — | `Exhibition` (DRAFT) |
 | `updateExhibition` | mutation | `{ id, title?, subtitle?, venueName?, startDate?, endDate?, code? }` | `Exhibition` |
 | `publishExhibition` | mutation | `{ id }` | `Exhibition` (PUBLISHED) |
+| `unpublishExhibition` | mutation | `{ id }` | `Exhibition` (back to DRAFT; visitors lose access). Publish permission |
+| `duplicateExhibition` | mutation | `{ id }` | new DRAFT `Exhibition` with the same details and guide structure, no files or items |
 | `listFiles` | query | `{ exhibitionId }` | `SourceFile[]` |
 | `deleteFile` | mutation | `{ exhibitionId, fileId }` | `void` |
 | `startAnalysis` | mutation | `{ exhibitionId }` | `void` |
@@ -38,10 +40,12 @@ No screen code changes. Types, field names and inputs are in `src/api/types.ts`;
 | `removeContentItem` | mutation | `{ itemId }` | `ContentItem` (`removed: true`). "Delete from guide dataset": kept for Restore, never shown to visitors or counted |
 | `restoreContentItem` | mutation | `{ itemId }` | `ContentItem` (`removed: false`) |
 | `dismissDuplicate` | mutation | `{ itemId }` | `ContentItem` (`duplicateOf: null`, "Keep both") |
+| `mergeContentItems` | mutation | `{ itemId, intoId, keep: "this" \| "into" }` | `ContentItem[]` (both). The duplicate is removed (restorable); its source and images move to `intoId` |
+| `splitContentItem` | mutation | `{ itemId, at }` | `ContentItem[]` (both halves, back to IN_REVIEW). `at` is a character offset in `text`; the server renumbers `order` |
 | `updateMediaAsset` | mutation | `{ itemId, assetId, creator?, copyrightHolder?, imageSource?, usagePermission?, usageScope?, expiresOn?, excluded? }` | parent `ContentItem` (sets `reviewedBy`, `reviewedAt` on the asset) |
 | `listPublicationChecks` | query | `{ exhibitionId }` | `PublicationCheck[]` |
 | `getGuide` | query | `{ exhibitionId }` | `Guide` |
-| `saveGuide` | mutation | `{ exhibitionId, sections, themes }` | `Guide` |
+| `saveGuide` | mutation | `{ exhibitionId, sections, themes }` | `Guide`. Each section has `itemIds` (ordered); only APPROVED items reach visitors |
 | `publishGuide` | mutation | `{ exhibitionId }` | `Guide` |
 
 ### Account (Workspace settings, Help & support)
@@ -75,7 +79,7 @@ Roles (handoff 3; the final matrix is open decision 13). The checks live in `can
 
 Who creates accounts: STILL operators create the institution and invite its first `INSTITUTION_ADMIN`; that admin invites everyone else. There is no self sign-up. Sign-in method is not decided (proposal: one-time code to the invited work email).
 
-Upload: `POST /api/institutions/exhibitions/:exhibitionId/files` as `multipart/form-data` with a `file` field. Returns `SourceFile`. Limit: 100 MB, PDF/DOCX/XLSX/CSV/TXT (plus `.md` as plain text), the initial formats in the developer handoff. HWP/HWPX, PPTX and web URLs are not accepted until extraction for them is validated. The server must check the type; the screen's check is only a convenience. A presigned-URL flow also works; only `uploadFile` in `src/api/trpc.ts` changes.
+Upload: `POST /api/institutions/exhibitions/:exhibitionId/files` as `multipart/form-data` with a `file` field. Returns `SourceFile`. Limit: 100 MB, PDF/DOCX/XLSX/CSV/TXT (plus `.md` as plain text), the initial formats in the developer handoff. HWP/HWPX, PPTX and web URLs are not accepted until extraction for them is validated. The server must check the type; the screen's check is only a convenience. The screen uploads two files at a time, shows progress and can cancel (XMLHttpRequest with an abort signal). A presigned-URL flow also works; only `uploadFile` in `src/api/trpc.ts` changes.
 
 ### Review fields (handoff 2.5, 4.2, 5, 6)
 

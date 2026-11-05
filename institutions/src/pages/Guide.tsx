@@ -5,7 +5,7 @@ import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead } from "../ui";
 
 export default function Guide() {
-  const { exhibition, guide, counts, saveGuide, publishGuide, createExhibition, can } = useWorkspace();
+  const { exhibition, guide, counts, items, approvedItems, saveGuide, publishGuide, createExhibition, can } = useWorkspace();
   const editable = can("edit");
   const navigate = useNavigate();
 
@@ -15,6 +15,8 @@ export default function Guide() {
   const [localDirty, setLocalDirty] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dragSectionId, setDragSectionId] = useState<string | null>(null);
+  const [pick, setPick] = useState("");
   const [busy, setBusy] = useState(false);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
 
@@ -35,8 +37,26 @@ export default function Guide() {
 
   const addSection = () => {
     const id = `new-${Date.now()}`;
-    edit(() => setSections((s) => [...s, { id, title: "Untitled section", summary: "Draft · 0 blocks", visible: false, intro: "" }]));
+    edit(() => setSections((s) => [...s, { id, title: "Untitled section", summary: "Draft · 0 items", visible: false, intro: "", itemIds: [] }]));
     setSelectedId(id);
+  };
+
+  // Handoff 4.4: sections can be reordered; content inside a section references approved items only.
+  const moveSection = (id: string, to: number) =>
+    edit(() => setSections((list) => {
+      const from = list.findIndex((s) => s.id === id);
+      if (from < 0 || to < 0 || to >= list.length || from === to) return list;
+      const next = [...list];
+      next.splice(to, 0, next.splice(from, 1)[0]);
+      return next;
+    }));
+  const setSectionItems = (id: string, itemIds: string[]) =>
+    patchSection(id, { itemIds, summary: `Draft · ${itemIds.length} ${itemIds.length === 1 ? "item" : "items"}` });
+  const moveItem = (sectionId: string, ids: string[], from: number, to: number) => {
+    if (to < 0 || to >= ids.length) return;
+    const next = [...ids];
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    setSectionItems(sectionId, next);
   };
 
   const patchTheme = (id: string, patch: Partial<ThemeCard>) => edit(() => setThemes((l) => l.map((t) => (t.id === id ? { ...t, ...patch } : t))));
@@ -118,7 +138,14 @@ export default function Guide() {
           ) : (
             <ul className="item-list">
               {sections.map((s, i) => (
-                <li key={s.id}>
+                <li
+                  key={s.id}
+                  className={`section-row${dragSectionId === s.id ? " is-dragging" : ""}`}
+                  draggable={editable}
+                  onDragStart={() => setDragSectionId(s.id)}
+                  onDragOver={(e) => { e.preventDefault(); if (dragSectionId && dragSectionId !== s.id) moveSection(dragSectionId, i); }}
+                  onDragEnd={() => setDragSectionId(null)}
+                >
                   <button type="button" className={`item${s.id === selected?.id ? " is-selected" : ""}`} onClick={() => setSelectedId(s.id)}>
                     <span className="item__no">{String(i + 1).padStart(2, "0")}</span>
                     <span className="item__body">
@@ -127,6 +154,12 @@ export default function Guide() {
                       <span className={`item__status ${s.visible ? "tone-green" : "tone-gray"}`}>{s.visible ? "Visible" : "Hidden"}</span>
                     </span>
                   </button>
+                  {editable && (
+                    <span className="reorder">
+                      <button type="button" className="reorder__btn" aria-label={`Move ${s.title} up`} disabled={i === 0} onClick={() => moveSection(s.id, i - 1)}>↑</button>
+                      <button type="button" className="reorder__btn" aria-label={`Move ${s.title} down`} disabled={i === sections.length - 1} onClick={() => moveSection(s.id, i + 1)}>↓</button>
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -159,6 +192,41 @@ export default function Guide() {
               <input type="checkbox" checked={selected.visible} onChange={(e) => patchSection(selected.id, { visible: e.target.checked })} />
               <span>Visible to visitors</span>
             </label>
+
+            <p className="field__label">Content in this section · {selected.itemIds.length}</p>
+            <ul className="section-items">
+              {selected.itemIds.map((id, idx) => {
+                const item = items.find((i) => i.id === id);
+                const live = item && !item.removed && item.reviewStatus === "APPROVED";
+                return (
+                  <li key={id}>
+                    <span className="section-items__text">
+                      <span className="strong">{item?.title ?? "Deleted item"}</span>
+                      <span className="caption-sm">{item ? item.summary : "No longer in the content list"}</span>
+                      {!live && <span className="caption-sm tone-amber">Not approved — hidden from visitors until it is approved again</span>}
+                    </span>
+                    <span className="reorder">
+                      <button type="button" className="reorder__btn" aria-label="Move up" disabled={idx === 0} onClick={() => moveItem(selected.id, selected.itemIds, idx, idx - 1)}>↑</button>
+                      <button type="button" className="reorder__btn" aria-label="Move down" disabled={idx === selected.itemIds.length - 1} onClick={() => moveItem(selected.id, selected.itemIds, idx, idx + 1)}>↓</button>
+                      <button type="button" className="link-btn" onClick={() => setSectionItems(selected.id, selected.itemIds.filter((x) => x !== id))}>Remove</button>
+                    </span>
+                  </li>
+                );
+              })}
+              {selected.itemIds.length === 0 && <li className="caption-sm section-items__empty">No content yet. Add approved items below.</li>}
+            </ul>
+            {(() => {
+              const available = approvedItems.filter((i) => !selected.itemIds.includes(i.id));
+              return (
+                <div className="inline-pick">
+                  <select className="input" aria-label="Approved content to add" value={pick} onChange={(e) => setPick(e.target.value)}>
+                    <option value="">{available.length ? "Choose approved content…" : "No other approved content"}</option>
+                    {available.map((i) => <option key={i.id} value={i.id}>{String(i.order).padStart(2, "0")} {i.title} · {i.summary}</option>)}
+                  </select>
+                  <button type="button" className="btn btn--secondary" aria-disabled={!pick} onClick={() => { if (!pick) return; setSectionItems(selected.id, [...selected.itemIds, pick]); setPick(""); }}>Add to section</button>
+                </div>
+              );
+            })()}
 
             <p className="field__label">Theme cards · Drag to reorder</p>
             <ul className="theme-list">

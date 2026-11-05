@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, ReviewStatus } from "../api";
 import { CONTENT_TYPE_OPTIONS, THEME_OPTIONS } from "../constants";
@@ -17,12 +17,16 @@ const STATUS: Record<ReviewStatus, { label: string; tone: Tone; text: string }> 
 };
 
 export default function Review() {
-  const { exhibition, items, counts, approveItem, createExhibition, can } = useWorkspace();
+  const { exhibition, items, counts, approveItem, rejectItem, createExhibition, can } = useWorkspace();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<"source" | "attention">("source");
   const [flash, setFlash] = useState<string | null>(null);
+  // Handoff 4.2: bulk actions only on a clear selection, with a confirmation step on the page.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState<"approve" | "reject" | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const visible = useMemo(() => {
     let list = items.filter((i) =>
@@ -46,19 +50,27 @@ export default function Review() {
     window.setTimeout(() => setFlash(null), 2600);
   };
 
-  // Handoff 4.2: bulk approval only after a clear selection and confirmation.
+  const reviewer = can("review");
   const ready = items.filter((i) => !i.removed && bulkApprovable(i, items));
-  const held = items.filter((i) => !i.removed && i.reviewStatus === "IN_REVIEW").length - ready.length;
-  const approveAll = async () => {
+  const pickedItems = items.filter((i) => picked.has(i.id) && !i.removed && i.reviewStatus === "IN_REVIEW");
+  const togglePick = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const selectReady = () => {
     if (!ready.length) { showFlash("Nothing is ready for bulk approval. Review the remaining items one by one."); return; }
-    const entries = ready.reduce((n, i) => n + i.itemCount, 0);
-    const ok = window.confirm(
-      `Approve ${ready.length} groups (${entries} entries)?\n\n${ready.map((i) => `${no(i)} ${i.title}`).join("\n")}\n\n` +
-      (held ? `${held} other groups stay in review: low confidence, AI suggestions or possible duplicates need a person to check them.` : ""),
-    );
-    if (!ok) return;
-    for (const i of ready) await approveItem(i.id).catch(() => {});
-    showFlash(`${ready.length} groups approved`);
+    setPicked(new Set(ready.map((i) => i.id)));
+    setConfirming("approve");
+  };
+  const runBulk = async (kind: "approve" | "reject") => {
+    setBulkBusy(true);
+    let done = 0;
+    let skipped = 0;
+    for (const i of pickedItems) {
+      if (kind === "approve" && approvalBlocker(i, items)) { skipped++; continue; }
+      try { await (kind === "approve" ? approveItem(i.id) : rejectItem(i.id)); done++; } catch { skipped++; }
+    }
+    setBulkBusy(false);
+    setConfirming(null);
+    setPicked(new Set());
+    showFlash(`${done} groups ${kind === "approve" ? "approved" : "rejected"}${skipped ? ` · ${skipped} skipped (duplicate to resolve first)` : ""}`);
   };
 
   const filters: [Filter, string][] = [
@@ -83,8 +95,8 @@ export default function Review() {
         </div>
         <div className="toolbar__actions">
           <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Preview digital guide</button>
-          {can("review") && (
-            <button type="button" className="btn btn--primary btn--wide" onClick={approveAll} disabled={!counts.total}>
+          {reviewer && (
+            <button type="button" className="btn btn--primary btn--wide" onClick={selectReady} disabled={!counts.total}>
               Approve all ready{ready.length ? ` (${ready.length})` : ""}
             </button>
           )}
@@ -113,6 +125,31 @@ export default function Review() {
             </button>
           </div>
           {flash && <p className="flash" role="status">{flash}</p>}
+          {reviewer && pickedItems.length > 0 && (
+            <div className="bulkbar" role="region" aria-label="Selected items">
+              {confirming ? (
+                <>
+                  <p>
+                    <strong>{confirming === "approve" ? "Approve" : "Reject"} {pickedItems.length} groups ({pickedItems.reduce((n, i) => n + i.itemCount, 0)} entries)?</strong>{" "}
+                    {pickedItems.map((i) => `${no(i)} ${i.title}`).join(", ")}
+                  </p>
+                  <span className="bulkbar__actions">
+                    <button type="button" className="btn btn--primary" disabled={bulkBusy} onClick={() => runBulk(confirming)}>{bulkBusy ? "Working…" : `Confirm ${confirming}`}</button>
+                    <button type="button" className="link-btn" onClick={() => setConfirming(null)}>Cancel</button>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <p><strong>{pickedItems.length} selected</strong> · low-confidence items, AI suggestions and possible duplicates are never selected by "Approve all ready".</p>
+                  <span className="bulkbar__actions">
+                    <button type="button" className="btn btn--approve" onClick={() => setConfirming("approve")}>Approve selected</button>
+                    <button type="button" className="link-btn link-btn--strong" onClick={() => setConfirming("reject")}>Reject selected</button>
+                    <button type="button" className="link-btn" onClick={() => setPicked(new Set())}>Clear</button>
+                  </span>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="split split--review">
             <section className="panel">
@@ -122,7 +159,17 @@ export default function Review() {
               </div>
               <ul className="item-list">
                 {visible.map((i) => (
-                  <li key={i.id}>
+                  <li key={i.id} className="pick-row">
+                    {reviewer && (
+                      <input
+                        type="checkbox"
+                        className="pick-row__box"
+                        aria-label={`Select ${i.title}`}
+                        disabled={i.removed || i.reviewStatus !== "IN_REVIEW"}
+                        checked={picked.has(i.id)}
+                        onChange={() => togglePick(i.id)}
+                      />
+                    )}
                     <button type="button" className={`item${i.id === selected?.id ? " is-selected" : ""}`} onClick={() => setSelectedId(i.id)}>
                       <span className="item__no">{no(i)}</span>
                       <span className="item__body">
@@ -175,7 +222,8 @@ interface EditorProps {
 }
 
 function Editor({ item, flash, onOpen, onGone }: EditorProps) {
-  const { items, guide, can, updateItem, approveItem, rejectItem, reopenItem, removeItem, restoreItem, dismissDuplicate } = useWorkspace();
+  const { items, guide, can, updateItem, approveItem, rejectItem, reopenItem, removeItem, restoreItem, dismissDuplicate, mergeItems, splitItem } = useWorkspace();
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const editable = can("edit");
   const reviewer = can("review");
   // Suggestions = defaults + guide theme cards + themes already used on other items.
@@ -196,6 +244,11 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
     if (dirty) await updateItem(item.id, clean);
     await approveItem(item.id);
   }, `${item.title} approved`);
+  const split = () => act(async () => {
+    const at = textRef.current?.selectionStart ?? 0;
+    if (dirty) await updateItem(item.id, clean);
+    await splitItem(item.id, at);
+  }, `${item.title} split in two`);
   const remove = () => act(async () => { await removeItem(item.id); onGone(); }, `${item.title} deleted · find it under Removed`);
 
   const eyebrow = (
@@ -249,6 +302,8 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
           <p><strong>Possible duplicate</strong> of {no(original)} {original.title} ({original.sourceFileName}). Compare them, then delete one or keep both.</p>
           <div className="notice__actions">
             <button type="button" className="link-btn" onClick={() => onOpen(original.id)}>Open {no(original)}</button>
+            {editable && <button type="button" className="link-btn" disabled={saving} onClick={() => act(async () => { await mergeItems(item.id, original.id, "into"); onGone(); }, `Merged into ${no(original)}, keeping its text`)}>Merge · keep {no(original)}'s text</button>}
+            {editable && <button type="button" className="link-btn" disabled={saving} onClick={() => act(async () => { await mergeItems(item.id, original.id, "this"); onGone(); }, `Merged into ${no(original)}, keeping this text`)}>Merge · keep this text</button>}
             {editable && <button type="button" className="link-btn" disabled={saving} onClick={remove}>Delete this item</button>}
             {editable && <button type="button" className="link-btn" disabled={saving} onClick={() => act(() => dismissDuplicate(item.id), "Kept both items")}>Keep both</button>}
           </div>
@@ -258,8 +313,11 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
       <fieldset className="plain-fieldset" disabled={!editable}>
         <label className="field field--first">
           <span className="field__label">{item.fieldLabel}</span>
-          <textarea className="input input--lg" rows={3} value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} />
-          <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
+          <textarea ref={textRef} className="input input--lg" rows={3} value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} />
+          <span className="field__foot">
+            <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
+            {editable && <button type="button" className="link-btn" disabled={saving} onClick={split} title="Put the cursor where the second item should start">Split at cursor</button>}
+          </span>
         </label>
         {draft.text !== item.originalText && (
           <details className="original">
