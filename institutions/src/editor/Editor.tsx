@@ -27,10 +27,12 @@ const AUTOSAVE_MS = 1000;
 
 type Saved = "idle" | "saving" | "saved";
 
-export function Editor({ itemId, doc, editable }: { itemId: string; doc: JSONContent; editable: boolean }) {
+export function Editor({ itemId, doc, editable, onChange }: { itemId: string; doc: JSONContent; editable: boolean; onChange?: (doc: JSONContent) => void }) {
   const [state, setState] = useState<Saved>("idle");
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number>(0);
+  // The latest edit that has not been sent yet; flushed on unmount instead of dropped.
+  const pending = useRef<JSONContent | null>(null);
 
   const editor = useEditor({
     editable,
@@ -49,8 +51,11 @@ export function Editor({ itemId, doc, editable }: { itemId: string; doc: JSONCon
     onUpdate: ({ editor: ed }) => {
       window.clearTimeout(timer.current);
       setState("saving");
+      pending.current = ed.getJSON();
+      onChange?.(pending.current);
       timer.current = window.setTimeout(async () => {
         try {
+          pending.current = null;
           await api.saveContentDoc(itemId, ed.getJSON());
           setError(null);
           setState("saved");
@@ -61,7 +66,10 @@ export function Editor({ itemId, doc, editable }: { itemId: string; doc: JSONCon
       }, AUTOSAVE_MS);
     },
   });
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(timer.current);
+    if (pending.current) void api.saveContentDoc(itemId, pending.current).catch(() => {});
+  }, [itemId]);
   if (!editor) return null;
 
   const tools: { label: string; active: boolean; run: () => void }[] = [

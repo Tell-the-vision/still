@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, ReviewStatus } from "../api";
+import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, ReviewStatus, StillDoc } from "../api";
 import type { JSONContent } from "@tiptap/react";
 import { api } from "../api";
 import { Editor as RichEditor } from "../editor/Editor";
@@ -28,6 +28,8 @@ export default function Review() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // SPEC §9.4 미리보기 모드: the preview follows the editor before autosave lands.
+  const [liveDoc, setLiveDoc] = useState<{ itemId: string; doc: JSONContent } | null>(null);
   const [sort, setSort] = useState<"source" | "attention">("source");
   const [flash, setFlash] = useState<string | null>(null);
   // Handoff 4.2: bulk actions only on a clear selection, with a confirmation step on the page.
@@ -199,13 +201,14 @@ export default function Review() {
                 flash={showFlash}
                 onOpen={(id) => { setFilter("all"); setSelectedId(id); }}
                 onGone={() => setSelectedId(null)}
+                onDoc={(doc) => setLiveDoc({ itemId: selected.id, doc })}
               />
             )}
 
             {selected?.doc && (
               <aside className="visitor-preview-pane">
                 <p className="visitor-preview-pane__notice">{VISITOR_PREVIEW_NOTICE}</p>
-                <VisitorPreview doc={selected.doc} />
+                <VisitorPreview doc={liveDoc?.itemId === selected.id ? (liveDoc.doc as StillDoc) : selected.doc} />
               </aside>
             )}
           </div>
@@ -233,10 +236,11 @@ interface EditorProps {
   item: ContentItem;
   flash: (msg: string) => void;
   onOpen: (itemId: string) => void;
+  onDoc: (doc: JSONContent) => void;
   onGone: () => void;
 }
 
-function Editor({ item, flash, onOpen, onGone }: EditorProps) {
+function Editor({ item, flash, onOpen, onGone, onDoc }: EditorProps) {
   const { items, guide, can, updateItem, approveItem, rejectItem, reopenItem, removeItem, restoreItem, dismissDuplicate, mergeItems } = useWorkspace();
   const editable = can("edit");
   const reviewer = can("review");
@@ -324,7 +328,7 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
       <fieldset className="plain-fieldset" disabled={!editable}>
         <div className="field field--first" role="group" aria-labelledby="editor-label">
           <span className="field__label" id="editor-label">{item.fieldLabel}</span>
-          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} />
+          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} />
           <span className="field__foot">
             <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
           </span>
