@@ -269,6 +269,8 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       into.updatedAt = dup.updatedAt = now();
       return wait([into, dup]);
     },
+    listSuggestions: () => wait([]),
+    decideSuggestion: () => wait(undefined),
     async splitContentItem(itemId, at) {
       allow("edit");
       const item = findItem(itemId);

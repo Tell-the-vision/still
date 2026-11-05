@@ -241,6 +241,17 @@ export interface SignInRequest {
 /** The one seam between screens and backend. Swap the implementation, not the screens. */
 export type NewExhibition = { title: string; code: string };
 
+/** An edit suggestion (SPEC §9.4 편집 제안). `contentId` is null for exhibition-wide ones; `revision` is the item's, for the decision. */
+export interface EditSuggestion {
+  id: string;
+  contentId: string | null;
+  kind: string;
+  status: "OPEN" | "ACCEPTED" | "DISMISSED";
+  proposalText: string | null;
+  rationale: string | null;
+  revision: string | null;
+}
+
 export interface InstitutionsApi {
   getWorkspace(): Promise<Workspace>;
   getWorkspaceSummary(): Promise<WorkspaceSummary>;
@@ -311,6 +322,10 @@ export interface InstitutionsApi {
   splitContentItem(itemId: string, at: number): Promise<ContentItem[]>;
   /** Edits one asset's rights record; returns the parent item. */
   updateMediaAsset(itemId: string, assetId: string, patch: MediaAssetPatch): Promise<ContentItem>;
+
+  listSuggestions(exhibitionId: string): Promise<EditSuggestion[]>;
+  /** Accepting applies the proposal text to its node. A stale revision throws REVISION_MISMATCH. */
+  decideSuggestion(suggestion: EditSuggestion, status: "ACCEPTED" | "DISMISSED"): Promise<void>;
 
   listPublicationChecks(exhibitionId: string): Promise<PublicationCheck[]>;
 

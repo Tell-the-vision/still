@@ -110,6 +110,15 @@ export const consoleContentBatchUpdateInput = z.object({
   where: z.object({ status: z.literal("READY") }),
 });
 
+// Suggestions (SPEC §9.4 편집 제안, §9.5 console.suggestion.*)
+export const consoleSuggestionListInput = exhibitionCode;
+export const consoleSuggestionUpdateInput = z.object({
+  contentId: z.uuid().optional(),
+  id: z.string().min(1).max(100),
+  status: z.enum(["ACCEPTED", "DISMISSED"]),
+  revision: z.uuid(),
+});
+
 // Preview and publication (SPEC §9.4 미리보기와 발행 점검, §10.9)
 export const consolePreviewGetInput = exhibitionCode;
 export const consolePublicationCreateInput = z.object({

@@ -9,6 +9,7 @@ import { formatAdded } from "../format";
 import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, NO_PERMISSION, rightsIssue } from "../rules";
 import { VisitorPreview, VISITOR_PREVIEW_NOTICE } from "../editor/VisitorPreview";
 import { SourceMarks } from "../editor/SourceMarks";
+import { Suggestions } from "../editor/Suggestions";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead, type Tone } from "../ui";
 
@@ -292,6 +293,8 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
         <h2 className="h2">{item.heading}</h2>
         <Badge tone={STATUS[item.reviewStatus].tone}>{STATUS[item.reviewStatus].label}</Badge>
       </div>
+
+      <Suggestions itemId={item.id} editable={editable} flash={flash} />
 
       {item.origin === "AI_SUGGESTION" && (
         <div className="notice notice--amber" role="note">
