@@ -1,4 +1,3 @@
-import type { ExpandedBlock } from "@still/shared/document";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { StyleSheet, View, type HostInstance } from "react-native";
@@ -14,7 +13,7 @@ import { useSavedSentences } from "./useSavedSentences";
 // Root views of the mounted sentences, so a restored one can be scrolled back into view.
 export const sentenceViews = new Map<string, RefObject<HostInstance | null>>();
 
-type Props = { code: string; sentence: Extract<ExpandedBlock, { type: "sentence" }>; quote: ReactNode };
+type Props = { code: string; sentence: { sentenceId: string; text: string }; quote: ReactNode };
 
 // The quote with a mark beside it (SPEC §4.1): "+" keeps the line, a check shows it is kept and removes it again. Guests sign in first.
 export function SentenceAction({ code, sentence, quote }: Props) {
