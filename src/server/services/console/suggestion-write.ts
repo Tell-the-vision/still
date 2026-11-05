@@ -1,10 +1,11 @@
-import { stillDoc, type StillDoc } from "@still/shared/still-doc";
+import { contentSources, stillDoc } from "@still/shared/still-doc";
 import { TRPCError } from "@trpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/client";
 import { contents, exhibitions } from "../../db/schema";
 import { AppError } from "../../trpc/init";
 import { lockOwnedContent } from "./content-write";
+import { applySuggestion } from "./suggestion-apply";
 
 // Deciding a suggestion (SPEC §10.8 제안 수락·버리기): the status changes on the same row, under the item's revision rule.
 
@@ -12,7 +13,7 @@ export type Suggestion = {
   id: string;
   kind: string;
   target?: { node?: string };
-  proposal?: { text?: string };
+  proposal?: Record<string, unknown>;
   status: "OPEN" | "ACCEPTED" | "DISMISSED";
   decidedBy: string | null;
   decidedAt: string | null;
@@ -25,12 +26,6 @@ const decide = (list: Suggestion[], id: string, status: "ACCEPTED" | "DISMISSED"
   if (!list.some((s) => s.id === id)) throw new TRPCError({ code: "NOT_FOUND" });
   return list.map((s) => (s.id === id ? { ...s, status, decidedBy: userId, decidedAt: new Date().toISOString() } : s));
 };
-// The target top-level node gets the proposed text as its only run (marks inside it go).
-const withText = (doc: StillDoc, nodeId: string, text: string): StillDoc => ({
-  ...doc,
-  content: doc.content.map((b) => (b.attrs.id === nodeId && "content" in b ? { ...b, content: [{ type: "text", text }] } : b)),
-}) as StillDoc;
-
 export async function decideSuggestion(
   { institutionId, userId }: { institutionId: string; userId: string },
   input: { contentId?: string; id: string; status: "ACCEPTED" | "DISMISSED"; revision: string },
@@ -41,16 +36,16 @@ export async function decideSuggestion(
     if (row.revision !== input.revision) throw new TRPCError({ code: "PRECONDITION_FAILED", cause: new AppError("REVISION_MISMATCH") });
     const list = decide(parse(row.suggestions), input.id, input.status, userId);
     const decided = list.find((s) => s.id === input.id)!;
-    const text = input.status === "ACCEPTED" ? decided.proposal?.text : undefined;
-    const nodeId = decided.target?.node;
-    const edited = text !== undefined && nodeId !== undefined;
+    const doc = stillDoc.parse(row.doc);
+    const applied = input.status === "ACCEPTED" ? applySuggestion(doc, contentSources.parse(row.sources), decided) : { doc, sources: row.sources };
+    const edited = applied.doc !== doc;
     const stillOpen = list.some((s) => s.status === "OPEN" && NEEDS_CHECK.includes(s.kind));
     const status = edited && row.status === "APPROVED" ? "READY" : row.status === "NEEDS_REVIEW" && !stillOpen ? "READY" : row.status;
     const updated = await tx
       .update(contents)
       .set({
         suggestions: list,
-        ...(edited ? { doc: withText(stillDoc.parse(row.doc), nodeId, text) } : {}),
+        ...(edited ? { doc: applied.doc, sources: applied.sources } : {}),
         status,
         approvedAt: status === "APPROVED" ? row.approvedAt : null,
         approvedBy: status === "APPROVED" ? row.approvedBy : null,
