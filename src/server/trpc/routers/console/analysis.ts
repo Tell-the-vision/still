@@ -7,7 +7,7 @@ import { databaseUrl } from "../../../db/url";
 import { db } from "../../../db/client";
 import { contents, documents, exhibitions } from "../../../db/schema";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
-import { getBoss, ANALYSIS_QUEUE } from "../../../services/console/analysis-jobs";
+import { getBoss, notify, ANALYSIS_QUEUE } from "../../../services/console/analysis-jobs";
 import { AppError, consoleProcedure, router } from "../../init";
 
 // Rows of one exhibition counted per status.
@@ -73,6 +73,7 @@ export const consoleAnalysisRouter = router({
       const exhibition = await lockExhibition(tx, ctx.institutionId, input.code);
       if (!exhibition.analysis || exhibition.analysis.result !== null) throw new TRPCError({ code: "NOT_FOUND" });
       await tx.update(exhibitions).set({ analysis: { ...exhibition.analysis, result: "CANCELLED" } }).where(eq(exhibitions.id, exhibition.id));
+      await notify(tx, exhibition.analysis.id, "cancelled");
     });
     return { ok: true };
   }),

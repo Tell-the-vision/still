@@ -9,7 +9,7 @@ const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const data = (res: { json: any }) => res.json.result.data;
 
-async function extractedExhibition(page: Page) {
+async function extractedExhibition(page: Page, text = "One two. Three.") {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   await signInConsole(page, account);
@@ -25,7 +25,7 @@ async function extractedExhibition(page: Page) {
     document: { documentId: created.document.id, sha256: sha(original), mediaType: "application/pdf", pages: 1 },
     extractor: { name: "test", version: "1" },
     pages: [{ page: 1, size: [100, 100] }],
-    segments: [{ id: "s001", page: 1, bbox: null, text: "One two. Three.", sentences: ["One two.", "Three."] }],
+    segments: [{ id: "s001", page: 1, bbox: null, text, sentences: text.split(/(?<=\.) /) }],
     assets: [], modelInputs: [], warnings: [],
   }));
   const upload = await consoleCall(page, "console.documentUpload.create", {
@@ -63,4 +63,20 @@ test("a cookie-authenticated watch is refused unless it is same-origin", async (
   const body = await (await get("cross-site"))?.text();
   expect(body).toContain("FORBIDDEN");
   expect(body).not.toContain('"documents"');
+});
+
+test("deleting a running analysis ends the open watch with CANCELLED", async ({ page }) => {
+  const exhibition = await extractedExhibition(page, "SLOW One two. Three.");
+  expect((await consoleCall(page, "console.analysis.create", { code: exhibition.code })).status).toBe(200);
+  const last = page.evaluate((url) => new Promise<{ analysis?: { result: string | null } }>((resolve, reject) => {
+    const source = new EventSource(url);
+    const timer = setTimeout(() => { source.close(); reject(new Error("watch did not end")); }, 8000);
+    source.onmessage = (e) => {
+      const value = JSON.parse(e.data).data ?? JSON.parse(e.data);
+      if (value.analysis?.result) { clearTimeout(timer); source.close(); resolve(value); }
+    };
+  }), watchUrl(exhibition.code));
+  await page.waitForTimeout(1000); // the stream is open and the job is still running
+  expect((await consoleCall(page, "console.analysis.delete", { code: exhibition.code })).status).toBe(200);
+  expect((await last).analysis!.result).toBe("CANCELLED");
 });
