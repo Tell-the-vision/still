@@ -8,7 +8,6 @@ import { CONTENT_TYPE_OPTIONS, THEME_OPTIONS } from "../constants";
 import { formatAdded } from "../format";
 import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, RIGHTS_LABEL, rightsIssue } from "../rules";
 import { VisitorPreview, VISITOR_PREVIEW_NOTICE } from "../editor/VisitorPreview";
-import { SourceMarks } from "../editor/SourceMarks";
 import { Suggestions } from "../editor/Suggestions";
 import { WideSuggestions } from "../editor/WideSuggestions";
 import { useWorkspace } from "../store";
@@ -36,6 +35,8 @@ export default function Review() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<"approve" | "reject" | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // The visitor preview is a third column from 1280px up; below that it starts hidden.
+  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 1280);
 
   const visible = useMemo(() => {
     let list = items.filter((i) => filter === "all" || i.reviewStatus === filter);
@@ -99,6 +100,7 @@ export default function Review() {
           <span className="muted">{counts.total} {counts.total === 1 ? "item" : "items"} found · {counts.approved} approved · {counts.needReview} {counts.needReview === 1 ? "needs" : "need"} attention</span>
         </div>
         <div className="toolbar__actions">
+          <button type="button" className="btn btn--secondary" aria-pressed={showPreview} onClick={() => setShowPreview((v) => !v)}>Preview</button>
           <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Preview digital guide</button>
           <button type="button" className="btn btn--primary btn--wide" onClick={selectReady} disabled={!counts.total}>
             Approve all ready{ready.length ? ` (${ready.length})` : ""}
@@ -156,7 +158,7 @@ export default function Review() {
             </div>
           )}
 
-          <div className="split split--review">
+          <div className={`split split--review${showPreview && selected?.doc ? " split--review-preview" : ""}`}>
             <section className="panel">
               <div className="panel__head">
                 <span className="eyebrow">Extracted content</span>
@@ -200,7 +202,7 @@ export default function Review() {
               />
             )}
 
-            {selected?.doc && (
+            {showPreview && selected?.doc && (
               <aside className="visitor-preview-pane">
                 <p className="visitor-preview-pane__notice">{VISITOR_PREVIEW_NOTICE}</p>
                 <VisitorPreview doc={liveDoc?.itemId === selected.id ? (liveDoc.doc as StillDoc) : selected.doc} />
@@ -329,6 +331,11 @@ function Editor({ item, flash, onOpen, onDoc }: EditorProps) {
           </details>
         )}
 
+      </fieldset>
+
+      <section className="details" aria-labelledby="details-label">
+        <h3 className="field__label" id="details-label">Details</h3>
+        <fieldset className="plain-fieldset" disabled={!editable}>
         <div className="field-row">
           <label className="field">
             <span className="field__label">Theme</span>
@@ -350,11 +357,9 @@ function Editor({ item, flash, onOpen, onDoc }: EditorProps) {
           <span className="field__label">Editorial note (optional)</span>
           <textarea className="input input--note" rows={2} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
         </label>
-      </fieldset>
-
-      <SourceMarks item={item} />
-
-      {item.assets.length > 0 && <Assets item={item} flash={flash} />}
+        </fieldset>
+        {item.assets.length > 0 && <Assets item={item} flash={flash} />}
+      </section>
 
       <hr className="rule rule--light" />
       <p className="caption-sm">Original file is preserved. Changes here apply to STILL only.{item.reviewStatus === "APPROVED" && " Saving an edit sends the item back to review."}</p>

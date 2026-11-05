@@ -1231,9 +1231,8 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .vp figcaption { margin-top: 6px; font-size: 12px; color: var(--ink-2); }
 .vp__scrap { border-bottom: 1px solid var(--line-soft); }
 .vp__keep { margin-left: 2px; font-size: 11px; font-weight: 300; color: var(--ink-2); }
-.split--review:has(.visitor-preview-pane) { grid-template-columns: minmax(240px, 1fr) minmax(0, 1.4fr) 390px; }
 /* With the preview as a third column the editor is narrower than Figma's 644px, so its two fields share the row. */
-.split--review:has(.visitor-preview-pane) .editor .field-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.split--review .editor .field-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 
 .still-editor__bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .still-editor__bar .btn { min-width: 0; height: 32px; padding: 0 10px; justify-content: center; background: var(--white); color: var(--black); }
@@ -1267,3 +1266,15 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .account-facts dd { margin: 0; font-size: 13px; }
 .next-list--exhibitions li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto 80px; gap: 24px; align-items: center; padding-top: 0; }
 @media (max-width: 600px) { .next-list--exhibitions li { grid-template-columns: minmax(0, 1fr) auto; } }
+
+/* Review layout: rail | editor | sticky visitor preview; details sit under the editor. */
+.split--review { grid-template-columns: 280px minmax(0, 1fr); }
+.split--review-preview { grid-template-columns: 280px minmax(0, 1fr) 390px; }
+.split--review .visitor-preview-pane { position: sticky; top: 16px; }
+.details { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.details .field { margin-top: 8px; }
+.details .assets { margin-top: 12px; }
+@media (max-width: 1279px) {
+  .split--review, .split--review-preview { grid-template-columns: minmax(0, 1fr); }
+}
+.toolbar__actions .btn[aria-pressed="true"] { background: var(--fill-2); }
