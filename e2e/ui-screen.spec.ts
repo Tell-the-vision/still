@@ -45,12 +45,27 @@ test.describe("phone touch", () => {
   });
 });
 
-test("on a wide window a reading screen stays within 720px", async ({ page }) => {
+test("on a wide window the header stays put across pages and a reading screen's body stays within 720px", async ({ page, next }) => {
+  // Signed in, so Home shows the tabs too.
+  stubGoogleToken(next, newUser());
+  await stubGoogle(page);
+  await signIn(page);
   await page.setViewportSize({ width: 1280, height: 800 });
+  const header = async () => {
+    const mark = (await page.getByText("STILL.", { exact: true }).boundingBox())!;
+    const nav = (await page.getByRole("navigation").boundingBox())!;
+    return { mark: Math.round(mark.x), navLeft: Math.round(nav.x), navRight: Math.round(nav.x + nav.width) };
+  };
+  // Home is a wide screen, /scan a reading screen: the header is the same on both.
+  await page.goto("/");
+  await expect(page.getByRole("navigation")).toBeVisible();
+  const home = await header();
   await page.goto("/scan");
-  const box = await page.getByText("STILL.").boundingBox();
-  const nav = await page.getByRole("navigation").boundingBox();
-  expect(nav!.x + nav!.width - box!.x).toBeLessThanOrEqual(720);
+  await expect(page.getByRole("navigation")).toBeVisible();
+  expect(await header()).toEqual(home);
+  // The reading measure applies to the body: its text starts inside the centred 720px column.
+  const headline = (await page.getByText("Scan to enter.", { exact: true }).boundingBox())!;
+  expect(headline.x).toBeGreaterThanOrEqual((1280 - 720) / 2);
 });
 
 test("signed-in Home keeps its sections together and the header rule clears the wordmark", async ({ page, next }) => {

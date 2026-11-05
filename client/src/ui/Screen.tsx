@@ -34,12 +34,15 @@ export function Screen({ children, header = true, tabs = false, scroll = true, w
   const canScan = useCanScan() && usePathname() !== "/scan";
   // The scroll container spans the window so the wheel scrolls over the margins; the header and body share this centred column.
   const column = { width: "100%", maxWidth: wide ? WIDE_MAX_WIDTH[width] : COLUMN_MAX_WIDTH, alignSelf: "center" } as const;
+  // The header always takes the widest column on desktop web, so the wordmark and tabs stay put from page to page
+  // (Home and Archive are wide, reading screens are not); only the body narrows to the reading measure.
+  const headerColumn = { ...column, maxWidth: wide ? WIDE_MAX_WIDTH.wide : COLUMN_MAX_WIDTH } as const;
   return (
     <SafeAreaView style={styles.root}>
       <>
         <KeyboardAvoidingView behavior={Platform.OS === "web" ? undefined : "padding"} style={styles.fill}>
           {header && (
-            <View style={column}>
+            <View style={headerColumn}>
             <View style={styles.header}>
               <Link href="/" asChild>
                 <Pressable accessibilityRole="link" accessibilityLabel="STILL, home" hitSlop={8}>
