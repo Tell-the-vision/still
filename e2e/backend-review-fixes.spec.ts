@@ -98,7 +98,7 @@ test("a numbered list made with the editor toolbar autosaves", async ({ page }) 
   await page.locator(".item", { hasText: "Numbered" }).click();
   const paragraph = page.locator(".ProseMirror p", { hasText: "First point" });
   await paragraph.click();
-  await paragraph.click(); // the first click does not place the caret yet (#137)
+  await page.waitForTimeout(100); // ProseMirror takes the caret from the DOM ~20ms after focus (#137)
   await page.getByRole("button", { name: "Numbers" }).click();
   await expect(page.locator(".ProseMirror ol")).toBeVisible();
   await expect.poll(async () => (await storedDoc(item.id)).content.some((b) => b.type === "orderedList"), { timeout: 10_000 }).toBe(true);
