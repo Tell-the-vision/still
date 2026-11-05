@@ -1,6 +1,6 @@
 import { structureInput, structureOutput } from "@still/shared/analysis-structure";
 import { signWorkerRequest } from "@still/shared/analysis-worker-signature";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { PgBoss } from "pg-boss";
 import { db } from "../../db/client";
 import { contents, documents, exhibitions, images } from "../../db/schema";
@@ -69,6 +69,11 @@ async function verifyDocument(documentId: string) {
   }
 }
 
+// SPEC §10.10 실시간 알림: tells `console.analysis.watch` listeners. Inside a transaction it is delivered on commit.
+type Executor = Pick<typeof db, "execute">;
+const notify = (exec: Executor, analysisId: string, state: "active" | "completed" | "failed", error?: string) =>
+  exec.execute(sql`select pg_notify(${`analysis_${analysisId}`}, ${JSON.stringify({ queue: ANALYSIS_QUEUE, key: "run", state, error })})`);
+
 const analysisOf = async (exhibitionId: string) =>
   (await db.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)))[0]?.analysis as Analysis | null;
 const isRunning = (analysis: Analysis | null, id: string) => analysis?.id === id && analysis.result === null;
@@ -77,6 +82,7 @@ async function settle({ exhibitionId, analysisId }: JobData, result: "FAILED") {
   await db.transaction(async (tx) => {
     const [row] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
     if (isRunning(row?.analysis as Analysis | null, analysisId)) await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), result } }).where(eq(exhibitions.id, exhibitionId));
+    if (isRunning(row?.analysis as Analysis | null, analysisId)) await notify(tx, analysisId, "failed", "Analysis failed.");
   });
 }
 
@@ -95,6 +101,7 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
   const analysis = await analysisOf(exhibitionId);
   if (!isRunning(analysis, analysisId)) return; // cancelled (or replaced) before it ran
 
+  await notify(db, analysisId, "active");
   const docs = await db.select().from(documents).where(and(eq(documents.exhibitionId, exhibitionId), inArray(documents.id, analysis!.documentIds)));
   const coverage: Coverage = { total: 0, uncovered: 0, refs: [] };
   const aligned: { documentId: string; contents: AlignedContent[] }[] = [];
@@ -117,5 +124,6 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
       await tx.update(documents).set({ analyzedAt: new Date() }).where(eq(documents.id, documentId));
     }
     await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, result: "SUCCEEDED" } }).where(eq(exhibitions.id, exhibitionId));
+    await notify(tx, analysisId, "completed");
   });
 }

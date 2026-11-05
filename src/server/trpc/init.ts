@@ -16,6 +16,7 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const t = initTRPC.context<Context>().create({
   isDev: !isProduction,
+  sse: { ping: { enabled: true, intervalMs: 15_000 } }, // SPEC §11.1 heartbeat
   errorFormatter({ shape, error }) {
     if (error.code === "INTERNAL_SERVER_ERROR") {
       // Log the cause only: input values must never reach the logs.
@@ -79,7 +80,8 @@ const ROLE_OF: Record<Surface, Session["role"]> = { visitor: "VISITOR", console:
 // The app a call comes from. The console and Admin send `x-client: console | admin` (SPEC §11.1 x-client);
 // anything else is the visitor app.
 export function surfaceOf(req: Request): Surface {
-  const client = req.headers.get("x-client");
+  // EventSource cannot set headers, so the watch subscription passes `?client=console` instead.
+  const client = req.headers.get("x-client") ?? new URL(req.url).searchParams.get("client");
   return client === "console" || client === "admin" ? client : "visitor";
 }
 

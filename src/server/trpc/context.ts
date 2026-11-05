@@ -29,7 +29,10 @@ export function createContext(req: Request) {
     const token = (await cookies()).get(cookieName)?.value;
     if (!token) return null;
     // CSRF guard (SPEC §2.3): a cookie-authenticated request must come from our own origin.
-    if (req.headers.get("origin") !== process.env.STILL_ORIGIN) throw new TRPCError({ code: "FORBIDDEN" });
+    // A browser sends no Origin on the same-origin GET of an EventSource (console.analysis.watch); Sec-Fetch-Site vouches for it.
+    const sseWatch = req.method === "GET" && !req.headers.has("origin") && new URL(req.url).pathname.endsWith("/console.analysis.watch")
+      && req.headers.get("sec-fetch-site") === "same-origin";
+    if (!sseWatch && req.headers.get("origin") !== process.env.STILL_ORIGIN) throw new TRPCError({ code: "FORBIDDEN" });
     return findWebSession(token);
   }
 
