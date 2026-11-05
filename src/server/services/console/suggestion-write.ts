@@ -12,7 +12,7 @@ import { applySuggestion } from "./suggestion-apply";
 export type Suggestion = {
   id: string;
   kind: string;
-  target?: { node?: string };
+  target?: { node?: string; items?: { contentId: string; node: string }[] };
   proposal?: Record<string, unknown>;
   status: "OPEN" | "ACCEPTED" | "DISMISSED";
   decidedBy: string | null;
@@ -28,11 +28,12 @@ const decide = (list: Suggestion[], id: string, status: "ACCEPTED" | "DISMISSED"
 };
 export async function decideSuggestion(
   { institutionId, userId }: { institutionId: string; userId: string },
-  input: { contentId?: string; id: string; status: "ACCEPTED" | "DISMISSED"; revision: string },
+  input: { contentId?: string; code?: string; id: string; status: "ACCEPTED" | "DISMISSED"; revision: string },
 ) {
+  const { contentId } = input;
+  if (!contentId) return decideWideSuggestion(institutionId, userId, input);
   return db.transaction(async (tx) => {
-    if (!input.contentId) throw new TRPCError({ code: "BAD_REQUEST", message: "contentId is required" });
-    const row = await lockOwnedContent(tx, institutionId, input.contentId);
+    const row = await lockOwnedContent(tx, institutionId, contentId);
     if (row.revision !== input.revision) throw new TRPCError({ code: "PRECONDITION_FAILED", cause: new AppError("REVISION_MISMATCH") });
     const list = decide(parse(row.suggestions), input.id, input.status, userId);
     const decided = list.find((s) => s.id === input.id)!;
@@ -59,13 +60,59 @@ export async function decideSuggestion(
   });
 }
 
+// An exhibition-wide suggestion (SPEC §10.8): decided under draft_revision; accepting fixes its target items in the same transaction.
+async function decideWideSuggestion(
+  institutionId: string,
+  userId: string,
+  input: { code?: string; id: string; status: "ACCEPTED" | "DISMISSED"; revision: string },
+) {
+  return db.transaction(async (tx) => {
+    const [ex] = await tx
+      .select({ id: exhibitions.id, analysis: exhibitions.analysis, draftRevision: exhibitions.draftRevision })
+      .from(exhibitions)
+      .where(and(eq(exhibitions.code, input.code!), eq(exhibitions.institutionId, institutionId)))
+      .for("update");
+    if (!ex) throw new TRPCError({ code: "NOT_FOUND" });
+    if (ex.draftRevision !== input.revision) throw new TRPCError({ code: "PRECONDITION_FAILED", cause: new AppError("REVISION_MISMATCH") });
+    const analysis = (ex.analysis ?? {}) as { suggestions?: unknown };
+    const list = decide(parse(analysis.suggestions), input.id, input.status, userId);
+    const decided = list.find((s) => s.id === input.id)!;
+    if (input.status === "ACCEPTED") {
+      for (const { contentId, node } of decided.target?.items ?? []) {
+        const [row] = await tx.select().from(contents).where(and(eq(contents.id, contentId), eq(contents.exhibitionId, ex.id))).for("update");
+        if (!row) continue;
+        const doc = stillDoc.parse(row.doc);
+        const next = applySuggestion(doc, contentSources.parse(row.sources), { ...decided, target: { node } });
+        if (next.doc === doc) continue; // nothing to change in this item (as on the item path)
+        const approved = row.status === "APPROVED";
+        await tx
+          .update(contents)
+          .set({
+            doc: next.doc,
+            sources: next.sources,
+            ...(approved ? { status: "READY" as const, approvedAt: null, approvedBy: null } : {}),
+            revision: sql`gen_random_uuid()`,
+            updatedAt: sql`now()`,
+          })
+          .where(eq(contents.id, row.id));
+      }
+    }
+    const [updated] = await tx
+      .update(exhibitions)
+      .set({ analysis: { ...analysis, suggestions: list }, draftRevision: sql`gen_random_uuid()`, updatedAt: sql`now()` })
+      .where(eq(exhibitions.id, ex.id))
+      .returning({ draftRevision: exhibitions.draftRevision });
+    return { contentId: null, id: input.id, status: input.status, revision: updated.draftRevision };
+  });
+}
+
 // Open and decided suggestions of the exhibition: each item's (with the item's revision) and the exhibition-wide ones.
 export async function listSuggestions(exhibitionId: string) {
   const rows = await db.select({ id: contents.id, revision: contents.revision, suggestions: contents.suggestions }).from(contents).where(eq(contents.exhibitionId, exhibitionId)).orderBy(contents.createdAt, contents.id);
-  const [ex] = await db.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId));
+  const [ex] = await db.select({ analysis: exhibitions.analysis, draftRevision: exhibitions.draftRevision }).from(exhibitions).where(eq(exhibitions.id, exhibitionId));
   const wide = parse((ex?.analysis as { suggestions?: unknown } | null)?.suggestions);
   return [
     ...rows.flatMap((r) => parse(r.suggestions).map((s) => ({ ...s, contentId: r.id as string | null, revision: r.revision as string | null }))),
-    ...wide.map((s) => ({ ...s, contentId: null, revision: null })),
+    ...wide.map((s) => ({ ...s, contentId: null, revision: ex?.draftRevision ?? null })),
   ];
 }
