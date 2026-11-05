@@ -2,7 +2,7 @@
 // Calls with a full path ("console.session.create", "me.get") use the SPEC procedures (console.*, SPEC §9.5);
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
-import type { Exhibition, InstitutionsApi, Me, Workspace } from "./types";
+import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -74,6 +74,93 @@ export const toExhibition = (row: ConsoleExhibitionRow): Exhibition => ({
   updatedAt: row.updatedAt,
 });
 
+// console.content.list rows (src/server/services/console/content-rows.ts, SPEC §10.8).
+type ContentKind = "INTRODUCTION" | "ARTIST" | "CURATOR_STATEMENT" | "THEME" | "ARTWORK" | "GALLERY_SECTION" | "AUDIO_NARRATION" | "PRESS_EXCERPT" | "CLOSING" | "OTHER";
+type ContentBlock =
+  | { type: "heading" | "paragraph" | "sentence"; id: string; text: string; origin: "SOURCE" | "EDITED"; refs: string[] }
+  | { type: "image"; id: string; imageId: string; display: string; captionRefs: string[] };
+export type ConsoleContentRow = {
+  id: string;
+  kind: ContentKind;
+  status: "READY" | "NEEDS_REVIEW" | "APPROVED" | "REJECTED";
+  blocks: ContentBlock[];
+  editorialNote: string | null;
+  updatedAt: string;
+  images: { id: string; altText: string | null; credit: string | null; rights: string; width: number; height: number }[];
+};
+type ConsoleFile = { id: string; name: string };
+
+const KIND_LABELS: Record<ContentKind, string> = {
+  INTRODUCTION: "Introduction",
+  ARTIST: "Artist",
+  CURATOR_STATEMENT: "Curator statement",
+  THEME: "Theme",
+  ARTWORK: "Artwork",
+  GALLERY_SECTION: "Gallery section",
+  AUDIO_NARRATION: "Audio narration",
+  PRESS_EXCERPT: "Press excerpt",
+  CLOSING: "Closing",
+  OTHER: "Other",
+};
+const REVIEW_STATUS = { READY: "IN_REVIEW", NEEDS_REVIEW: "IN_REVIEW", APPROVED: "APPROVED", REJECTED: "REJECTED" } as const;
+const USAGE_PERMISSION = { CONFIRMED: "GRANTED", RESTRICTED: "DENIED" } as const;
+
+// `documents` are the exhibition's source files: a ref "{documentId}:{segmentId}" naming one of them
+// gives the item its source file. Page locations need analysis manifests, which do not exist yet.
+export function toContentItem(row: ConsoleContentRow, order: number, documents: ConsoleFile[]): ContentItem {
+  const label = KIND_LABELS[row.kind];
+  const heading = row.blocks.find((b) => b.type === "heading");
+  const sentences = row.blocks.filter((b) => b.type === "sentence");
+  const texts = row.blocks.flatMap((b) => (b.type === "paragraph" || b.type === "sentence" ? [b.text] : []));
+  const text = texts.join("\n\n");
+  const refs = row.blocks.flatMap((b) => (b.type === "image" ? [] : b.refs));
+  const source = documents.find((d) => refs.some((ref) => ref.split(":")[0] === d.id));
+  const assets = row.blocks.flatMap((b): MediaAsset[] => {
+    const image = b.type === "image" ? row.images.find((i) => i.id === b.imageId) : undefined;
+    if (!image) return [];
+    return [{
+      id: image.id,
+      caption: image.altText ?? image.credit ?? "",
+      creator: "",
+      copyrightHolder: image.credit ?? "",
+      imageSource: "",
+      usagePermission: USAGE_PERMISSION[image.rights as keyof typeof USAGE_PERMISSION] ?? "UNKNOWN",
+      usageScope: "",
+      expiresOn: null,
+      excluded: false,
+      reviewedBy: null,
+      reviewedAt: null,
+    }];
+  });
+  const title = heading && "text" in heading ? heading.text : label;
+  return {
+    id: row.id,
+    order,
+    title,
+    kind: label,
+    summary: sentences.length ? `${sentences.length} sentence${sentences.length === 1 ? "" : "s"}` : `${texts.length} paragraph${texts.length === 1 ? "" : "s"}`,
+    itemCount: 1,
+    reviewStatus: REVIEW_STATUS[row.status],
+    sourceFileName: source?.name ?? "Added in the console",
+    sourceLocation: "",
+    heading: title,
+    fieldLabel: "Text",
+    text,
+    // No analysis manifests exist yet, so there is no extracted original to compare against.
+    originalText: text,
+    theme: "",
+    contentType: label,
+    note: row.editorialNote ?? "",
+    confidence: null,
+    origin: "SOURCE",
+    updatedBy: null,
+    updatedAt: row.updatedAt,
+    removed: false,
+    duplicateOf: null,
+    assets,
+  };
+}
+
 export function createTrpcApi(): InstitutionsApi {
   return {
     getWorkspace: async () => toWorkspace(await q<StaffMe>("me.get")),
@@ -138,7 +225,13 @@ export function createTrpcApi(): InstitutionsApi {
     startAnalysis: (exhibitionId) => m("startAnalysis", { exhibitionId }),
     listProcessingEvents: (exhibitionId) => q("listProcessingEvents", { exhibitionId }),
 
-    listContentItems: (exhibitionId) => q("listContentItems", { exhibitionId }),
+    listContentItems: async (exhibitionId) => {
+      const [rows, files] = await Promise.all([
+        q<ConsoleContentRow[]>("console.content.list", { code: exhibitionId }),
+        q<ConsoleFile[]>("listFiles", { exhibitionId }).catch(() => []),
+      ]);
+      return rows.map((row, i) => toContentItem(row, i, files));
+    },
     updateContentItem: (itemId, patch) => m("updateContentItem", { itemId, ...patch }),
     approveContentItem: (itemId) => m("approveContentItem", { itemId }),
     rejectContentItem: (itemId) => m("rejectContentItem", { itemId }),
