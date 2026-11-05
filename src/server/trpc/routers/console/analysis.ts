@@ -1,13 +1,14 @@
 import { consoleAnalysisGetInput } from "@still/shared/console";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { databaseUrl } from "../../../db/url";
 import { db } from "../../../db/client";
 import { contents, documents, exhibitions } from "../../../db/schema";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
-import { getBoss, notify, ANALYSIS_QUEUE } from "../../../services/console/analysis-jobs";
+import { getBoss, notify, ANALYSIS_JOB_OPTIONS, ANALYSIS_QUEUE } from "../../../services/console/analysis-jobs";
+import { transactionDb } from "../../../services/console/storage-jobs";
 import { AppError, consoleProcedure, router } from "../../init";
 
 // Rows of one exhibition counted per status.
@@ -48,22 +49,33 @@ async function snapshot(institutionId: string, code: string) {
     };
 }
 
+// Whether the analysis still has a job that will run (waiting, retrying or running).
+async function jobAlive(tx: Pick<typeof db, "execute">, analysisId: string) {
+  const { rows } = await tx.execute(sql`SELECT 1 FROM pgboss.job WHERE name = ${ANALYSIS_QUEUE} AND data->>'analysisId' = ${analysisId} AND state IN ('created', 'retry', 'active') LIMIT 1`);
+  return rows.length > 0;
+}
+
 // console.analysis.* (SPEC §9.4 진행 표시, §9.5, §10.10, Figma A3).
 export const consoleAnalysisRouter = router({
-  // Starts an analysis of the EXTRACTED documents not analyzed yet. The job is enqueued right after the
-  // commit (not in the same transaction), so a crash in between leaves an analysis that never finishes.
+  // Starts an analysis of the EXTRACTED documents not analyzed yet. The job is enqueued in the same
+  // transaction (SPEC §10.10), so the analysis row and its job exist together.
   create: consoleProcedure.input(consoleAnalysisGetInput).mutation(async ({ ctx, input }) => {
+    const boss = await getBoss();
     const job = await db.transaction(async (tx) => {
       const exhibition = await lockExhibition(tx, ctx.institutionId, input.code);
-      if (exhibition.analysis && exhibition.analysis.result === null) throw new TRPCError({ code: "CONFLICT", cause: new AppError("ANALYSIS_IN_PROGRESS") });
+      // A running analysis whose job is gone (expired, killed with the process) no longer blocks a new one.
+      if (exhibition.analysis && exhibition.analysis.result === null && (await jobAlive(tx, exhibition.analysis.id))) {
+        throw new TRPCError({ code: "CONFLICT", cause: new AppError("ANALYSIS_IN_PROGRESS") });
+      }
       const targets = await tx.select({ id: documents.id }).from(documents)
         .where(and(eq(documents.exhibitionId, exhibition.id), eq(documents.status, "EXTRACTED"), isNull(documents.analyzedAt)));
       if (!targets.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing new to analyze." });
       const analysis = { id: randomUUID(), startedAt: new Date().toISOString(), documentIds: targets.map((t) => t.id), result: null, coverage: null, suggestions: [] };
       await tx.update(exhibitions).set({ analysis }).where(eq(exhibitions.id, exhibition.id));
-      return { exhibitionId: exhibition.id, analysisId: analysis.id };
+      const data = { exhibitionId: exhibition.id, analysisId: analysis.id };
+      await boss.send(ANALYSIS_QUEUE, data, { ...ANALYSIS_JOB_OPTIONS, db: transactionDb(tx) });
+      return data;
     });
-    await (await getBoss()).send(ANALYSIS_QUEUE, job, { retryLimit: 2 });
     return { id: job.analysisId };
   }),
 

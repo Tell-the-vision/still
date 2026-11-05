@@ -34,7 +34,8 @@ function normalize(text: string): { norm: string; pos: number[] } {
     if (ch === "-" && /^-[^\S\n]*\n\s*\S/.test(text.slice(at))) continue;
     for (const part of ch.normalize("NFC")) {
       norm += part;
-      pos.push(at);
+      // One position per UTF-16 unit: `norm` is indexed in units, and an astral character takes two.
+      for (let unit = 0; unit < part.length; unit++) pos.push(at);
     }
   }
   return { norm, pos };

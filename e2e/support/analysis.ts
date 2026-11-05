@@ -12,10 +12,23 @@ export async function extractedExhibition(page: Page, text: string, pageCount = 
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   await signInConsole(page, account);
+  const documentId = await extractedDocument(page, account, exhibition, text, pageCount);
+  return { exhibition, account, documentId };
+}
+
+// One more EXTRACTED document in an exhibition the page is signed in for. `pageCount` 0 is a scan with no
+// text layer (no segments).
+export async function extractedDocument(
+  page: Page,
+  account: { institutionId: string },
+  exhibition: { id: string; code: string },
+  text: string,
+  pageCount = 1,
+) {
   const put = async (url: string, body: Buffer) => expect((await page.request.put(url, { data: body })).status()).toBe(200);
   const original = Buffer.from(`%PDF-1.4 ${randomUUID()}`);
   const created = data(await consoleCall(page, "console.document.create", {
-    code: exhibition.code, name: "statement.pdf", mediaType: "application/pdf", byteSize: original.length, sha256: sha(original),
+    code: exhibition.code, name: `statement-${randomUUID().slice(0, 6)}.pdf`, mediaType: "application/pdf", byteSize: original.length, sha256: sha(original),
   }));
   await put(created.upload.url, original);
   await consoleCall(page, "console.document.update", { id: created.document.id, uploaded: true });
@@ -28,7 +41,7 @@ export async function extractedExhibition(page: Page, text: string, pageCount = 
       const pageText = pageCount === 1 ? text : `${text} Page ${i + 1}.`;
       return { id: `s${String(i + 1).padStart(3, "0")}`, page: i + 1, bbox: null, text: pageText, sentences: [pageText] };
     }),
-    assets: [], modelInputs: [], warnings: [],
+    assets: [], modelInputs: [], warnings: pageCount === 0 ? [{ code: "NO_TEXT_LAYER" }] : [],
   }));
   const upload = await consoleCall(page, "console.documentUpload.create", {
     documentId: created.document.id, files: [{ name: "manifest.v1.json", size: manifest.length, sha256: sha(manifest) }],
@@ -37,6 +50,5 @@ export async function extractedExhibition(page: Page, text: string, pageCount = 
   const key = `${account.institutionId}/${exhibition.id}/${created.document.id}/manifest.v1.json`;
   const done = await consoleCall(page, "console.document.update", { id: created.document.id, manifestKey: key });
   expect(data(done).status).toBe("EXTRACTED");
-  return { exhibition };
+  return created.document.id as string;
 }
-

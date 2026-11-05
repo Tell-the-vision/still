@@ -29,6 +29,7 @@ createServer(async (req, res) => {
     return reply(200, { results: ranges.map((r) => ({ assetId: r.assetId, ok: createHash("sha256").update(file.subarray(r.offset, r.offset + r.length)).digest("hex") === r.sha256 })) });
   }
   const input = JSON.parse(body) as { pages: { text: string }[] };
+  if (input.pages.some((p) => p.text.includes("FAIL_STRUCTURE"))) return reply(502, { error: "INVALID_OUTPUT" }); // lets a test fail one document
   if (input.pages.some((p) => p.text.includes("SLOW"))) await new Promise((r) => setTimeout(r, 20000)); // lets a test cancel mid-run
   reply(200, {
     items: [{ kind: "ARTWORK", label: null, blocks: input.pages.map((p) => ({ type: "paragraph", text: p.text })), fields: {}, suggestions: [] }],

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { expect, test } from "next/experimental/testmode/playwright";
 import { extractedExhibition } from "./support/analysis";
 import { seedExhibition } from "./support/console";
@@ -33,12 +32,15 @@ test("create refuses a second run and an empty run; delete cancels", async ({ pa
   expect(empty.status).toBe(400);
   expect(empty.json.error.message).toBe("Nothing new to analyze.");
 
-  await e2eSql("UPDATE exhibitions SET analysis = $2 WHERE id = $1", [exhibition.id, JSON.stringify({ id: randomUUID(), startedAt: new Date().toISOString(), documentIds: [], result: null, coverage: null, suggestions: [] })]);
-  const busy = await consoleCall(page, "console.analysis.create", { code: exhibition.code });
+  // A real running analysis (the fake Worker holds "SLOW" text) refuses a second one. A row without a live
+  // job no longer counts as running (console-analysis-robustness.spec.ts).
+  const running = await extractedExhibition(page, "SLOW catalogue text.");
+  expect((await consoleCall(page, "console.analysis.create", { code: running.exhibition.code })).status).toBe(200);
+  const busy = await consoleCall(page, "console.analysis.create", { code: running.exhibition.code });
   expect(busy.status).toBe(409);
   expect(busy.json.error.data.appCode).toBe("ANALYSIS_IN_PROGRESS");
 
-  expect((await consoleCall(page, "console.analysis.delete", { code: exhibition.code })).status).toBe(200);
-  const [row] = await e2eSql<{ result: string }>("SELECT analysis->>'result' AS result FROM exhibitions WHERE id = $1", [exhibition.id]);
+  expect((await consoleCall(page, "console.analysis.delete", { code: running.exhibition.code })).status).toBe(200);
+  const [row] = await e2eSql<{ result: string }>("SELECT analysis->>'result' AS result FROM exhibitions WHERE id = $1", [running.exhibition.id]);
   expect(row.result).toBe("CANCELLED");
 });
