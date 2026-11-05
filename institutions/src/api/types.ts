@@ -287,6 +287,10 @@ export interface InstitutionsApi {
 
   listContentItems(exhibitionId: string): Promise<ContentItem[]>;
   updateContentItem(itemId: string, patch: ContentItemPatch): Promise<ContentItem>;
+  /** The item's document (Tiptap JSON, SPEC §9.4 schema) as last loaded. */
+  getContentDoc(itemId: string): unknown;
+  /** Autosave of the editor: replaces the whole document. REVISION_MISMATCH reads as "changed elsewhere". */
+  saveContentDoc(itemId: string, doc: unknown): Promise<void>;
   /** Server must refuse while the item is removed or an unresolved duplicate (`approvalBlocker`). */
   approveContentItem(itemId: string): Promise<ContentItem>;
   rejectContentItem(itemId: string): Promise<ContentItem>;

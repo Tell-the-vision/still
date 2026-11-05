@@ -1,6 +1,9 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, ReviewStatus } from "../api";
+import type { JSONContent } from "@tiptap/react";
+import { api } from "../api";
+import { Editor as RichEditor } from "../editor/Editor";
 import { CONTENT_TYPE_OPTIONS, THEME_OPTIONS } from "../constants";
 import { formatAdded } from "../format";
 import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, NO_PERMISSION, rightsIssue } from "../rules";
@@ -230,8 +233,7 @@ interface EditorProps {
 }
 
 function Editor({ item, flash, onOpen, onGone }: EditorProps) {
-  const { items, guide, can, updateItem, approveItem, rejectItem, reopenItem, removeItem, restoreItem, dismissDuplicate, mergeItems, splitItem } = useWorkspace();
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  const { items, guide, can, updateItem, approveItem, rejectItem, reopenItem, removeItem, restoreItem, dismissDuplicate, mergeItems } = useWorkspace();
   const editable = can("edit");
   const reviewer = can("review");
   // Suggestions = defaults + guide theme cards + themes already used on other items.
@@ -252,11 +254,6 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
     if (dirty) await updateItem(item.id, clean);
     await approveItem(item.id);
   }, `${item.title} approved`);
-  const split = () => act(async () => {
-    const at = textRef.current?.selectionStart ?? 0;
-    if (dirty) await updateItem(item.id, clean);
-    await splitItem(item.id, at);
-  }, `${item.title} split in two`);
   const remove = () => act(async () => { await removeItem(item.id); onGone(); }, `${item.title} deleted · find it under Removed`);
 
   const eyebrow = (
@@ -319,14 +316,13 @@ function Editor({ item, flash, onOpen, onGone }: EditorProps) {
       )}
 
       <fieldset className="plain-fieldset" disabled={!editable}>
-        <label className="field field--first">
-          <span className="field__label">{item.fieldLabel}</span>
-          <textarea ref={textRef} className="input input--lg" rows={3} value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} />
+        <div className="field field--first" role="group" aria-labelledby="editor-label">
+          <span className="field__label" id="editor-label">{item.fieldLabel}</span>
+          <RichEditor key={item.id} itemId={item.id} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} />
           <span className="field__foot">
             <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
-            {editable && <button type="button" className="link-btn" disabled={saving} onClick={split} title="Put the cursor where the second item should start">Split at cursor</button>}
           </span>
-        </label>
+        </div>
         {draft.text !== item.originalText && (
           <details className="original">
             <summary className="caption-sm">Original extracted text</summary>

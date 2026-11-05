@@ -1164,3 +1164,10 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .vp__scrap { border-bottom: 1px solid var(--line-soft); }
 .vp__keep { margin-left: 2px; font-size: 11px; font-weight: 300; color: var(--ink-2); }
 .split--review:has(.visitor-preview-pane) { grid-template-columns: minmax(240px, 1fr) minmax(0, 1.4fr) 390px; }
+
+.still-editor__bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.still-editor__bar .btn[aria-pressed="true"] { background: var(--ink, #111); color: #fff; }
+.still-editor__body .ProseMirror { outline: none; min-height: 54px; }
+.still-editor__body .ProseMirror:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.still-editor__body mark[data-scrap] { background: rgba(255, 214, 0, 0.45); color: inherit; }
+.still-editor__body blockquote { margin: 8px 0; padding-left: 12px; border-left: 2px solid currentColor; }

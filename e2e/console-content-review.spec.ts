@@ -64,14 +64,14 @@ test("staff edit an item's text and it is saved after reload", async ({ page }) 
   await openReview(page, exhibition);
 
   await row(page, "Farewell").click();
-  await page.locator("textarea.input--lg").fill("New words.");
-  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.locator(".ProseMirror").getByText("Old words.").click({ clickCount: 3 });
+  await page.keyboard.type("New words.");
   await expect.poll(async () => (await e2eSql<{ doc: { content: { content: { text: string }[] }[] } }>("SELECT doc FROM contents WHERE id = $1", [item.id]))[0].doc.content[1].content[0].text).toBe("New words.");
 
   await page.reload();
   await openReview(page, exhibition);
   await row(page, "Farewell").click();
-  await expect(page.locator("textarea.input--lg")).toHaveValue("New words.");
+  await expect(page.locator(".ProseMirror")).toContainText("New words.");
   const [saved] = await e2eSql<{ doc: { content: { attrs: { id: string }; content: { text: string }[] }[] } }>("SELECT doc FROM contents WHERE id = $1", [item.id]);
   expect(saved.doc.content[1]).toMatchObject({ attrs: { id: "b1" }, content: [{ text: "New words." }] });
 });

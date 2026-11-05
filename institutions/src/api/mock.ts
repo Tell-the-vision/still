@@ -225,6 +225,13 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
     listProcessingEvents: (id) => wait(db.events[id] ?? []),
 
     listContentItems: (id) => wait([...(db.items[id] ?? [])].sort((a, b) => a.order - b.order)),
+    getContentDoc: (itemId) => ({
+      type: "doc",
+      content: findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
+    }),
+    async saveContentDoc() {
+      allow("edit");
+    },
     async updateContentItem(itemId, patch) {
       allow("edit");
       return edited(Object.assign(findItem(itemId), patch));
