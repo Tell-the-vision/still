@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
 
@@ -12,6 +12,8 @@ export default function SignIn() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]); // a failed submit moves focus to the message
 
   if (status === "ready") return <Navigate to={from && from !== "/sign-in" ? from : "/institutions"} replace />;
 
@@ -43,15 +45,15 @@ export default function SignIn() {
           <p className="pa-desc">For STILL operators only. Use the email and password you were issued.</p>
           <label className="pa-signin__field">
             <span className="pa-field-label">Email</span>
-            <input className="pa-input" type="email" name="email" autoComplete="username"
+            <input className="pa-input" type="email" name="email" autoComplete="username" aria-invalid={error ? true : undefined} aria-describedby={error ? "pa-signin-error" : undefined}
               value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </label>
           <label className="pa-signin__field">
             <span className="pa-field-label">Password</span>
-            <input className="pa-input" type="password" name="password" autoComplete="current-password"
+            <input className="pa-input" type="password" name="password" autoComplete="current-password" aria-invalid={error ? true : undefined} aria-describedby={error ? "pa-signin-error" : undefined}
               value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </label>
-          {error && <p className="pa-alert pa-alert--error" role="alert">{error}</p>}
+          {error && <p id="pa-signin-error" ref={errorRef} tabIndex={-1} className="pa-alert pa-alert--error" role="alert">{error}</p>}
           <button type="submit" className="pa-btn pa-btn--primary pa-signin__submit" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}
           </button>

@@ -241,7 +241,10 @@ function AddInstitution({ all, onClose, onAdded }: { all: Institution[]; onClose
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => { dialog.current?.showModal(); }, []);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]); // a failed submit moves focus to the message
+  const invalid = error ? { "aria-invalid": true, "aria-describedby": "add-error" } : {};
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -288,22 +291,22 @@ function AddInstitution({ all, onClose, onAdded }: { all: Institution[]; onClose
         </p>
         <label className="pa-dfield">
           <span className="pa-field-label">Institution name</span>
-          <input className="pa-input" value={form.name} disabled={!!created} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Seoul Museum of Art" autoFocus />
+          <input className="pa-input" value={form.name} disabled={!!created} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Seoul Museum of Art" autoFocus {...invalid} />
         </label>
         <label className="pa-dfield">
           <span className="pa-field-label">Short code (2–6 letters)</span>
-          <input className="pa-input" value={form.code} disabled={!!created} maxLength={6} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/[^a-z]/gi, "") })} placeholder="e.g. SEMA" />
+          <input className="pa-input" value={form.code} disabled={!!created} maxLength={6} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/[^a-z]/gi, "") })} placeholder="e.g. SEMA" {...invalid} />
           <span className="pa-hint">ID will look like STL-{code}-#### (the number is assigned on save and never reused).</span>
         </label>
         <label className="pa-dfield">
           <span className="pa-field-label">Workspace admin name</span>
-          <input className="pa-input" value={form.adminName} onChange={(e) => setForm({ ...form, adminName: e.target.value })} placeholder="e.g. Dana Curator" />
+          <input className="pa-input" value={form.adminName} onChange={(e) => setForm({ ...form, adminName: e.target.value })} placeholder="e.g. Dana Curator" {...invalid} />
         </label>
         <label className="pa-dfield">
           <span className="pa-field-label">Workspace admin email</span>
-          <input className="pa-input" type="email" value={form.adminEmail} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} placeholder="name@institution.org" />
+          <input className="pa-input" type="email" value={form.adminEmail} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} placeholder="name@institution.org" {...invalid} />
         </label>
-        {error && <p className="pa-alert pa-alert--error" role="alert">{error}</p>}
+        {error && <p id="add-error" ref={errorRef} tabIndex={-1} className="pa-alert pa-alert--error" role="alert">{error}</p>}
         <div className="pa-dialog__actions">
           <button type="button" className="pa-btn pa-btn--secondary" onClick={() => dialog.current?.close()}>{created ? "Close" : "Cancel"}</button>
           <button type="submit" className="pa-btn pa-btn--primary" disabled={busy}>{busy ? "Creating…" : created ? "Issue account" : "Create institution"}</button>

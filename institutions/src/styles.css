@@ -1067,6 +1067,8 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   color: var(--s-muted);
 }
 
+/* Screens with no marketing panel (change password): one column, centred like the admin sign-in card. */
+.signin__body--single { grid-template-columns: minmax(0, 440px); justify-content: center; }
 .signin__form { padding: 8px 0; }
 .signin__title { margin-top: 18px; font-family: var(--font-display); font-weight: 500; font-size: 30px; line-height: 44px; }
 .signin__desc { margin-top: 12px; font-size: 13px; line-height: 20px; color: var(--s-muted); }

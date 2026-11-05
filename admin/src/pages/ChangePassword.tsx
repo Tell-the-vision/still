@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth";
 
@@ -10,6 +10,8 @@ export default function ChangePassword() {
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]); // a failed submit moves focus to the message
 
   if (status === "signed-out") return <Navigate to="/sign-in" replace />;
   if (status === "ready" && !me?.mustChangePassword) return <Navigate to="/institutions" replace />;
@@ -42,21 +44,21 @@ export default function ChangePassword() {
           <p className="pa-desc">You signed in with a temporary password. Choose your own to continue. Other devices are signed out.</p>
           <label className="pa-signin__field">
             <span className="pa-field-label">Temporary password</span>
-            <input className="pa-input" type="password" name="current" autoComplete="current-password"
+            <input className="pa-input" type="password" name="current" autoComplete="current-password" aria-invalid={error ? true : undefined} aria-describedby={error ? "pa-pw-error" : undefined}
               value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
           </label>
           <label className="pa-signin__field">
             <span className="pa-field-label">New password</span>
-            <input className="pa-input" type="password" name="new" autoComplete="new-password" aria-describedby="pa-pw-hint"
+            <input className="pa-input" type="password" name="new" autoComplete="new-password" aria-invalid={error ? true : undefined} aria-describedby={error ? "pa-pw-hint pa-pw-error" : "pa-pw-hint"}
               value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
           </label>
           <p id="pa-pw-hint" className="pa-signin__note">At least 12 characters.</p>
           <label className="pa-signin__field">
             <span className="pa-field-label">Confirm new password</span>
-            <input className="pa-input" type="password" name="confirm" autoComplete="new-password"
+            <input className="pa-input" type="password" name="confirm" autoComplete="new-password" aria-invalid={error ? true : undefined} aria-describedby={error ? "pa-pw-error" : undefined}
               value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} />
           </label>
-          {error && <p className="pa-alert pa-alert--error" role="alert">{error}</p>}
+          {error && <p id="pa-pw-error" ref={errorRef} tabIndex={-1} className="pa-alert pa-alert--error" role="alert">{error}</p>}
           <button type="submit" className="pa-btn pa-btn--primary pa-signin__submit" disabled={busy}>
             {busy ? "Saving…" : "Change password"}
           </button>
