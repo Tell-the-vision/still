@@ -216,6 +216,15 @@ button { cursor: pointer; }
 
 /* Users & access (temporary screen) */
 .pa-tr--accounts { grid-template-columns: 90px 170px 220px 130px 100px 120px minmax(0, 1fr); min-height: 0; padding-bottom: 14px; }
+/* The fixed columns above come after the shared table breakpoints, so they repeat them here. */
+@media (max-width: 1280px) {
+  .pa-tr--accounts { grid-template-columns: 0.7fr 1.1fr 1.5fr 1fr 0.7fr 0.8fr minmax(0, 1.5fr); }
+}
+@media (max-width: 900px) {
+  .pa-tr--accounts { grid-template-columns: minmax(0, 1fr); }
+  .pa-tr--accounts > span:nth-child(5)::before { content: none; }
+  .pa-tr--accounts > span:nth-child(6)::before { content: "Last sign-in "; }
+}
 .pa-tr--accounts .pa-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .pa-adding { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin-top: 16px; }
 .pa-adding .pa-search { width: 240px; }
