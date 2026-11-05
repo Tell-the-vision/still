@@ -1,7 +1,9 @@
 import { structureRequest, structureResponse, type StructureRequest } from "../../shared/src/analysis-worker";
+import { structureInput, structureOutput, type StructureInput } from "../../shared/src/analysis-structure";
 import { verifyWorkerRequest } from "../../shared/src/analysis-worker-signature";
 import { CONTENT_KINDS } from "../../shared/src/console-content";
 import { SECTION_KINDS } from "../../shared/src/console-draft";
+import { IMAGE_DISPLAYS } from "../../shared/src/still-doc";
 
 // Cloudflare Worker for institution-console analysis (SPEC §9.4 처리 구조, §10.10). It holds the Gemini
 // key, groups source segments into content items and answers with references only. It never writes
@@ -115,7 +117,8 @@ function fromWire(output: unknown): Record<string, unknown> {
   return { ...output, items };
 }
 
-async function structure(request: StructureRequest, env: Env, fetcher: Fetcher): Promise<Response> {
+// One Gemini call with structured output. Returns the parsed JSON and usage, or the failure Response.
+async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetcher): Promise<{ output: unknown; usage: object } | Response> {
   const model = env.GEMINI_MODEL_STRUCTURE || DEFAULT_MODEL;
   let upstream: Response;
   try {
@@ -123,8 +126,8 @@ async function structure(request: StructureRequest, env: Env, fetcher: Fetcher):
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: structurePrompt(request) }] }],
-        generationConfig: { responseMimeType: "application/json", responseSchema, temperature: 0 },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0 },
       }),
     });
   } catch {
@@ -136,18 +139,100 @@ async function structure(request: StructureRequest, env: Env, fetcher: Fetcher):
   const candidate = answer?.candidates?.[0];
   if (candidate?.finishReason === "MAX_TOKENS") return failure("RESULT_TOO_LARGE");
   const text = candidate?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
-
-  let output: unknown;
   try {
-    output = JSON.parse(text);
+    const usage = { model, inputTokens: answer?.usageMetadata?.promptTokenCount ?? 0, outputTokens: answer?.usageMetadata?.candidatesTokenCount ?? 0 };
+    return { output: JSON.parse(text), usage };
   } catch {
     return failure("INVALID_OUTPUT");
   }
-  const parsed = structureResponse.safeParse({
-    ...fromWire(output),
-    usage: { model, inputTokens: answer?.usageMetadata?.promptTokenCount ?? 0, outputTokens: answer?.usageMetadata?.candidatesTokenCount ?? 0 },
-  });
+}
+
+async function structure(request: StructureRequest, env: Env, fetcher: Fetcher): Promise<Response> {
+  const result = await generate(structurePrompt(request), responseSchema, env, fetcher);
+  if (result instanceof Response) return result;
+  const parsed = structureResponse.safeParse({ ...fromWire(result.output), usage: result.usage });
   // Refs the request does not contain are dropped by the server's finalize step (SPEC §9.4), not here.
+  return parsed.success ? json(parsed.data, 200) : failure("INVALID_OUTPUT");
+}
+
+// SPEC §9.4 (2026-11-05): Gemini copies the source text into a reduced editor schema; the server aligns it.
+const textBlocks = {
+  anyOf: [
+    { type: "OBJECT", required: ["type", "level", "text"], properties: { type: { type: "STRING", enum: ["heading"] }, level: { type: "INTEGER", description: "2 or 3 only" }, text: { type: "STRING" } } },
+    { type: "OBJECT", required: ["type", "text"], properties: { type: { type: "STRING", enum: ["paragraph", "quote"] }, text: { type: "STRING" } } },
+    { type: "OBJECT", required: ["type", "items"], properties: { type: { type: "STRING", enum: ["bulletList", "orderedList"] }, items: { type: "ARRAY", items: { type: "STRING" } } } },
+    {
+      type: "OBJECT",
+      required: ["type", "imageId", "display", "caption"],
+      properties: {
+        type: { type: "STRING", enum: ["stillImage"] },
+        imageId: { type: "STRING" },
+        display: { type: "STRING", enum: [...IMAGE_DISPLAYS] },
+        caption: { type: "STRING", nullable: true },
+      },
+    },
+  ],
+};
+const textSchema = {
+  type: "OBJECT",
+  required: ["items", "outline", "variants"],
+  properties: {
+    items: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        required: ["kind", "label", "blocks", "fields"],
+        properties: {
+          kind: { type: "STRING", enum: [...CONTENT_KINDS] },
+          label: { type: "STRING", nullable: true },
+          blocks: { type: "ARRAY", items: textBlocks },
+          fields: { type: "ARRAY", items: { type: "OBJECT", required: ["name", "value"], properties: { name: { type: "STRING" }, value: { type: "STRING" } } } },
+        },
+      },
+    },
+    outline: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        required: ["section", "title", "items"],
+        properties: { section: { type: "STRING", enum: [...SECTION_KINDS] }, title: { type: "STRING", nullable: true }, items: { type: "ARRAY", items: { type: "INTEGER" } } },
+      },
+    },
+    variants: { type: "ARRAY", items: { type: "OBJECT", required: ["use", "instead"], properties: { use: { type: "STRING" }, instead: { type: "STRING" } } } },
+  },
+};
+
+function textPrompt(input: StructureInput): string {
+  return [
+    "You structure the text of a museum or gallery guide for visitors. Below is one chunk of one document, as plain text per page.",
+    `Group the pages into content items. Each item has one kind from: ${CONTENT_KINDS.join(", ")}.`,
+    "Copy the source text exactly into the blocks. Only whitespace defects such as split letters may be fixed.",
+    "Never add, translate, reword or summarize words. Do not write anything that is not in the source.",
+    "Heading levels are 2 or 3 only. `label` is only for a name that appears nowhere in the source (it will be flagged); otherwise null.",
+    "Images are placed by asset id only (stillImage with imageId); put a caption only if the source has one.",
+    "Put artwork fields (title, artist, year, ...) in `fields` with values copied from the source.",
+    "`outline` lists the guide's sections with indexes into `items`. Leave `variants` empty unless clearly needed.",
+    `Document: ${input.document.mediaType}${input.document.category ? `, ${input.document.category}` : ""}`,
+    `Available images: ${input.images.map((i) => `${i.id}${i.page ? ` (page ${i.page})` : ""}`).join(", ") || "none"}`,
+    "",
+    ...input.pages.map((p) => `--- Page ${p.page} ---\n${p.text}`),
+  ].join("\n");
+}
+
+// The schema cannot enumerate integers, so heading levels outside 2..3 are pulled into range.
+function clampLevels(blocks: unknown): unknown {
+  if (!Array.isArray(blocks)) return blocks;
+  return blocks.map((b) => (b?.type === "heading" && typeof b.level === "number" ? { ...b, level: b.level <= 2 ? 2 : 3 } : b));
+}
+
+async function structureText(input: StructureInput, env: Env, fetcher: Fetcher): Promise<Response> {
+  const result = await generate(textPrompt(input), textSchema, env, fetcher);
+  if (result instanceof Response) return result;
+  const wire = result.output as { items?: { blocks?: unknown; fields?: { name: string; value: string }[] }[] } | null;
+  const items = Array.isArray(wire?.items)
+    ? wire.items.map((item) => (item && Array.isArray(item.fields) ? { ...item, suggestions: [], blocks: clampLevels(item.blocks), fields: Object.fromEntries(item.fields.map((f) => [f?.name, f?.value])) } : item))
+    : wire?.items;
+  const parsed = structureOutput.safeParse({ ...(wire ?? {}), items, usage: result.usage });
   return parsed.success ? json(parsed.data, 200) : failure("INVALID_OUTPUT");
 }
 
@@ -155,7 +240,8 @@ export function createWorker(fetcher: Fetcher = (url, init) => fetch(url, init))
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);
-      if (url.pathname !== "/structure") return json({ error: "NOT_FOUND" }, 404);
+      const isText = url.pathname === "/structure/text";
+      if (url.pathname !== "/structure" && !isText) return json({ error: "NOT_FOUND" }, 404);
       if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
 
       const body = await request.text();
@@ -170,6 +256,10 @@ export function createWorker(fetcher: Fetcher = (url, init) => fetch(url, init))
         raw = JSON.parse(body);
       } catch {
         return json({ error: "BAD_REQUEST" }, 400);
+      }
+      if (isText) {
+        const input = structureInput.safeParse(raw);
+        return input.success ? structureText(input.data, env, fetcher) : json({ error: "BAD_REQUEST" }, 400);
       }
       const parsed = structureRequest.safeParse(raw);
       if (!parsed.success) return json({ error: "BAD_REQUEST" }, 400);

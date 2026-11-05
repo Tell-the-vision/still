@@ -30,7 +30,7 @@ function geminiAnswer(text: string) {
   );
 }
 
-async function call(gemini: () => Response, { body = JSON.stringify(request), at = now(), secret = SECRET } = {}) {
+async function call(gemini: () => Response, { body = JSON.stringify(request), at = now(), secret = SECRET, path = "/structure" } = {}) {
   const prompts: string[] = [];
   const worker = createWorker((_url, init) => {
     prompts.push(String(init?.body));
@@ -38,7 +38,7 @@ async function call(gemini: () => Response, { body = JSON.stringify(request), at
   });
   const headers = await signWorkerRequest(secret, body, at);
   const response = await worker.fetch(
-    new Request("https://worker.test/structure", { method: "POST", body, headers }),
+    new Request(`https://worker.test${path}`, { method: "POST", body, headers }),
     { GEMINI_KEY: "gemini-key", ANALYSIS_WORKER_SECRET: SECRET, GEMINI_MODEL_STRUCTURE: "gemini-test" },
   );
   return { response, prompts };
@@ -91,4 +91,56 @@ test("a truncated Gemini answer is RESULT_TOO_LARGE", async () => {
   const truncated = new Response(JSON.stringify({ candidates: [{ finishReason: "MAX_TOKENS", content: { parts: [{ text: "{" }] } }] }), { status: 200 });
   const res = (await call(() => truncated)).response;
   expect(await res.json()).toEqual({ error: "RESULT_TOO_LARGE" });
+});
+
+const textRequest = {
+  analysisId: request.analysisId,
+  chunk: 0,
+  document: { mediaType: "application/pdf", category: null },
+  pages: [{ page: 1, text: "Forms of Stillness\n\nAn introduction to the show." }],
+  images: [{ id: "a01", page: 1, url: null }],
+};
+const textOutput = {
+  items: [
+    {
+      kind: "INTRODUCTION",
+      label: null,
+      blocks: [
+        { type: "heading", level: 2, text: "Forms of Stillness" },
+        { type: "paragraph", text: "An introduction to the show." },
+        { type: "stillImage", imageId: "a01", display: "HERO", caption: null },
+      ],
+      fields: [{ name: "title", value: "Forms of Stillness" }],
+      suggestions: [],
+    },
+  ],
+  outline: [{ section: "INTRODUCTION", title: null, items: [0] }],
+  variants: [],
+};
+const textCall = (gemini: () => Response, options = {}) => call(gemini, { body: JSON.stringify(textRequest), path: "/structure/text", ...options });
+
+test("/structure/text refuses a bad signature and an invalid body", async () => {
+  const bad = await textCall(() => geminiAnswer("{}"), { secret: "other" });
+  expect(bad.response.status).toBe(401);
+  expect(bad.prompts).toHaveLength(0);
+  const invalid = await textCall(() => geminiAnswer("{}"), { body: JSON.stringify({ chunk: "x" }) });
+  expect(invalid.response.status).toBe(400);
+});
+
+test("/structure/text returns a structureOutput with usage and sends the page text", async () => {
+  const { response, prompts } = await textCall(() => geminiAnswer(JSON.stringify(textOutput)));
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.items[0].fields).toEqual({ title: "Forms of Stillness" });
+  expect(body.items[0].blocks[1].text).toBe("An introduction to the show.");
+  expect(body.usage).toEqual({ model: "gemini-test", inputTokens: 120, outputTokens: 30 });
+  expect(prompts[0]).toContain("An introduction to the show.");
+});
+
+test("/structure/text maps malformed output to INVALID_OUTPUT", async () => {
+  for (const text of ["not json", JSON.stringify({ items: [{ kind: "NOPE" }], outline: [], variants: [] })]) {
+    const res = (await textCall(() => geminiAnswer(text))).response;
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "INVALID_OUTPUT" });
+  }
 });
