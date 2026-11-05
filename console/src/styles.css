@@ -1222,14 +1222,19 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .visitor-preview-pane { flex: none; width: 390px; max-width: 100%; }
 .visitor-preview-pane__notice { margin: 0 0 8px; font-size: 12px; color: var(--ink-2); }
 .vp { box-sizing: border-box; width: 100%; max-width: 390px; height: 844px; overflow-y: auto; padding: 32px 24px; border: 1px solid var(--line); border-radius: 32px; background: #fff; color: var(--ink); }
-.vp h2 { margin: 0 0 16px; font-size: 24px; line-height: 1.3; }
-.vp h3 { margin: 0 0 12px; font-size: 18px; line-height: 1.3; }
+.vp h2 { margin: 40px 0 16px; font-size: 24px; line-height: 1.3; }
+.vp > :first-child { margin-top: 0; }
+.vp h3 { margin: 32px 0 12px; font-size: 18px; line-height: 1.3; }
 .vp p, .vp li { font-size: 15px; line-height: 1.7; }
-.vp blockquote { margin: 0 0 16px; padding-left: 12px; border-left: 2px solid var(--line); }
+.vp blockquote { margin: 0 0 16px; padding-left: 12px; border-left: 1px solid var(--ink-2); }
 .vp figure { margin: 0 0 16px; }
 .vp__image { width: 100%; aspect-ratio: 4 / 3; background: #ededed; }
 .vp figcaption { margin-top: 6px; font-size: 12px; color: var(--ink-2); }
-.vp__scrap { border-bottom: 1px solid var(--line-soft); }
+.vp__scrap { text-decoration: underline; text-decoration-color: var(--ink-2); text-underline-offset: 3px; }
+.vp__fig--hero { margin-inline: -24px; }
+.vp__fig--portrait { width: 70%; margin-inline: auto; }
+.vp__gallery { display: flex; gap: 16px; margin: 0 -24px 16px; padding: 0 24px; overflow-x: auto; scroll-snap-type: x mandatory; }
+.vp__gallery figure { flex: 0 0 260px; margin: 0; scroll-snap-align: start; }
 .vp__keep { margin-left: 2px; font-size: 11px; font-weight: 300; color: var(--ink-2); }
 /* With the preview as a third column the editor is narrower than Figma's 644px, so its two fields share the row. */
 .split--review .editor .field-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
