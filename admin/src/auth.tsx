@@ -23,6 +23,10 @@ function useAuthState() {
   return {
     status, me,
     signIn: async (email: string, password: string) => { setMe(await api.signIn(email, password)); setStatus("ready"); },
+    changePassword: async (current: string, next: string) => {
+      await api.changePassword(current, next);
+      setMe((m) => (m ? { ...m, mustChangePassword: false } : m));
+    },
     signOut: async () => { await api.signOut(); setMe(null); setStatus("signed-out"); },
   };
 }

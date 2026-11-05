@@ -8,7 +8,8 @@ import { can, type Action } from "./rules";
 // All screens read and write through here; this file only talks to `api`, never to sample data.
 
 // "signed-out": no staff session (or it expired); the app shows /sign-in.
-type Status = "loading" | "ready" | "error" | "signed-out";
+// "password-change": signed in with a temporary password; only /change-password works (SPEC §10.5).
+type Status = "loading" | "ready" | "error" | "signed-out" | "password-change";
 
 interface ExhibitionData {
   files: SourceFile[];
@@ -45,9 +46,12 @@ function useWorkspaceState() {
   const loadWorkspace = useCallback(async () => {
     setStatus("loading");
     try {
-      const [w, list, user] = await Promise.all([api.getWorkspace(), api.listExhibitions(), api.getMe()]);
-      setWorkspace(w);
+      // With a temporary password every call but me.get answers PASSWORD_CHANGE_REQUIRED, so read me first.
+      const user = await api.getMe();
       setMe(user);
+      if (user.mustChangePassword) { setStatus("password-change"); return; }
+      const [w, list] = await Promise.all([api.getWorkspace(), api.listExhibitions()]);
+      setWorkspace(w);
       setExhibitions(list);
       setCurrentId((id) => id ?? list.find((e) => e.status === "DRAFT")?.id ?? list[0]?.id ?? null);
       setStatus("ready");
@@ -180,6 +184,11 @@ function useWorkspaceState() {
     /** Errors stay on the form (not the app banner) and are rethrown for it. */
     signIn: async (request: SignInRequest) => {
       await api.signIn(request);
+      await loadWorkspace();
+    },
+    /** Errors stay on the form; afterwards the workspace loads as after a normal sign-in. */
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      await api.changePassword(currentPassword, newPassword);
       await loadWorkspace();
     },
     signOut: () => run(async () => { await api.signOut(); resetSession(); }),

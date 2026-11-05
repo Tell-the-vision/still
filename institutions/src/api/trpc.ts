@@ -39,7 +39,7 @@ type StaffMe = {
 };
 // Accounts in one institution have no permission differences (SPEC §9.2, 미결정 26), so everyone
 // gets the full workspace. The header shows the account name instead of a role (REVIEW §7-12).
-const toMe = (me: StaffMe): Me => ({ id: me.id, name: me.displayName ?? me.email, email: me.email, role: "INSTITUTION_ADMIN", canPublish: true });
+const toMe = (me: StaffMe): Me => ({ id: me.id, name: me.displayName ?? me.email, email: me.email, role: "INSTITUTION_ADMIN", canPublish: true, mustChangePassword: me.mustChangePassword });
 const toWorkspace = (me: StaffMe): Workspace => ({ institutionName: me.institution.name, institutionId: me.institution.code, role: me.displayName ?? me.email });
 
 // console.exhibition.* rows (src/server/services/console/exhibition-rows.ts, SPEC §9.4 목록).
@@ -86,6 +86,7 @@ export function createTrpcApi(): InstitutionsApi {
     updateNotificationPrefs: (patch) => m("updateNotificationPrefs", patch),
     // Ends the console session only; a visitor sign-in in the same browser stays (SPEC §10.5).
     signOut: () => m("session.delete"),
+    changePassword: (currentPassword, newPassword) => m("password.update", { currentPassword, newPassword }),
     getWorkspaceSettings: () => q("getWorkspaceSettings"),
     updateWorkspaceSettings: (patch) => m("updateWorkspaceSettings", patch),
     listVenues: () => q("listVenues"),

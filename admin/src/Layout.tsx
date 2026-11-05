@@ -21,6 +21,9 @@ export default function Layout() {
   // No STILL staff session: temporary sign-in screen, then back to this page.
   if (status === "signed-out") return <Navigate to="/sign-in" replace state={{ from: pathname }} />;
 
+  // A temporary password must be changed before anything else (SPEC §10.5).
+  if (me?.mustChangePassword) return <Navigate to="/change-password" replace />;
+
   return (
     <div className="pa">
       <header className="pa-top">

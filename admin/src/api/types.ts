@@ -46,6 +46,8 @@ export interface PlatformApi {
   /** Operators sign in with the email and password STILL Admin issued them (SPEC §9.2, admin.session.create). */
   signIn(email: string, password: string): Promise<PlatformAdmin>;
   signOut(): Promise<void>;
+  /** Replaces the temporary password (SPEC §9.5 password.update). Wrong current or too-short new password throws BAD_REQUEST. */
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
   /** Throws UNAUTHORIZED without a STILL staff session. */
   getMe(): Promise<PlatformAdmin>;
   listInstitutions(): Promise<Institution[]>;

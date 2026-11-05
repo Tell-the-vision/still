@@ -129,7 +129,8 @@ test("npm run admin:create issues the first operator with a temporary password",
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/admin\/institutions$/);
+  // A temporary password leads to the change screen first (e2e/password-change.spec.ts).
+  await expect(page).toHaveURL(/\/admin\/change-password$/);
   expect((await adminCall(page, "me.get")).json.result.data).toMatchObject({ email, role: "ADMIN", displayName: "First Operator", mustChangePassword: true });
 });
 

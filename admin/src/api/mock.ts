@@ -36,7 +36,7 @@ const SEED: [name: string, code: string, email: string, status: InstitutionStatu
 export function createMockApi(): PlatformApi {
   // Starts signed in so the screens open directly; ?signedOut (or Sign out) shows the temporary sign-in screen.
   let signedIn = !new URLSearchParams(window.location.search).has("signedOut");
-  const me = { email: "admin@still.app", role: "SUPER_ADMIN" as const, mustChangePassword: false };
+  const me = { email: "admin@still.app", role: "SUPER_ADMIN" as const, mustChangePassword: new URLSearchParams(window.location.search).has("mustChange") };
   const db: Institution[] = SEED.map(([name, code, adminEmail, status, created, last], i) => ({
     id: `inst-${i + 1}`,
     publicId: `STL-${code}-${String(i + 1).padStart(4, "0")}`,
@@ -58,6 +58,13 @@ export function createMockApi(): PlatformApi {
       return wait(me, 400);
     },
     async signOut() { signedIn = false; return wait(undefined, 200); },
+    async changePassword(currentPassword, newPassword) {
+      // Mock: the current password is "temporary" while the temporary-password screen is on (?mustChange).
+      if (currentPassword !== "temporary") throw new ApiError("The current password is incorrect.", "BAD_REQUEST");
+      if (newPassword.length < 12) throw new ApiError("The new password must be at least 12 characters.", "BAD_REQUEST");
+      me.mustChangePassword = false;
+      return wait(undefined, 300);
+    },
     getMe: () => wait(me),
     listInstitutions: () => wait(db),
     async createInstitution({ name, code, adminName, adminEmail }) {

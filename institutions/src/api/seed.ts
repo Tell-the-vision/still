@@ -28,7 +28,9 @@ const workspace: Workspace = { institutionName: "MMCA Seoul", institutionId: "ST
 // ?as=curator | reviewer | readonly (mock only) previews the screens with another role.
 const ROLE_PREVIEW: Record<string, MemberRole> = { curator: "CURATOR", reviewer: "REVIEWER", readonly: "READ_ONLY" };
 const previewRole = typeof window === "undefined" ? undefined : ROLE_PREVIEW[new URLSearchParams(window.location.search).get("as") ?? ""];
-const me: Me = { id: "me", name: "Curator Name", email: "curator@museum.example", role: previewRole ?? "INSTITUTION_ADMIN", canPublish: !previewRole };
+const me: Me = { id: "me", name: "Curator Name", email: "curator@museum.example", role: previewRole ?? "INSTITUTION_ADMIN", canPublish: !previewRole,
+  // ?mustChange (mock only) opens the temporary-password screen after sign-in.
+  mustChangePassword: typeof window !== "undefined" && new URLSearchParams(window.location.search).has("mustChange") };
 const settings = (): WorkspaceSettings => ({
   institutionName: workspace.institutionName,
   guideLanguage: "ko+en",

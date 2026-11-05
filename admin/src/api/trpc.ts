@@ -90,6 +90,7 @@ export function createTrpcApi(): PlatformApi {
   return {
     signIn: async (email, password) => toAdmin(await call("admin.session.create", { email, password })),
     signOut: () => call("session.delete"),
+    changePassword: (currentPassword, newPassword) => call("password.update", { currentPassword, newPassword }),
     getMe: async () => toAdmin(await call("me.get")),
     listInstitutions: async () => {
       const institutions: Institution[] = [];

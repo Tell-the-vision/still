@@ -155,6 +155,8 @@ export interface Me {
   email: string;
   role: MemberRole;
   canPublish: boolean; // granted per person; always true for INSTITUTION_ADMIN
+  /** Signed in with a temporary password: the server refuses everything but changePassword and signOut (SPEC §10.5). */
+  mustChangePassword: boolean;
 }
 
 export interface WorkspaceSettings {
@@ -225,6 +227,8 @@ export interface InstitutionsApi {
   getNotificationPrefs(): Promise<NotificationPrefs>;
   updateNotificationPrefs(patch: Partial<NotificationPrefs>): Promise<NotificationPrefs>;
   signOut(): Promise<void>;
+  /** Replaces the temporary password (SPEC §9.5 password.update). Wrong current or too-short new password throws BAD_REQUEST. */
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
   getWorkspaceSettings(): Promise<WorkspaceSettings>;
   updateWorkspaceSettings(patch: Partial<WorkspaceSettings>): Promise<WorkspaceSettings>;
   listVenues(): Promise<Venue[]>;

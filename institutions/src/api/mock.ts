@@ -82,6 +82,13 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       return wait(db.notifications);
     },
     async signOut() { signedIn = false; return wait(undefined, 300); },
+    async changePassword(currentPassword, newPassword) {
+      // Mock: any current password except "wrong" is accepted.
+      if (currentPassword === "wrong") { await wait(undefined, 300); throw new ApiError("The current password is incorrect.", "BAD_REQUEST"); }
+      if (newPassword.length < 12) throw new ApiError("The new password must be at least 12 characters.", "BAD_REQUEST");
+      db.me = { ...db.me, mustChangePassword: false };
+      return wait(undefined, 300);
+    },
     getWorkspaceSettings: () => wait(db.settings),
     async updateWorkspaceSettings(patch) {
       allow("manageWorkspace");
