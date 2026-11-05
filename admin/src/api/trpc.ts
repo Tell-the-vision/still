@@ -68,7 +68,7 @@ export function createTrpcApi(): PlatformApi {
     },
     // Not on the server yet (SPEC admin.institution.create / update, admin.account.*).
     createInstitution: (input) => call("platform.createInstitution", input),
-    setInstitutionStatus: (id, status) => call("platform.setInstitutionStatus", { id, status }),
+    setInstitutionStatus: async (id, status) => toInstitution(await call("admin.institution.update", { id, status })),
     resendInvite: (id) => call("platform.resendInvite", { id }),
   };
 }

@@ -1,11 +1,11 @@
+import { adminInstitutionGetInput, adminInstitutionListInput, adminInstitutionUpdateInput } from "@still/shared/admin";
 import { TRPCError } from "@trpc/server";
-import { and, eq, ilike, or, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { adminInstitutionGetInput, adminInstitutionListInput } from "@still/shared/admin";
 import { db } from "../../../db/client";
-import { institutions } from "../../../db/schema";
+import { institutions, userSessions, users } from "../../../db/schema";
 import { createdAtMs, displayStatusWhere, institutionRows } from "../../../services/admin/institution-rows";
-import { AppError, adminProcedure, router } from "../../init";
+import { adminProcedure, router } from "../../init";
 
 const DEFAULT_LIMIT = 20;
 
@@ -16,7 +16,7 @@ function decodeCursor(cursor: string) {
   try {
     return cursorSchema.parse(JSON.parse(Buffer.from(cursor, "base64url").toString()));
   } catch {
-    throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("CODE_INVALID") });
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid cursor" });
   }
 }
 
@@ -36,7 +36,7 @@ async function institutionCounts() {
   return row;
 }
 
-// admin.institution.* (SPEC §9.5, Figma A10 -> A9 기관 목록)
+// admin.institution.* (SPEC §9.2 기관 목록, §9.5, Figma A9)
 export const adminInstitutionRouter = router({
   list: adminProcedure.input(adminInstitutionListInput).query(async ({ input }) => {
     const limit = input.limit ?? DEFAULT_LIMIT;
@@ -59,6 +59,27 @@ export const adminInstitutionRouter = router({
   get: adminProcedure.input(adminInstitutionGetInput).query(async ({ input }) => {
     const [row] = await institutionRows({ where: eq(institutions.id, input.id), limit: 1 });
     if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+    return row;
+  }),
+
+  // Rename, suspend or reactivate, or set the daily analysis token limit (SPEC §9.2, §10.5).
+  // Suspending deletes the sessions of every user of the institution in the same transaction, so no
+  // request passes between the status change and the sign-out. Reactivating deletes nothing.
+  update: adminProcedure.input(adminInstitutionUpdateInput).mutation(async ({ input }) => {
+    const { id, ...changes } = input;
+    const found = await db.transaction(async (tx) => {
+      const changed = Object.values(changes).some((value) => value !== undefined);
+      const [row] = changed
+        ? await tx.update(institutions).set(changes).where(eq(institutions.id, id)).returning({ id: institutions.id })
+        : await tx.select({ id: institutions.id }).from(institutions).where(eq(institutions.id, id));
+      if (row && changes.status === "SUSPENDED") {
+        const staff = tx.select({ id: users.id }).from(users).where(eq(users.institutionId, id));
+        await tx.delete(userSessions).where(inArray(userSessions.userId, staff));
+      }
+      return row;
+    });
+    if (!found) throw new TRPCError({ code: "NOT_FOUND" });
+    const [row] = await institutionRows({ where: eq(institutions.id, id) });
     return row;
   }),
 });
