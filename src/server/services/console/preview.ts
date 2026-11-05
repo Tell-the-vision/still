@@ -1,6 +1,7 @@
 import { contentBlocks } from "../../../../shared/src/console-content";
 import { exhibitionDraft, type ExhibitionDraft } from "../../../../shared/src/console-draft";
 import type { StoredDocument } from "../../../../shared/src/document";
+import { stillDoc } from "../../../../shared/src/still-doc";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client";
@@ -137,6 +138,7 @@ export async function loadDraft(executor: Pick<typeof db, "select">, exhibitionI
     kind: c.kind as CompileContent["kind"],
     status: c.status as CompileContent["status"],
     blocks: contentBlocks.parse(c.blocks),
+    doc: stillDoc.parse(c.doc),
     fields: c.fields as CompileContent["fields"],
   }));
   const imageRows = await executor.select().from(images).where(eq(images.exhibitionId, exhibitionId));

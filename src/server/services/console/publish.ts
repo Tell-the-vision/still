@@ -6,7 +6,7 @@ import { db } from "../../db/client";
 import { contents, exhibitionPlaylists, exhibitions, guideSentences, images } from "../../db/schema";
 import { copyPrivateToPublic, deleteObject } from "../../media/r2";
 import { AppError } from "../../trpc/init";
-import { compileDraft } from "./compile";
+import { compileDraft, withScrapIds } from "./compile";
 import { exhibitionRows } from "./exhibition-rows";
 import { loadDraft, publicationChecks, type LoadedDraft } from "./preview";
 
@@ -49,9 +49,11 @@ function displayKeyOf(image: ImageRow): string {
 }
 
 // Gives every compiled sentence a guide_sentences row and writes the row's id into the content block
-// (the content's `revision` stays: this is not an edit). Returns the contents that were rewritten.
+// (or the scrap mark of `contents.doc`); the content's `revision` stays: this is not an edit.
+// Returns the contents as rewritten.
 async function storeSentences(tx: Tx, exhibitionId: string, loaded: LoadedDraft) {
-  const blocksByContent = new Map(loaded.contentRows.map((c) => [c.id, c.blocks]));
+  const rows = new Map(loaded.contentRows.map((c) => [c.id, c]));
+  const docIds = new Map<string, Map<number, string>>();
   for (const sentence of loaded.compiled.sentences) {
     const [existing] = sentence.guideSentenceId
       ? await tx
@@ -63,11 +65,21 @@ async function storeSentences(tx: Tx, exhibitionId: string, loaded: LoadedDraft)
     if (existing) continue;
 
     const [created] = await tx.insert(guideSentences).values({ exhibitionId, content: sentence.text }).returning({ id: guideSentences.id });
-    const blocks = blocksByContent.get(sentence.contentId)!.map((b): ContentBlock => (b.id === sentence.blockId && b.type === "sentence" ? { ...b, guideSentenceId: created.id } : b));
-    blocksByContent.set(sentence.contentId, blocks);
-    await tx.update(contents).set({ blocks }).where(eq(contents.id, sentence.contentId));
+    const content = rows.get(sentence.contentId)!;
+    if (sentence.docRun !== undefined) {
+      docIds.set(content.id, (docIds.get(content.id) ?? new Map()).set(sentence.docRun, created.id));
+    } else {
+      const blocks = content.blocks.map((b): ContentBlock => (b.id === sentence.blockId && b.type === "sentence" ? { ...b, guideSentenceId: created.id } : b));
+      rows.set(content.id, { ...content, blocks });
+      await tx.update(contents).set({ blocks }).where(eq(contents.id, content.id));
+    }
   }
-  return loaded.contentRows.map((c) => ({ ...c, blocks: blocksByContent.get(c.id)! }));
+  for (const [contentId, ids] of docIds) {
+    const doc = withScrapIds(rows.get(contentId)!.doc, ids);
+    rows.set(contentId, { ...rows.get(contentId)!, doc });
+    await tx.update(contents).set({ doc }).where(eq(contents.id, contentId));
+  }
+  return loaded.contentRows.map((c) => rows.get(c.id)!);
 }
 
 // Before commit: the live sentences are exactly the ones the stored guide references, each once.

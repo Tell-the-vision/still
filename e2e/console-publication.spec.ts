@@ -187,3 +187,34 @@ test("publishing the same draft twice keeps the sentence ids, and only a publish
   expect((await publish(page, exhibition)).status).toBe(200);
   expect(await liveSentences(exhibition.id)).toEqual(first);
 });
+
+test("publishing a doc-based content writes the sentence id into its scrap mark and keeps it on republish", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account);
+  const doc = {
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { id: "d1" }, content: [{ type: "text", text: "Before. " }, { type: "text", text: "Keep me.", marks: [{ type: "scrap", attrs: { sentenceId: null } }] }] }],
+  };
+  const [{ id: contentId }] = await e2eSql<{ id: string }>(
+    "INSERT INTO contents (exhibition_id, kind, status, blocks, doc, approved_at) VALUES ($1, 'OTHER', 'APPROVED', '[]', $2, now()) RETURNING id",
+    [exhibition.id, JSON.stringify(doc)],
+  );
+  const sections = [{ id: "a", kind: "CUSTOM", title: "Rooms", visible: true, contentIds: [contentId] }];
+  await e2eSql("UPDATE exhibitions SET draft = draft || $2::jsonb WHERE id = $1", [exhibition.id, JSON.stringify({ sections })]);
+  await signInConsole(page, account);
+
+  expect((await publish(page, exhibition)).status).toBe(200);
+  const markId = async () => {
+    const [{ doc: stored, revision }] = await e2eSql<{ doc: { content: { content: { marks?: { attrs: { sentenceId: string } }[] }[] }[] }; revision: string }>("SELECT doc, revision FROM contents WHERE id = $1", [contentId]);
+    return { id: stored.content[0].content[1].marks![0].attrs.sentenceId, revision };
+  };
+  const first = await markId();
+  expect(await liveSentences(exhibition.id)).toEqual([{ id: first.id, content: "Keep me." }]);
+  const [{ guide }] = await e2eSql<{ guide: { blocks: { type: string; sentenceId?: string }[] } }>("SELECT guide FROM exhibitions WHERE id = $1", [exhibition.id]);
+  expect(guide.blocks.filter((b) => b.type === "sentence")).toEqual([{ type: "sentence", sentenceId: first.id }]);
+
+  const [{ draft_revision: revision }] = await e2eSql<{ draft_revision: string }>("UPDATE exhibitions SET draft_revision = gen_random_uuid() WHERE id = $1 RETURNING draft_revision", [exhibition.id]);
+  expect((await publish(page, { ...exhibition, draftRevision: revision })).status).toBe(200);
+  expect(await markId()).toEqual(first);
+  expect(await liveSentences(exhibition.id)).toHaveLength(1);
+});

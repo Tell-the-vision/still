@@ -112,6 +112,29 @@ test("console.preview.get compiles description and guide from approved, visible 
   ]));
 });
 
+test("a doc-based content compiles to heading, paragraph, sentence and image blocks", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const { exhibition, image } = await seedScenario(account);
+  const doc = {
+    type: "doc",
+    content: [
+      { type: "heading", attrs: { id: "d1", level: 2 }, content: [{ type: "text", text: "Doc heading" }] },
+      { type: "paragraph", attrs: { id: "d2" }, content: [{ type: "text", text: "Plain start. " }, { type: "text", text: "Marked line.", marks: [{ type: "scrap", attrs: { sentenceId: null } }] }] },
+      { type: "stillImage", attrs: { id: "d3", imageId: image, display: "INLINE", caption: null } },
+    ],
+  };
+  const [{ id }] = await e2eSql<{ id: string }>(
+    "INSERT INTO contents (exhibition_id, kind, status, blocks, doc, approved_at) VALUES ($1, 'OTHER', 'APPROVED', '[]', $2, now()) RETURNING id",
+    [exhibition.id, JSON.stringify(doc)],
+  );
+  await setDraft(exhibition.id, { sections: [section("z", "CUSTOM", "Doc room", true, [id])] });
+  await signInConsole(page, account);
+  const got = await preview(page, exhibition.code);
+  expect(got.guide.blocks.map((b: { type: string; text?: string }) => [b.type, b.text])).toEqual([
+    ["heading", "Doc room"], ["heading", "Doc heading"], ["paragraph", "Plain start. "], ["sentence", "Marked line."], ["image", undefined],
+  ]);
+});
+
 test("an image without a public copy has no url in the preview", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const { exhibition, artwork } = await seedScenario(account);
