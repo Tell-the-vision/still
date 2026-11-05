@@ -1,5 +1,6 @@
 // In-memory InstitutionsApi for working without a backend. State resets on reload.
 import { approvalBlocker, blockingAssets, can, NO_PERMISSION, type Action } from "../rules";
+import { ApiError } from "./errors";
 import type { InstitutionsApi, ContentItem, Exhibition, Guide, PublicationCheck, ReviewStatus } from "./types";
 import { emptySeed, sampleSeed, type Seed } from "./seed";
 
@@ -9,6 +10,8 @@ const now = () => new Date().toISOString();
 
 export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
   const db: Seed = kind === "empty" ? emptySeed() : sampleSeed();
+  // Starts signed in so every screen opens directly; ?signedOut (or Sign out) shows the sign-in screen.
+  let signedIn = !new URLSearchParams(window.location.search).has("signedOut");
 
   const exhibition = (id: string) => {
     const e = db.exhibitions.find((x) => x.id === id);
@@ -47,7 +50,7 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
     );
   };
 
-  return {
+  const impl: InstitutionsApi = {
     getWorkspace: () => wait(db.workspace),
 
     async getWorkspaceSummary() {
@@ -57,6 +60,16 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       return wait({ attention, activity: [...db.activity].sort((a, b) => b.at.localeCompare(a.at)), memberCount: db.members.length });
     },
 
+    async signIn({ institutionId, email, password }) {
+      // Mock credentials: this workspace's institution ID, any member email, any password except "wrong".
+      const known = institutionId.trim().toUpperCase() === db.workspace.institutionId
+        && db.members.some((m) => m.email.toLowerCase() === email.trim().toLowerCase())
+        && password !== "wrong";
+      // One message for every mismatch, so the form never reveals which IDs or emails exist.
+      if (!known) { await wait(undefined, 400); throw new ApiError("Institution ID, email or password is incorrect.", "UNAUTHORIZED"); }
+      signedIn = true;
+      return wait(db.me, 400);
+    },
     getMe: () => wait(db.me),
     async updateMe(patch) {
       db.me = { ...db.me, ...patch };
@@ -68,7 +81,7 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       db.notifications = { ...db.notifications, ...patch };
       return wait(db.notifications);
     },
-    signOut: () => wait(undefined, 300),
+    async signOut() { signedIn = false; return wait(undefined, 300); },
     getWorkspaceSettings: () => wait(db.settings),
     async updateWorkspaceSettings(patch) {
       allow("manageWorkspace");
@@ -264,4 +277,13 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       return wait(db.guides[id], 300);
     },
   };
+
+  // Same as the server: every call needs a staff session except signIn (handoff 3, Figma 10).
+  return new Proxy(impl, {
+    get(target, key: keyof InstitutionsApi) {
+      const fn = target[key] as (...args: unknown[]) => Promise<unknown>;
+      if (key === "signIn") return fn;
+      return (...args: unknown[]) => (signedIn ? fn(...args) : Promise.reject(new ApiError("Sign in to continue.", "UNAUTHORIZED")));
+    },
+  });
 }

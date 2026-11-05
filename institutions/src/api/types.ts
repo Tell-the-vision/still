@@ -8,6 +8,7 @@ export type ISODateTime = string; // "2026-11-05T10:42:00Z"
 
 export interface Workspace {
   institutionName: string; // "MMCA Seoul"
+  institutionId: string; // "STL-MMCA-0002", issued by STILL platform admin; staff type it to sign in
   role: string; // "Curator"
 }
 
@@ -201,11 +202,23 @@ export interface WorkspaceSummary {
   memberCount: number;
 }
 
+/** Staff sign-in (Figma 10). Accounts are created by STILL (institution) and the institution admin (members); no self sign-up. */
+export interface SignInRequest {
+  institutionId: string;
+  email: string;
+  password: string;
+  /** Longer-lived session on this device (e.g. 30 days instead of until the browser closes). */
+  remember: boolean;
+}
+
 /** The one seam between screens and backend. Swap the implementation, not the screens. */
 export interface InstitutionsApi {
   getWorkspace(): Promise<Workspace>;
   getWorkspaceSummary(): Promise<WorkspaceSummary>;
 
+  /** Starts a staff session (httpOnly cookie set by the server). Wrong ID, email or password all give the same error. */
+  signIn(request: SignInRequest): Promise<Me>;
+  /** Throws UNAUTHORIZED without a staff session; the app then shows the sign-in screen. */
   getMe(): Promise<Me>;
   updateMe(patch: Pick<Me, "name">): Promise<Me>;
   getNotificationPrefs(): Promise<NotificationPrefs>;

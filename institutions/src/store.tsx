@@ -1,13 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type MediaAssetPatch, type Me, type ProcessingEvent,
-  type PublicationCheck, type PublicationDetails, type SourceFile, type Workspace,
+  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type MediaAssetPatch, type Me, type ProcessingEvent,
+  type PublicationCheck, type PublicationDetails, type SignInRequest, type SourceFile, type Workspace,
 } from "./api";
 import { can, type Action } from "./rules";
 
 // All screens read and write through here; this file only talks to `api`, never to sample data.
 
-type Status = "loading" | "ready" | "error";
+// "signed-out": no staff session (or it expired); the app shows /sign-in.
+type Status = "loading" | "ready" | "error" | "signed-out";
 
 interface ExhibitionData {
   files: SourceFile[];
@@ -34,20 +35,38 @@ function useWorkspaceState() {
   const queue = useRef<{ rowId: string; file: File; exhibitionId: string }[]>([]);
   const inFlight = useRef(new Map<string, AbortController>());
 
-  const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
+  // A call that finds the session gone (expired, or signed out elsewhere) sends the user back to sign-in.
+  const fail = (e: unknown) => {
+    if (isUnauthorized(e)) { resetSession(); return; }
+    setError(e instanceof Error ? e.message : String(e));
+  };
 
-  // Workspace + exhibition list
-  useEffect(() => {
-    Promise.all([api.getWorkspace(), api.listExhibitions(), api.getMe()])
-      .then(([w, list, user]) => {
-        setWorkspace(w);
-        setMe(user);
-        setExhibitions(list);
-        setCurrentId((id) => id ?? list.find((e) => e.status === "DRAFT")?.id ?? list[0]?.id ?? null);
-        setStatus("ready");
-      })
-      .catch((e) => { fail(e); setStatus("error"); });
+  // Workspace + exhibition list. Runs at start and again after signing in.
+  const loadWorkspace = useCallback(async () => {
+    setStatus("loading");
+    try {
+      const [w, list, user] = await Promise.all([api.getWorkspace(), api.listExhibitions(), api.getMe()]);
+      setWorkspace(w);
+      setMe(user);
+      setExhibitions(list);
+      setCurrentId((id) => id ?? list.find((e) => e.status === "DRAFT")?.id ?? list[0]?.id ?? null);
+      setStatus("ready");
+    } catch (e) {
+      if (isUnauthorized(e)) setStatus("signed-out");
+      else { fail(e); setStatus("error"); }
+    }
   }, []);
+  useEffect(() => { loadWorkspace(); }, [loadWorkspace]);
+
+  // Drops everything the previous user loaded, so nothing leaks to the next sign-in on this device.
+  const resetSession = () => {
+    queue.current = [];
+    inFlight.current.forEach((c) => c.abort());
+    inFlight.current.clear();
+    retryable.current.clear();
+    setWorkspace(null); setMe(null); setExhibitions([]); setCurrentId(null); setData(EMPTY); setLocalFiles([]);
+    setStatus("signed-out");
+  };
 
   const loadExhibitionData = useCallback(async (id: string) => {
     const [files, items, events, checks, guide] = await Promise.all([
@@ -158,7 +177,12 @@ function useWorkspaceState() {
     clearError: () => setError(null),
     reportError: fail,
     reloadWorkspace: () => api.getWorkspace().then(setWorkspace).catch(fail),
-    signOut: () => run(() => api.signOut()),
+    /** Errors stay on the form (not the app banner) and are rethrown for it. */
+    signIn: async (request: SignInRequest) => {
+      await api.signIn(request);
+      await loadWorkspace();
+    },
+    signOut: () => run(async () => { await api.signOut(); resetSession(); }),
     updateMe: (patch: Pick<Me, "name">) => run(async () => {
       const user = await api.updateMe(patch);
       setMe(user);
