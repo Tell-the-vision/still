@@ -1,23 +1,22 @@
-// InstitutionsApi over the existing `still` server (Next.js, tRPC at /api/trpc, no transformer = plain JSON).
-// Expects a future `institutions` router whose procedure names match the InstitutionsApi methods
-// (institutions.listFiles, institutions.updateContentItem, ...). See API.md for the list.
+// InstitutionsApi over the still server (Next.js, tRPC at /api/trpc, no transformer = plain JSON).
+// Calls with a full path ("console.session.create", "me.get") use the SPEC procedures (console.*, SPEC §9.5);
+// bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
-import type { InstitutionsApi } from "./types";
+import type { InstitutionsApi, Me, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
-async function call<T>(kind: "query" | "mutation", path: string, input?: unknown): Promise<T> {
-  // "institutions.*" unless a full router path is given (e.g. "session.delete").
+// Every call is a POST, queries included (the server allows method override): cookie requests must carry
+// Origin (SPEC §2.3), which browsers leave out of same-origin GETs. `x-client: console` makes shared
+// procedures (me.get, session.delete) use the institution console session.
+async function call<T>(path: string, input?: unknown): Promise<T> {
   const url = `${BASE}/api/trpc/${path.includes(".") ? path : `institutions.${path}`}`;
-  const res =
-    kind === "query"
-      ? await fetch(input === undefined ? url : `${url}?input=${encodeURIComponent(JSON.stringify(input))}`, { credentials: "include" })
-      : await fetch(url, {
-          method: "POST",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(input ?? null),
-        });
+  const res = await fetch(url, {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json", "x-client": "console" },
+    body: JSON.stringify(input ?? null),
+  });
   const body = await res.json().catch(() => null);
   if (!res.ok || body?.error) {
     const err = body?.error;
@@ -26,21 +25,35 @@ async function call<T>(kind: "query" | "mutation", path: string, input?: unknown
   return body.result.data as T;
 }
 
-const q = <T,>(path: string, input?: unknown) => call<T>("query", path, input);
-const m = <T,>(path: string, input?: unknown) => call<T>("mutation", path, input);
+// q for queries, m for mutations: the same request, named for what the screen does.
+const q = <T,>(path: string, input?: unknown) => call<T>(path, input);
+const m = <T,>(path: string, input?: unknown) => call<T>(path, input);
+
+// me.get for institution staff (SPEC §9.5).
+type StaffMe = {
+  id: string;
+  displayName: string | null;
+  email: string;
+  institution: { id: string; code: string; name: string };
+  mustChangePassword: boolean;
+};
+// Accounts in one institution have no permission differences (SPEC §9.2, 미결정 26), so everyone
+// gets the full workspace. The header shows the account name instead of a role (REVIEW §7-12).
+const toMe = (me: StaffMe): Me => ({ id: me.id, name: me.displayName ?? me.email, email: me.email, role: "INSTITUTION_ADMIN", canPublish: true });
+const toWorkspace = (me: StaffMe): Workspace => ({ institutionName: me.institution.name, institutionId: me.institution.code, role: me.displayName ?? me.email });
 
 export function createTrpcApi(): InstitutionsApi {
   return {
-    getWorkspace: () => q("getWorkspace"),
+    getWorkspace: async () => toWorkspace(await q<StaffMe>("me.get")),
 
     getWorkspaceSummary: () => q("getWorkspaceSummary"),
-    signIn: (request) => m("signIn", request),
-    getMe: () => q("getMe"),
+    signIn: async ({ institutionId, ...request }) => toMe(await m<StaffMe>("console.session.create", { institutionCode: institutionId, ...request })),
+    getMe: async () => toMe(await q<StaffMe>("me.get")),
     updateMe: (patch) => m("updateMe", patch),
     getNotificationPrefs: () => q("getNotificationPrefs"),
     updateNotificationPrefs: (patch) => m("updateNotificationPrefs", patch),
-    // Ends the staff session (separate from the visitor session.* procedures).
-    signOut: () => m("signOut"),
+    // Ends the console session only; a visitor sign-in in the same browser stays (SPEC §10.5).
+    signOut: () => m("session.delete"),
     getWorkspaceSettings: () => q("getWorkspaceSettings"),
     updateWorkspaceSettings: (patch) => m("updateWorkspaceSettings", patch),
     listVenues: () => q("listVenues"),

@@ -1,9 +1,10 @@
 import { TRPCError, initTRPC } from "@trpc/server";
 import { ZodError } from "zod";
 import type { AppCode } from "@still/shared/errors";
+import type { Session, StaffSurface } from "../auth/sessions";
 import { ipAllowed, userAllowed } from "../rate-limit";
 import { getConsent } from "../services/consent";
-import type { Context } from "./context";
+import type { Context, Surface } from "./context";
 
 export class AppError extends Error {
   constructor(public readonly appCode: AppCode) {
@@ -72,16 +73,55 @@ export const ipLimitedProcedure = clientProcedure.use(({ ctx, next }) => {
   return next();
 });
 
-// Requires a session; internal step of protectedProcedure so every signed-in call is counted against the per-user limit.
-const sessionProcedure = clientProcedure.use(async ({ ctx, next }) => {
-  const session = await ctx.getSession();
+// Each surface serves exactly one role; any other role is FORBIDDEN (SPEC §10.5).
+const ROLE_OF: Record<Surface, Session["role"]> = { visitor: "VISITOR", console: "INSTITUTION", admin: "ADMIN" };
+
+// The app a call comes from. The console and Admin send `x-client: console | admin` (SPEC §11.1 x-client);
+// anything else is the visitor app.
+export function surfaceOf(req: Request): Surface {
+  const client = req.headers.get("x-client");
+  return client === "console" || client === "admin" ? client : "visitor";
+}
+
+// A session of `surface` whose user has that surface's role. Every signed-in call counts against the per-user limit.
+function requireSession(surface: Surface, session: Session | null) {
   if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
-  return next({ ctx: { session } });
+  if (session.role !== ROLE_OF[surface]) throw new TRPCError({ code: "FORBIDDEN" });
+  if (!userAllowed(session.userId)) throw tooManyRequests();
+  return session;
+}
+
+// Visitor procedures (SPEC §10.5: Archive, Scrap, Journal, Keepsake, consent, settings, identity.*, me.delete).
+export const protectedProcedure = clientProcedure.use(async ({ ctx, next }) =>
+  next({ ctx: { session: requireSession("visitor", await ctx.getSession("visitor")) } }),
+);
+
+// me.get, session.delete and password.update serve every role; the calling app picks the session (SPEC §9.5).
+export const callerProcedure = clientProcedure.use(async ({ ctx, next }) => {
+  const surface = surfaceOf(ctx.req);
+  return next({ ctx: { surface, session: requireSession(surface, await ctx.getSession(surface)) } });
 });
 
-export const protectedProcedure = sessionProcedure.use(({ ctx, next }) => {
-  if (!userAllowed(ctx.session.userId)) throw tooManyRequests();
-  return next();
+// Staff with a temporary password may only read me.get, change it or sign out (SPEC §10.5 must_change_password).
+function staffProcedure(surface: StaffSurface) {
+  return clientProcedure.use(async ({ ctx, next }) => {
+    const session = requireSession(surface, await ctx.getSession(surface));
+    if (session.mustChangePassword) {
+      throw new TRPCError({ code: "FORBIDDEN", cause: new AppError("PASSWORD_CHANGE_REQUIRED") });
+    }
+    return next({ ctx: { session } });
+  });
+}
+
+// STILL Admin procedures (admin.*): operators only.
+export const adminProcedure = staffProcedure("admin");
+
+// Institution console procedures (console.*): scoped to the caller's own institution, which never
+// comes from input (SPEC §9.2 권한).
+export const consoleProcedure = staffProcedure("console").use(({ ctx, next }) => {
+  const institutionId = ctx.session.institutionId;
+  if (!institutionId) throw new TRPCError({ code: "FORBIDDEN" }); // the users CHECK makes this unreachable
+  return next({ ctx: { institutionId } });
 });
 
 // Procedures on personal data require agreement to the current policies (SPEC §2.2 Consent).

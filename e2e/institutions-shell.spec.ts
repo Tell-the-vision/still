@@ -1,14 +1,20 @@
 import { expect, test } from "next/experimental/testmode/playwright";
+import { seedInstitutionAccount, signInConsole } from "./support/staff";
 
 // The museum staff app lives under /institutions as its own bundle. These tests prove it is
-// reachable and stays separate from the visitor app. The institutions.* server procedures do
-// not exist yet, so only the shell (header + sidebar) is asserted here.
+// reachable and stays separate from the visitor app. Most console.* procedures do not exist
+// yet, so only the shell (header + sidebar) is asserted here.
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-test("/institutions opens the museum workspace shell and is marked noindex", async ({ page }) => {
+test("/institutions opens the museum workspace shell for signed-in staff and is marked noindex", async ({ page }) => {
   const response = await page.goto("/institutions");
   expect(response?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+  // No console session: the sign-in screen (SPEC §10.5).
+  await expect(page).toHaveURL(/\/institutions\/sign-in$/);
+
+  await signInConsole(page, await seedInstitutionAccount());
+  await page.goto("/institutions");
   await expect(page).toHaveURL(/\/institutions\/overview$/);
   await expect(page.getByText("Museum workspace", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Published exhibitions" })).toBeVisible();
@@ -16,6 +22,7 @@ test("/institutions opens the museum workspace shell and is marked noindex", asy
 });
 
 test("institutions deep links load the institutions app, and the sidebar labels navigate", async ({ page }) => {
+  await signInConsole(page, await seedInstitutionAccount());
   await page.goto("/institutions/exhibitions");
   await expect(page.getByText("Museum workspace", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Workspace", exact: true }).click();

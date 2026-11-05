@@ -1,8 +1,8 @@
 import { TRPCError } from "@trpc/server";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { decryptToken } from "../auth/token-crypto";
-import { userTokens, users } from "../db/schema";
+import { institutions, userTokens, users } from "../db/schema";
 import type { Session } from "../trpc/context";
 
 // Profile comes from the identity the session signed in with, else the oldest one (SPEC §2.2).
@@ -21,6 +21,29 @@ export async function getMe(session: Pick<Session, "userId" | "userTokenId">) {
     email: identity.email,
     provider: identity.provider,
     createdAt: user.createdAt.toISOString(),
+  };
+}
+
+// Institution staff and operators also get their role, institution and whether the temporary
+// password still has to be changed (SPEC §9.5 me.get).
+export async function getStaffMe(session: Pick<Session, "userId">) {
+  const [row] = await db
+    .select({ user: users, identity: userTokens, institution: institutions })
+    .from(users)
+    .innerJoin(userTokens, and(eq(userTokens.userId, users.id), eq(userTokens.provider, "PASSWORD")))
+    .leftJoin(institutions, eq(institutions.id, users.institutionId))
+    .where(eq(users.id, session.userId));
+  if (!row) throw new TRPCError({ code: "UNAUTHORIZED" });
+  const { user, identity, institution } = row;
+  return {
+    id: user.id,
+    displayName: identity.displayName,
+    email: identity.email,
+    provider: identity.provider,
+    createdAt: user.createdAt.toISOString(),
+    role: user.role as "INSTITUTION" | "ADMIN",
+    institution: institution && { id: institution.id, code: institution.code, name: institution.name },
+    mustChangePassword: identity.mustChangePassword,
   };
 }
 

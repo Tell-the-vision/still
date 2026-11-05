@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, isUnauthorized, type PlatformAdmin } from "./api";
 
-// TEMPORARY staff sign-in state for the platform admin app (see pages/SignIn.tsx).
+// Operator sign-in state for the platform admin app (see pages/SignIn.tsx).
 // "error": the server could not be reached or has no platform.* yet; the shell still shows, pages report it.
 type Status = "loading" | "ready" | "signed-out" | "error";
 
@@ -22,7 +22,7 @@ function useAuthState() {
 
   return {
     status, me,
-    signIn: async () => { setMe(await api.signInWithGoogle()); setStatus("ready"); },
+    signIn: async (email: string, password: string) => { setMe(await api.signIn(email, password)); setStatus("ready"); },
     signOut: async () => { await api.signOut(); setMe(null); setStatus("signed-out"); },
   };
 }

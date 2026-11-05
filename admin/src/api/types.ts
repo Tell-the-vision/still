@@ -27,14 +27,16 @@ export interface NewInstitution {
 
 export interface PlatformAdmin {
   email: string;
+  /** "SUPER ADMIN" in the header is just the ADMIN role; operators have no grades (SPEC §9.2). */
   role: "SUPER_ADMIN";
+  /** Signed in with a temporary password that must be changed before anything else (SPEC §10.5). */
+  mustChangePassword: boolean;
 }
 
 /** The one seam between screens and backend. */
 export interface PlatformApi {
-  /** TEMPORARY: STILL staff sign in with their STILL Google account (server checks domain + allow-list).
-   *  Server mode leaves the page for the Google flow; the mock signs in at once. */
-  signInWithGoogle(): Promise<PlatformAdmin>;
+  /** Operators sign in with the email and password STILL Admin issued them (SPEC §9.2, admin.session.create). */
+  signIn(email: string, password: string): Promise<PlatformAdmin>;
   signOut(): Promise<void>;
   /** Throws UNAUTHORIZED without a STILL staff session. */
   getMe(): Promise<PlatformAdmin>;

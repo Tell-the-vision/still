@@ -1,14 +1,20 @@
 import { expect, test } from "next/experimental/testmode/playwright";
+import { seedOperator, signInAdmin } from "./support/staff";
 
 // The STILL platform admin app lives under /admin as its own bundle. These tests prove it is
 // reachable, marked noindex and stays separate from the visitor and museum staff apps. The
-// platform.* server procedures do not exist yet, so only the shell is asserted here.
+// admin.institution.* procedures do not exist yet, so only the shell is asserted here.
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-test("/admin opens the platform admin shell and is marked noindex", async ({ page }) => {
+test("/admin opens the platform admin shell for a signed-in operator and is marked noindex", async ({ page }) => {
   const response = await page.goto("/admin");
   expect(response?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+  // No STILL Admin session: the sign-in screen (SPEC §10.5).
+  await expect(page).toHaveURL(/\/admin\/sign-in$/);
+
+  await signInAdmin(page, await seedOperator());
+  await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/institutions$/);
   await expect(page.getByRole("heading", { name: "Institutions" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Audit log" })).toBeVisible();

@@ -36,7 +36,7 @@ const SEED: [name: string, code: string, email: string, status: InstitutionStatu
 export function createMockApi(): PlatformApi {
   // Starts signed in so the screens open directly; ?signedOut (or Sign out) shows the temporary sign-in screen.
   let signedIn = !new URLSearchParams(window.location.search).has("signedOut");
-  const me = { email: "admin@still.app", role: "SUPER_ADMIN" as const };
+  const me = { email: "admin@still.app", role: "SUPER_ADMIN" as const, mustChangePassword: false };
   const db: Institution[] = SEED.map(([name, code, adminEmail, status, created, last], i) => ({
     id: `inst-${i + 1}`,
     publicId: `STL-${code}-${String(i + 1).padStart(4, "0")}`,
@@ -51,7 +51,12 @@ export function createMockApi(): PlatformApi {
   };
 
   const impl: PlatformApi = {
-    async signInWithGoogle() { signedIn = true; return wait(me, 400); },
+    async signIn(email, password) {
+      // Mock credentials: any email, any password except "wrong".
+      if (!email.trim() || password === "wrong") { await wait(undefined, 400); throw new ApiError("Email or password is incorrect.", "UNAUTHORIZED"); }
+      signedIn = true;
+      return wait(me, 400);
+    },
     async signOut() { signedIn = false; return wait(undefined, 200); },
     getMe: () => wait(me),
     listInstitutions: () => wait(db),
@@ -88,7 +93,7 @@ export function createMockApi(): PlatformApi {
   return new Proxy(impl, {
     get(target, key: keyof PlatformApi) {
       const fn = target[key] as (...args: unknown[]) => Promise<unknown>;
-      if (key === "signInWithGoogle") return fn;
+      if (key === "signIn") return fn;
       return (...args: unknown[]) => (signedIn ? fn(...args) : Promise.reject(new ApiError("Sign in to continue.", "UNAUTHORIZED")));
     },
   });
