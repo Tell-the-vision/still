@@ -25,8 +25,8 @@ export interface Exhibition {
   updatedAt: ISODateTime;
 }
 
-// Handoff 5: queued → uploading → uploaded → processing → processed / failed.
-export type FileStatus = "UPLOADING" | "UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED";
+// Handoff 4.1 / 5: queued → uploading → uploaded → processing → processed / failed (or canceled before upload finished).
+export type FileStatus = "QUEUED" | "UPLOADING" | "UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED" | "CANCELED";
 export interface SourceFile {
   id: string;
   name: string;
@@ -36,6 +36,12 @@ export interface SourceFile {
   uploadedAt: ISODateTime;
   status: FileStatus;
   error: string | null; // why it failed, shown on the row
+  /** Client only: upload progress 0–100 while UPLOADING. */
+  progress?: number;
+}
+export interface UploadOptions {
+  onProgress?: (percent: number) => void;
+  signal?: AbortSignal;
 }
 
 // Handoff 5: extracted → in_review → approved / rejected. Only APPROVED items reach the visitor guide.
@@ -114,6 +120,8 @@ export interface GuideSection {
   summary: string; // "Published · 3 blocks"
   visible: boolean;
   intro: string;
+  /** Content items shown in this section, in order. Only APPROVED items reach visitors (handoff 4.4). */
+  itemIds: string[];
 }
 export interface ThemeCard {
   id: string;
@@ -217,9 +225,13 @@ export interface ConsoleApi {
   createExhibition(): Promise<Exhibition>;
   updateExhibition(id: string, patch: Partial<PublicationDetails>): Promise<Exhibition>;
   publishExhibition(id: string): Promise<Exhibition>;
+  /** Takes a live guide offline (status back to DRAFT). */
+  unpublishExhibition(id: string): Promise<Exhibition>;
+  /** New DRAFT exhibition with the same details and guide structure, no files. */
+  duplicateExhibition(id: string): Promise<Exhibition>;
 
   listFiles(exhibitionId: string): Promise<SourceFile[]>;
-  uploadFile(exhibitionId: string, file: File): Promise<SourceFile>;
+  uploadFile(exhibitionId: string, file: File, options?: UploadOptions): Promise<SourceFile>;
   deleteFile(exhibitionId: string, fileId: string): Promise<void>;
   startAnalysis(exhibitionId: string): Promise<void>;
   listProcessingEvents(exhibitionId: string): Promise<ProcessingEvent[]>;
@@ -236,6 +248,10 @@ export interface ConsoleApi {
   restoreContentItem(itemId: string): Promise<ContentItem>;
   /** "Keep both": clears duplicateOf. */
   dismissDuplicate(itemId: string): Promise<ContentItem>;
+  /** Merge a duplicate into the item it copies: `keep` picks whose text survives; the duplicate is removed (restorable). */
+  mergeContentItems(itemId: string, intoId: string, keep: "this" | "into"): Promise<ContentItem[]>;
+  /** Split one item in two at a character offset of its text. Returns both items. */
+  splitContentItem(itemId: string, at: number): Promise<ContentItem[]>;
   /** Edits one asset's rights record; returns the parent item. */
   updateMediaAsset(itemId: string, assetId: string, patch: MediaAssetPatch): Promise<ContentItem>;
 

@@ -59,19 +59,27 @@ export function createTrpcApi(): ConsoleApi {
     createExhibition: () => m("createExhibition"),
     updateExhibition: (id, patch) => m("updateExhibition", { id, ...patch }),
     publishExhibition: (id) => m("publishExhibition", { id }),
+    unpublishExhibition: (id) => m("unpublishExhibition", { id }),
+    duplicateExhibition: (id) => m("duplicateExhibition", { id }),
 
     listFiles: (exhibitionId) => q("listFiles", { exhibitionId }),
     // tRPC carries JSON only. Files go to a plain upload route (or a presigned URL, like media uploads).
-    async uploadFile(exhibitionId, file) {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch(`${BASE}/api/console/exhibitions/${encodeURIComponent(exhibitionId)}/files`, {
-        method: "POST",
-        credentials: "include",
-        body: form,
+    // XMLHttpRequest instead of fetch: fetch cannot report upload progress.
+    uploadFile(exhibitionId, file, options) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${BASE}/api/console/exhibitions/${encodeURIComponent(exhibitionId)}/files`);
+        xhr.withCredentials = true;
+        xhr.responseType = "json";
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) options?.onProgress?.(Math.round((e.loaded / e.total) * 100)); };
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve(xhr.response) : reject(new ApiError(`Upload failed (HTTP ${xhr.status})`)));
+        xhr.onerror = () => reject(new ApiError("Upload interrupted"));
+        xhr.onabort = () => reject(new DOMException("Upload canceled", "AbortError"));
+        options?.signal?.addEventListener("abort", () => xhr.abort());
+        const form = new FormData();
+        form.append("file", file);
+        xhr.send(form);
       });
-      if (!res.ok) throw new ApiError(`Upload failed (HTTP ${res.status})`);
-      return res.json();
     },
     deleteFile: (exhibitionId, fileId) => m("deleteFile", { exhibitionId, fileId }),
     startAnalysis: (exhibitionId) => m("startAnalysis", { exhibitionId }),
@@ -86,6 +94,8 @@ export function createTrpcApi(): ConsoleApi {
     restoreContentItem: (itemId) => m("restoreContentItem", { itemId }),
     dismissDuplicate: (itemId) => m("dismissDuplicate", { itemId }),
     updateMediaAsset: (itemId, assetId, patch) => m("updateMediaAsset", { itemId, assetId, ...patch }),
+    mergeContentItems: (itemId, intoId, keep) => m("mergeContentItems", { itemId, intoId, keep }),
+    splitContentItem: (itemId, at) => m("splitContentItem", { itemId, at }),
 
     listPublicationChecks: (exhibitionId) => q("listPublicationChecks", { exhibitionId }),
 

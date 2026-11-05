@@ -30,6 +30,9 @@ function useWorkspaceState() {
   // Rows that are not on the server yet: uploading, or failed (unsupported, too big, interrupted).
   const [localFiles, setLocalFiles] = useState<SourceFile[]>([]);
   const retryable = useRef(new Map<string, File>());
+  // Upload queue (handoff 4.1): a few files at a time, the rest wait as QUEUED and can be canceled.
+  const queue = useRef<{ rowId: string; file: File; exhibitionId: string }[]>([]);
+  const inFlight = useRef(new Map<string, AbortController>());
 
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
 
@@ -63,6 +66,8 @@ function useWorkspaceState() {
 
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;
   const replaceExhibition = (e: Exhibition) => setExhibitions((list) => list.map((x) => (x.id === e.id ? e : x)));
+  // Approved items in the current exhibition, for the guide's section picker.
+  const approvedItems = useMemo(() => data.items.filter((i) => !i.removed && i.reviewStatus === "APPROVED"), [data.items]);
 
   // Entry counts by review status. Removed items are kept for Restore but never counted with the rest.
   const counts = useMemo(() => {
@@ -86,23 +91,60 @@ function useWorkspaceState() {
     }
   };
 
-  const localRow = (file: File, id: string): SourceFile => ({
+  const MAX_PARALLEL_UPLOADS = 2;
+  const newRowId = () => `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  // Same as applyItem for mutations that change or add several items (merge, split).
+  const applyItems = async (fn: () => Promise<ContentItem[]>) => {
+    const changed = await fn();
+    setData((d) => {
+      const byId = new Map(changed.map((i) => [i.id, i]));
+      const kept = d.items.map((i) => byId.get(i.id) ?? i);
+      const added = changed.filter((i) => !d.items.some((x) => x.id === i.id));
+      // Server renumbers `order`, so re-read the list to keep source order right.
+      return { ...d, items: [...kept, ...added] };
+    });
+    if (currentId) {
+      const [items, checks] = await Promise.all([api.listContentItems(currentId), api.listPublicationChecks(currentId)]);
+      setData((d) => ({ ...d, items, checks }));
+    }
+    return changed;
+  };
+
+  const localRow = (file: File, id: string, status: SourceFile["status"]): SourceFile => ({
     id, name: file.name, format: file.name.split(".").pop()?.toUpperCase() ?? "FILE", summary: null,
-    sizeBytes: file.size, uploadedAt: new Date().toISOString(), status: "UPLOADING", error: null,
+    sizeBytes: file.size, uploadedAt: new Date().toISOString(), status, error: null, progress: 0,
   });
-  const uploadOne = async (file: File, rowId: string) => {
-    if (!currentId) return;
-    setLocalFiles((l) => [...l.filter((r) => r.id !== rowId), localRow(file, rowId)]);
+  const patchRow = (rowId: string, patch: Partial<SourceFile>) =>
+    setLocalFiles((l) => l.map((r) => (r.id === rowId ? { ...r, ...patch } : r)));
+
+  const pump = () => {
+    while (inFlight.current.size < MAX_PARALLEL_UPLOADS && queue.current.length) {
+      const job = queue.current.shift()!;
+      void start(job);
+    }
+  };
+  const start = async ({ rowId, file, exhibitionId }: { rowId: string; file: File; exhibitionId: string }) => {
+    const controller = new AbortController();
+    inFlight.current.set(rowId, controller);
+    patchRow(rowId, { status: "UPLOADING", progress: 0, error: null });
     try {
-      const saved = await api.uploadFile(currentId, file);
+      const saved = await api.uploadFile(exhibitionId, file, { signal: controller.signal, onProgress: (progress) => patchRow(rowId, { progress }) });
       retryable.current.delete(rowId);
       setLocalFiles((l) => l.filter((r) => r.id !== rowId));
       setData((d) => ({ ...d, files: [...d.files, saved] }));
     } catch (e) {
       retryable.current.set(rowId, file);
-      const error = e instanceof Error ? e.message : String(e);
-      setLocalFiles((l) => l.map((r) => (r.id === rowId ? { ...r, status: "FAILED", error } : r)));
+      const canceled = e instanceof DOMException && e.name === "AbortError";
+      patchRow(rowId, canceled ? { status: "CANCELED", error: null } : { status: "FAILED", error: e instanceof Error ? e.message : String(e) });
+    } finally {
+      inFlight.current.delete(rowId);
+      pump();
     }
+  };
+  const enqueue = (rowId: string, file: File) => {
+    if (!currentId) return;
+    queue.current.push({ rowId, file, exhibitionId: currentId });
+    pump();
   };
 
   // Wraps a mutation: clears the old error, reports a new one, rethrows so callers can stop.
@@ -137,16 +179,38 @@ function useWorkspaceState() {
       if (!currentId) return;
       replaceExhibition(await api.publishExhibition(currentId));
     }),
+    unpublishExhibition: (id: string) => run(async () => replaceExhibition(await api.unpublishExhibition(id))),
+    duplicateExhibition: (id: string) => run(async () => {
+      const copy = await api.duplicateExhibition(id);
+      setExhibitions((list) => [copy, ...list]);
+      return copy;
+    }),
 
-    /** Uploads each file on its own: one failure never discards the others (handoff 12). */
-    uploadFiles: (files: File[]) => Promise.all(files.map((f) => uploadOne(f, `local-${Date.now()}-${Math.random().toString(36).slice(2)}`))),
+    /** Queues each file on its own: one failure never discards the others (handoff 12). */
+    uploadFiles: (files: File[]) => {
+      const rows = files.map((f) => ({ file: f, rowId: newRowId() }));
+      setLocalFiles((l) => [...l, ...rows.map(({ file, rowId }) => localRow(file, rowId, "QUEUED"))]);
+      rows.forEach(({ file, rowId }) => enqueue(rowId, file));
+    },
     /** Files refused before upload (unsupported type, too big) still get a row that says why (handoff 9). */
     rejectFiles: (rows: { file: File; reason: string }[]) =>
-      setLocalFiles((l) => [...l, ...rows.map(({ file, reason }) => ({ ...localRow(file, `local-${Date.now()}-${Math.random().toString(36).slice(2)}`), status: "FAILED" as const, error: reason }))]),
+      setLocalFiles((l) => [...l, ...rows.map(({ file, reason }) => ({ ...localRow(file, newRowId(), "FAILED"), error: reason }))]),
     canRetry: (rowId: string) => retryable.current.has(rowId),
     retryUpload: (rowId: string) => {
       const file = retryable.current.get(rowId);
-      return file ? uploadOne(file, rowId) : Promise.resolve();
+      if (!file) return;
+      patchRow(rowId, { status: "QUEUED", error: null, progress: 0 });
+      enqueue(rowId, file);
+    },
+    cancelUpload: (rowId: string) => {
+      const queued = queue.current.find((j) => j.rowId === rowId);
+      if (queued) {
+        queue.current = queue.current.filter((j) => j.rowId !== rowId);
+        retryable.current.set(rowId, queued.file);
+        patchRow(rowId, { status: "CANCELED" });
+      } else {
+        inFlight.current.get(rowId)?.abort();
+      }
     },
     dismissLocalFile: (rowId: string) => {
       retryable.current.delete(rowId);
@@ -171,6 +235,8 @@ function useWorkspaceState() {
     removeItem: (itemId: string) => run(() => applyItem(itemId, () => api.removeContentItem(itemId))),
     restoreItem: (itemId: string) => run(() => applyItem(itemId, () => api.restoreContentItem(itemId))),
     dismissDuplicate: (itemId: string) => run(() => applyItem(itemId, () => api.dismissDuplicate(itemId))),
+    mergeItems: (itemId: string, intoId: string, keep: "this" | "into") => run(() => applyItems(() => api.mergeContentItems(itemId, intoId, keep))),
+    splitItem: (itemId: string, at: number) => run(() => applyItems(() => api.splitContentItem(itemId, at))),
 
     saveGuide: (guide: Pick<Guide, "sections" | "themes">) => run(async () => {
       if (!currentId) return;
@@ -186,7 +252,7 @@ function useWorkspaceState() {
 
   return {
     status, dataStatus, error, workspace, me, exhibitions, exhibition, counts,
-    files: [...data.files, ...localFiles], items: data.items,
+    files: [...data.files, ...localFiles], items: data.items, approvedItems,
     can: (action: Action) => can(me, action), events: data.events, checks: data.checks, guide: data.guide,
     ...actions,
   };
