@@ -210,8 +210,8 @@ export const consoleDocumentRouter = router({
 
       await tx.delete(documents).where(eq(documents.id, input.id));
       // Queued in this transaction (SPEC §10.11): the jobs exist exactly when the rows are gone.
-      const keys = doomed.flatMap((d) => [d.objectKey, d.manifestObjectKey]).filter((key): key is string => key !== null);
-      await enqueueStorageDeletes(boss, tx, keys.map((key) => ({ bucket: "private", key })));
+      // Everything under each document's prefix goes: the original, its manifests, assets and page renders.
+      await enqueueStorageDeletes(boss, tx, doomed.map((d) => ({ bucket: "private" as const, prefix: documentPrefix(ctx.institutionId, exhibitionId, d.id) })));
     });
     return { id: input.id };
   }),
@@ -247,6 +247,8 @@ async function recordManifest(institutionId: string, id: string, name: string) {
     if (locked.status !== doc.status || locked.manifestObjectKey !== doc.manifestObjectKey) throw new TRPCError({ code: "CONFLICT", message: "The document changed meanwhile." });
 
     if (!checked) {
+      // A re-extraction that fails validation keeps the current extraction; only a first one fails the document.
+      if (doc.status === "EXTRACTED") throw new TRPCError({ code: "BAD_REQUEST", message: "The new manifest is invalid; the current extraction stays." });
       await tx.update(documents).set({ status: "FAILED", errorCode: "MANIFEST_INVALID", manifestObjectKey: null }).where(eq(documents.id, id));
       return;
     }
@@ -288,7 +290,9 @@ async function assertUnreferenced(
   const imageIds = new Set(theirImages.map((i) => i.id));
   const draftCover = (exhibition.draft as { coverImageId?: string | null }).coverImageId;
   const coverIsTheirs = [exhibition.coverImageId, draftCover].some((cover) => cover && imageIds.has(cover));
-  const items = await tx.select({ blocks: contents.blocks, fields: contents.fields }).from(contents).where(eq(contents.exhibitionId, exhibitionId));
+  // doc (stillImage imageIds) and sources ("{documentId}:…" refs) are where analysis and the editor write;
+  // blocks and fields are the legacy columns.
+  const items = await tx.select({ blocks: contents.blocks, fields: contents.fields, doc: contents.doc, sources: contents.sources }).from(contents).where(eq(contents.exhibitionId, exhibitionId));
   const refersToThem = (value: string) => imageIds.has(value) || documentIds.some((id) => value.startsWith(`${id}:`));
   if (coverIsTheirs || items.some((item) => stringsIn(item).some(refersToThem))) {
     throw new TRPCError({ code: "CONFLICT", cause: new AppError("DOCUMENT_IN_USE") });
