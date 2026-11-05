@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   char,
   check,
@@ -11,6 +12,7 @@ import {
   jsonb,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -32,7 +34,23 @@ export const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
 export const codeCheck = (name: string, column: AnyPgColumn) =>
   check(name, sql`${column} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`);
 
-export const users = pgTable('users', { id: id(), createdAt: createdAt() });
+// Visitors, institution staff and STILL operators are all users, split by role (SPEC §10.2, §10.5).
+export const users = pgTable(
+  'users',
+  {
+    id: id(),
+    role: text().notNull(),
+    institutionId: uuid().references((): AnyPgColumn => institutions.id, { onDelete: 'restrict' }),
+    status: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('users_role_check', sql`${t.role} IN ('VISITOR', 'INSTITUTION', 'ADMIN')`),
+    check('users_status_check', sql`${t.status} IN ('ACTIVE', 'SUSPENDED')`),
+    check('users_institution_role_check', sql`(${t.role} = 'INSTITUTION') = (${t.institutionId} IS NOT NULL)`),
+    index().on(t.institutionId),
+  ],
+);
 
 export const userTokens = pgTable(
   'user_tokens',
@@ -44,13 +62,25 @@ export const userTokens = pgTable(
     email: text(),
     displayName: text(),
     refreshTokenCiphertext: bytea(),
+    // PASSWORD identities only (institution staff and operators, SPEC §10.5).
+    passwordHash: text(),
+    mustChangePassword: boolean().notNull().default(false),
+    failedLoginCount: smallint().notNull().default(0),
+    lockedUntil: timestamptz(),
+    lastLoginAt: timestamptz(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     unique().on(t.provider, t.subject),
     index().on(t.userId, t.createdAt, t.id),
-    check('user_tokens_provider_check', sql`${t.provider} IN ('GOOGLE')`),
+    check('user_tokens_provider_check', sql`${t.provider} IN ('GOOGLE', 'PASSWORD')`),
+    check('user_tokens_password_hash_check', sql`(${t.provider} = 'PASSWORD') = (${t.passwordHash} IS NOT NULL)`),
+    check('user_tokens_refresh_token_google_only', sql`${t.provider} = 'GOOGLE' OR ${t.refreshTokenCiphertext} IS NULL`),
+    check(
+      'user_tokens_password_subject_check',
+      sql`${t.provider} <> 'PASSWORD' OR (${t.subject} = lower(${t.subject}) AND ${t.subject} ~ '^[^@\\s]+@[^@\\s]+$')`,
+    ),
   ],
 );
 
@@ -100,16 +130,23 @@ export const userConsents = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.termsVersion, t.privacyVersion] })],
 );
 
+// code is the institution ID staff type to sign in, e.g. STL-SEO-0001 (SPEC §10.3, Figma A9/A10).
 export const institutions = pgTable(
   'institutions',
   {
     id: id(),
     code: text().notNull().unique(),
+    status: text().notNull().default('ACTIVE'),
     name: text().notNull(),
+    analysisDailyTokenLimit: bigint({ mode: 'number' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [codeCheck('institutions_code_check', t.code)],
+  (t) => [
+    check('institutions_code_check', sql`${t.code} ~ '^[A-Z0-9]+(-[A-Z0-9]+)*$'`),
+    check('institutions_status_check', sql`${t.status} IN ('ACTIVE', 'SUSPENDED')`),
+    check('institutions_analysis_daily_token_limit_check', sql`${t.analysisDailyTokenLimit} > 0`),
+  ],
 );
 
 export const venues = pgTable(
@@ -262,6 +299,7 @@ export const digitalKeepsakes = pgTable('digital_keepsakes', {
 });
 
 export const usersRelations = relations(users, ({ one, many }) => ({
+  institution: one(institutions, { fields: [users.institutionId], references: [institutions.id] }),
   tokens: many(userTokens),
   sessions: many(userSessions),
   settings: one(userSettings),
@@ -278,7 +316,7 @@ export const userSessionsRelations = relations(userSessions, ({ one }) => ({
 }));
 export const userSettingsRelations = relations(userSettings, ({ one }) => ({ user: one(users, { fields: [userSettings.userId], references: [users.id] }) }));
 export const userConsentsRelations = relations(userConsents, ({ one }) => ({ user: one(users, { fields: [userConsents.userId], references: [users.id] }) }));
-export const institutionsRelations = relations(institutions, ({ many }) => ({ exhibitions: many(exhibitions) }));
+export const institutionsRelations = relations(institutions, ({ many }) => ({ exhibitions: many(exhibitions), users: many(users) }));
 export const venuesRelations = relations(venues, ({ many }) => ({ exhibitions: many(exhibitions) }));
 export const exhibitionsRelations = relations(exhibitions, ({ one, many }) => ({
   institution: one(institutions, { fields: [exhibitions.institutionId], references: [institutions.id] }),

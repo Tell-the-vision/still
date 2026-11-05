@@ -61,7 +61,7 @@ const exhibition = (
 };
 
 export const defaultPackage: ContentPackage = {
-  institution: { code: "still-museum", name: "Still Museum" },
+  institution: { code: "STILL-MUSEUM", name: "Still Museum" },
   venues: [
     { code: "seoul-hall", name: "Seoul Hall", city: "Seoul" },
     { code: "busan-gallery", name: "Busan Gallery", city: "Busan" },

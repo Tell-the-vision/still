@@ -1,7 +1,7 @@
 import type { ContentPackage } from "../../src/server/db/seed/content";
 
 const pkg: ContentPackage = {
-  institution: { code: "still-museum", name: "Still Museum" },
+  institution: { code: "STILL-MUSEUM", name: "Still Museum" },
   venues: [{ code: "seoul-hall", name: "Seoul Hall", city: "Seoul" }],
   exhibitions: [
     {

@@ -6,7 +6,7 @@ import type { ContentPackage } from "../content";
 // They start on 2026-01-01 so Home (newest start first) lists the Figma demo exhibitions before them.
 const pkg: ContentPackage = {
   "institution": {
-    "code": "still-museum",
+    "code": "STILL-MUSEUM",
     "name": "Still Museum"
   },
   "venues": [
