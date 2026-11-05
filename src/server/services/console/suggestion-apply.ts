@@ -63,25 +63,28 @@ const edits: Record<string, Edit> = {
   TEXT_EXTRACTION_FIX: onChars((old, p) => {
     const text = str(p.text);
     if (!text) return null;
-    const chars: Char[] = [...text].map((ch) => ({ ch, mark: undefined }));
-    // Each old scrap-marked stretch is found again by its text.
-    for (let a = 0; a < old.length; ) {
-      if (!old[a].mark) { a++; continue; }
-      let b = a;
-      while (b < old.length && JSON.stringify(old[b].mark) === JSON.stringify(old[a].mark)) b++;
-      const at = [...text].join("").indexOf(old.slice(a, b).map((c) => c.ch).join(""));
-      if (at >= 0) for (let k = 0; k < b - a; k++) chars[[...text.slice(0, at)].length + k].mark = old[a].mark;
-      a = b;
-    }
-    return chars;
+    // Characters outside the changed stretch keep their marks. The changed stretch takes the mark around it,
+    // so a fix inside a scrap sentence keeps the sentence and its sentenceId (SPEC §9.7).
+    const next = [...text];
+    let pre = 0;
+    while (pre < old.length && pre < next.length && old[pre].ch === next[pre]) pre++;
+    let suf = 0;
+    while (suf < old.length - pre && suf < next.length - pre && old[old.length - 1 - suf].ch === next[next.length - 1 - suf]) suf++;
+    const same = (a: Char["mark"], b: Char["mark"]) => JSON.stringify(a) === JSON.stringify(b);
+    const before = pre > 0 ? old[pre - 1].mark : undefined;
+    const after = suf > 0 ? old[old.length - suf].mark : undefined;
+    const replaced = old.slice(pre, old.length - suf);
+    const mark = before && same(before, after) ? before : replaced.length && replaced.every((c) => same(c.mark, replaced[0].mark)) ? replaced[0].mark : undefined;
+    return [...old.slice(0, pre), ...next.slice(pre, next.length - suf).map((ch) => ({ ch, mark })), ...old.slice(old.length - suf)];
   }),
   PUNCTUATION_CONSISTENCY: onChars((old, p) => {
     const from = str(p.from);
     if (!from || typeof p.to !== "string") return null;
-    const text = old.map((c) => c.ch).join("");
+    // Compared in code points throughout (the old version mixed them with UTF-16 offsets around emoji).
+    const fromChars = [...from];
     const out: Char[] = [];
     for (let i = 0; i < old.length; ) {
-      if (text.startsWith(from, i)) { out.push(...[...p.to].map((ch) => ({ ch, mark: old[i].mark }))); i += [...from].length; }
+      if (old.slice(i, i + fromChars.length).map((c) => c.ch).join("") === from) { out.push(...[...p.to].map((ch) => ({ ch, mark: old[i].mark }))); i += fromChars.length; }
       else out.push(old[i++]);
     }
     return out;

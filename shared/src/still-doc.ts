@@ -82,20 +82,52 @@ export function countNodes(doc: { content: StillBlock[] }): number {
   return n;
 }
 
+// The inline content of each paragraph (or heading) of a block, one array per text block: a run never
+// crosses from one list item or quote paragraph into the next.
+export function textblocks(block: StillBlock): TextNode[][] {
+  if (block.type === "stillImage") return [];
+  if (block.type === "paragraph" || block.type === "heading") return [block.content ?? []];
+  if (block.type === "blockquote") return block.content.map((p) => p.content ?? []);
+  return block.content.flatMap((item) => item.content.map((p) => p.content ?? []));
+}
+
 // Visitor sentences (SPEC §9.4 Scrap 문장): each run of consecutive scrap-marked text nodes inside one
-// block is one sentence. `blockId` is the top-level block that holds it.
+// paragraph is one sentence. `blockId` is the top-level block that holds it.
 export function scrapRuns(doc: { content: StillBlock[] }): { blockId: string; text: string; sentenceId: string | null }[] {
   const runs: { blockId: string; text: string; sentenceId: string | null }[] = [];
   for (const block of doc.content) {
-    let current: { blockId: string; text: string; sentenceId: string | null } | null = null;
-    for (const node of inlineNodes(block)) {
-      const mark = node.marks?.find((m) => m.type === "scrap");
-      if (!mark) { current = null; continue; }
-      if (current && current.sentenceId === mark.attrs.sentenceId) current.text += node.text;
-      else runs.push((current = { blockId: block.attrs.id, text: node.text, sentenceId: mark.attrs.sentenceId }));
+    for (const inline of textblocks(block)) {
+      let current: { blockId: string; text: string; sentenceId: string | null } | null = null;
+      for (const node of inline) {
+        const mark = node.marks?.find((m) => m.type === "scrap");
+        if (!mark) { current = null; continue; }
+        if (current && current.sentenceId === mark.attrs.sentenceId) current.text += node.text;
+        else runs.push((current = { blockId: block.attrs.id, text: node.text, sentenceId: mark.attrs.sentenceId }));
+      }
     }
   }
   return runs;
 }
+
+// What the Tiptap editor sends, brought to the STILL schema before validation (SPEC §9.4: only STILL
+// nodes and attributes are stored): orderedList's default `start` and `type` attributes go, a hard line
+// break becomes a space, and empty text nodes go. Anything else outside the schema is still refused.
+export function normalizeEditorDoc(value: unknown): unknown {
+  const walk = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(walk).filter((child) => child !== undefined);
+    if (!node || typeof node !== "object") return node;
+    const n = node as Record<string, unknown>;
+    if (n.type === "hardBreak") return { type: "text", text: " " };
+    if (n.type === "text" && n.text === "") return undefined;
+    const out = Object.fromEntries(Object.entries(n).map(([key, child]) => [key, walk(child)]));
+    if (n.type === "orderedList" && out.attrs && typeof out.attrs === "object") {
+      const { start: _start, type: _type, ...attrs } = out.attrs as Record<string, unknown>;
+      out.attrs = attrs;
+    }
+    return out;
+  };
+  return walk(value);
+}
+export const editorDoc = z.preprocess(normalizeEditorDoc, stillDoc);
 
 export const EMPTY_DOC: StillDoc = { type: "doc", content: [] };

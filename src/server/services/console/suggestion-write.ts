@@ -23,7 +23,10 @@ const NEEDS_CHECK = ["TEXT_MISMATCH", "LABEL_GENERATED", "IMAGE_NOT_ANALYZED", "
 
 const parse = (value: unknown) => (Array.isArray(value) ? (value as Suggestion[]) : []);
 const decide = (list: Suggestion[], id: string, status: "ACCEPTED" | "DISMISSED", userId: string) => {
-  if (!list.some((s) => s.id === id)) throw new TRPCError({ code: "NOT_FOUND" });
+  const found = list.find((s) => s.id === id);
+  if (!found) throw new TRPCError({ code: "NOT_FOUND" });
+  // A decision is recorded once (SPEC §9.7: who decided and when); deciding again would re-apply an edit.
+  if (found.status !== "OPEN") throw new TRPCError({ code: "CONFLICT", message: "This suggestion is already decided." });
   return list.map((s) => (s.id === id ? { ...s, status, decidedBy: userId, decidedAt: new Date().toISOString() } : s));
 };
 export async function decideSuggestion(
@@ -34,6 +37,7 @@ export async function decideSuggestion(
   if (!contentId) return decideWideSuggestion(institutionId, userId, input);
   return db.transaction(async (tx) => {
     const row = await lockOwnedContent(tx, institutionId, contentId);
+    if (row.status === "REJECTED") throw new TRPCError({ code: "BAD_REQUEST", message: "A rejected item is final." });
     if (row.revision !== input.revision) throw new TRPCError({ code: "PRECONDITION_FAILED", cause: new AppError("REVISION_MISMATCH") });
     const list = decide(parse(row.suggestions), input.id, input.status, userId);
     const decided = list.find((s) => s.id === input.id)!;
@@ -81,6 +85,7 @@ async function decideWideSuggestion(
       for (const { contentId, node } of decided.target?.items ?? []) {
         const [row] = await tx.select().from(contents).where(and(eq(contents.id, contentId), eq(contents.exhibitionId, ex.id))).for("update");
         if (!row) throw new TRPCError({ code: "BAD_REQUEST", message: "Target item not found in this exhibition" });
+        if (row.status === "REJECTED") continue; // a rejected item is final; the others still get the change
         const doc = stillDoc.parse(row.doc);
         const next = applySuggestion(doc, contentSources.parse(row.sources), { ...decided, target: { node } });
         if (next.doc === doc) continue; // nothing to change in this item (as on the item path)
