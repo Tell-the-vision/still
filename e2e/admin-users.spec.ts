@@ -44,3 +44,19 @@ test("the operator manages accounts from Users & access", async ({ page }) => {
   await spareRow.getByRole("button", { name: "Confirm delete" }).click();
   await expect(spareRow).toHaveCount(0);
 });
+
+// Users & access must fit narrower windows like the other admin tables (1280px and 900px breakpoints).
+test("Users & access fits a 1024px window and stacks its rows below 900px", async ({ page }) => {
+  const staff = await seedInstitutionAccount();
+  await signInAdmin(page, await seedOperator());
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await page.goto("/admin/users");
+  const row = page.getByRole("row").filter({ hasText: staff.email });
+  await expect(row).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.setViewportSize({ width: 800, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // Stacked rows label the sign-in date, not "Created", which belongs to the institutions table.
+  await expect(row).not.toContainText("Created");
+});
