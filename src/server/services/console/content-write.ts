@@ -1,5 +1,5 @@
 import { SOURCE_REF } from "@still/shared/manifest";
-import { contentSources, countNodes, EMPTY_DOC, MAX_NODES, scrapRuns, stillDoc, type ContentSources, type StillDoc } from "@still/shared/still-doc";
+import { contentSources, countNodes, EMPTY_DOC, MAX_NODES, scrapRuns, stillDoc, type ContentSources, type StillBlock, type StillDoc, type TextNode } from "@still/shared/still-doc";
 import { z } from "zod";
 import { exhibitionDraft } from "@still/shared/console-draft";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -47,15 +47,49 @@ async function checkedDoc(tx: Tx, exhibitionId: string, doc: StillDoc, existing:
     const own = await tx.select({ id: images.id }).from(images).where(and(eq(images.exhibitionId, exhibitionId), inArray(images.id, imageIds)));
     if (own.length !== imageIds.length) throw badRequest("imageId is not an image of this exhibition");
   }
-  const stored = new Set(scrapRuns(existing).flatMap((run) => (run.sentenceId ? [run.sentenceId] : [])));
-  const keepKnown = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(keepKnown);
-    if (!value || typeof value !== "object") return value;
-    const node = value as Record<string, unknown>;
-    if (node.type === "scrap") return { ...node, attrs: { sentenceId: stored.has(String((node.attrs as { sentenceId: unknown }).sentenceId)) ? (node.attrs as { sentenceId: unknown }).sentenceId : null } };
-    return Object.fromEntries(Object.entries(node).map(([key, child]) => [key, keepKnown(child)]));
+  return settledSentenceIds(doc, existing);
+}
+
+// SPEC §10.9: sentence ids are assigned at publication and must survive edits. For each scrap run of the
+// new doc (consecutive marked text nodes in one paragraph): an id the stored doc holds is kept; a run
+// without one (a tab opened before the last publication) gets back the stored id of the run with the same
+// text; any other id becomes null. One id names one run, so after a split only the first half keeps it
+// (the next publication gives the second half a new sentence instead of failing).
+function settledSentenceIds(doc: StillDoc, existing: StillDoc): StillDoc {
+  const storedRuns = scrapRuns(existing).filter((run) => run.sentenceId);
+  const storedIds = new Set(storedRuns.map((run) => run.sentenceId!));
+  const textCount = new Map<string, number>();
+  for (const run of storedRuns) textCount.set(run.text, (textCount.get(run.text) ?? 0) + 1);
+  const idByText = new Map(storedRuns.filter((run) => textCount.get(run.text) === 1).map((run) => [run.text, run.sentenceId!]));
+  const used = new Set<string>();
+
+  const settleInline = (inline: TextNode[] | undefined): TextNode[] | undefined => {
+    if (!inline) return inline;
+    const out = inline.map((node) => ({ ...node }));
+    for (let a = 0; a < out.length; ) {
+      const mark = out[a].marks?.find((m) => m.type === "scrap");
+      if (!mark) { a++; continue; }
+      let b = a + 1;
+      while (b < out.length && out[b].marks?.find((m) => m.type === "scrap")?.attrs.sentenceId === mark.attrs.sentenceId) b++;
+      const text = out.slice(a, b).map((n) => n.text).join("");
+      let id = mark.attrs.sentenceId && storedIds.has(mark.attrs.sentenceId) ? mark.attrs.sentenceId : idByText.get(text) ?? null;
+      if (id && used.has(id)) id = null;
+      if (id) used.add(id);
+      for (let k = a; k < b; k++) out[k] = { ...out[k], marks: [{ type: "scrap", attrs: { sentenceId: id } }] };
+      a = b;
+    }
+    return out;
   };
-  return keepKnown(doc) as StillDoc;
+  const paragraph = <P extends { content?: TextNode[] }>(p: P): P => ({ ...p, content: settleInline(p.content) });
+  return {
+    ...doc,
+    content: doc.content.map((block): StillBlock => {
+      if (block.type === "paragraph" || block.type === "heading") return paragraph(block);
+      if (block.type === "blockquote") return { ...block, content: block.content.map(paragraph) };
+      if (block.type === "bulletList" || block.type === "orderedList") return { ...block, content: block.content.map((item) => ({ ...item, content: item.content.map(paragraph) })) };
+      return block;
+    }),
+  };
 }
 
 // sources keys are top-level node ids of `doc`; their refs "{documentId}:{segmentId}" name documents of this exhibition.
