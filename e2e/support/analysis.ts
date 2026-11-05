@@ -8,7 +8,7 @@ const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const data = (res: { json: any }) => res.json.result.data;
 
 // Leaves one EXTRACTED document (via the API and the dry-run R2 store) in a new exhibition.
-export async function extractedExhibition(page: Page, text: string) {
+export async function extractedExhibition(page: Page, text: string, pageCount = 1) {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   await signInConsole(page, account);
@@ -21,10 +21,13 @@ export async function extractedExhibition(page: Page, text: string) {
   await consoleCall(page, "console.document.update", { id: created.document.id, uploaded: true });
   const manifest = Buffer.from(JSON.stringify({
     version: 1,
-    document: { documentId: created.document.id, sha256: sha(original), mediaType: "application/pdf", pages: 1 },
+    document: { documentId: created.document.id, sha256: sha(original), mediaType: "application/pdf", pages: pageCount },
     extractor: { name: "test", version: "1" },
-    pages: [{ page: 1, size: [100, 100] }],
-    segments: [{ id: "s001", page: 1, bbox: null, text, sentences: [text] }],
+    pages: Array.from({ length: pageCount }, (_, i) => ({ page: i + 1, size: [100, 100] })),
+    segments: Array.from({ length: pageCount }, (_, i) => {
+      const pageText = pageCount === 1 ? text : `${text} Page ${i + 1}.`;
+      return { id: `s${String(i + 1).padStart(3, "0")}`, page: i + 1, bbox: null, text: pageText, sentences: [pageText] };
+    }),
     assets: [], modelInputs: [], warnings: [],
   }));
   const upload = await consoleCall(page, "console.documentUpload.create", {
