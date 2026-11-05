@@ -2,7 +2,8 @@
 // Calls with a full path ("console.session.create", "me.get") use the SPEC procedures (console.*, SPEC §9.5);
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
-import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, ProcessingEvent, Workspace } from "./types";
+import { UPLOAD_FORMATS } from "../constants";
+import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, ProcessingEvent, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -199,6 +200,69 @@ export function toProcessingEvents({ analysis, documents: d, contents: c }: Cons
   ];
 }
 
+// console.document.* rows (src/server/trpc/routers/console/document.ts, SPEC §9.4 업로드, §10.6).
+type ConsoleDocument = {
+  id: string;
+  name: string;
+  mediaType: string;
+  byteSize: number;
+  status: "UPLOADING" | "STORED" | "EXTRACTED" | "FAILED" | "DUPLICATE";
+  errorCode: string | null;
+  duplicateOfName: string | null;
+  createdAt: string;
+};
+const FAILURE_TEXT: Record<string, string> = {
+  UNSUPPORTED_FORMAT: "This format is not supported.",
+  ENCRYPTED: "The file is password protected.",
+  CORRUPTED: "The file could not be read or arrived incomplete.",
+  ENCODING_UNKNOWN: "The text encoding could not be recognised.",
+  EMPTY: "The file has no content.",
+  MANIFEST_INVALID: "The extracted content could not be read.",
+};
+const toSourceFile = (doc: ConsoleDocument): SourceFile => ({
+  id: doc.id,
+  name: doc.name,
+  format: (doc.name.split(".").pop() ?? "FILE").toUpperCase(),
+  summary: null,
+  sizeBytes: doc.byteSize,
+  uploadedAt: doc.createdAt,
+  status: { UPLOADING: "UPLOADING", STORED: "UPLOADED", EXTRACTED: "PROCESSED", FAILED: "FAILED", DUPLICATE: "FAILED" }[doc.status] as SourceFile["status"],
+  error: doc.status === "DUPLICATE" ? `Same file as ${doc.duplicateOfName}` : doc.errorCode && (FAILURE_TEXT[doc.errorCode] ?? "The file could not be processed."),
+});
+
+const sha256Hex = async (file: File) =>
+  Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer())), (b) => b.toString(16).padStart(2, "0")).join("");
+
+const abortError = () => new DOMException("Upload canceled", "AbortError");
+
+// PUTs the file to the presigned URL. XMLHttpRequest instead of fetch: fetch cannot report upload progress.
+function putFile(upload: { url: string; headers: Record<string, string> }, file: File, options?: UploadOptions) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", upload.url);
+    for (const [name, value] of Object.entries(upload.headers)) xhr.setRequestHeader(name, value);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) options?.onProgress?.(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new ApiError(`Upload failed (HTTP ${xhr.status})`)));
+    xhr.onerror = () => reject(new ApiError("Upload interrupted"));
+    xhr.onabort = () => reject(abortError());
+    options?.signal?.addEventListener("abort", () => xhr.abort());
+    xhr.send(file);
+  });
+}
+
+// SPEC §9.4: hash in the browser, register the document, PUT the bytes straight to private R2, then tell the
+// server it is there. The server never receives the file.
+async function uploadDocument(code: string, file: File, options?: UploadOptions): Promise<SourceFile> {
+  const mediaType = UPLOAD_FORMATS[file.name.split(".").pop()?.toLowerCase() ?? ""];
+  if (!mediaType) throw new ApiError("This format is not supported.");
+  const sha256 = await sha256Hex(file);
+  if (options?.signal?.aborted) throw abortError();
+  const { document, upload } = await m<{ document: ConsoleDocument; upload: { url: string; headers: Record<string, string> } }>(
+    "console.document.create", { code, name: file.name, mediaType, byteSize: file.size, sha256 });
+  await putFile(upload, file, options);
+  return toSourceFile(await m<ConsoleDocument>("console.document.update", { id: document.id, uploaded: true }));
+}
+
 export function createTrpcApi(): InstitutionsApi {
   return {
     getWorkspace: async () => toWorkspace(await q<StaffMe>("me.get")),
@@ -240,25 +304,8 @@ export function createTrpcApi(): InstitutionsApi {
     unpublishExhibition: (id) => m("unpublishExhibition", { id }),
     duplicateExhibition: (id) => m("duplicateExhibition", { id }),
 
-    listFiles: (exhibitionId) => q("listFiles", { exhibitionId }),
-    // tRPC carries JSON only. Files go to a plain upload route (or a presigned URL, like media uploads).
-    // XMLHttpRequest instead of fetch: fetch cannot report upload progress.
-    uploadFile(exhibitionId, file, options) {
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${BASE}/api/institutions/exhibitions/${encodeURIComponent(exhibitionId)}/files`);
-        xhr.withCredentials = true;
-        xhr.responseType = "json";
-        xhr.upload.onprogress = (e) => { if (e.lengthComputable) options?.onProgress?.(Math.round((e.loaded / e.total) * 100)); };
-        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve(xhr.response) : reject(new ApiError(`Upload failed (HTTP ${xhr.status})`)));
-        xhr.onerror = () => reject(new ApiError("Upload interrupted"));
-        xhr.onabort = () => reject(new DOMException("Upload canceled", "AbortError"));
-        options?.signal?.addEventListener("abort", () => xhr.abort());
-        const form = new FormData();
-        form.append("file", file);
-        xhr.send(form);
-      });
-    },
+    listFiles: async (exhibitionId) => (await q<ConsoleDocument[]>("console.document.list", { code: exhibitionId })).map(toSourceFile),
+    uploadFile: (exhibitionId, file, options) => uploadDocument(exhibitionId, file, options),
     deleteFile: (exhibitionId, fileId) => m("deleteFile", { exhibitionId, fileId }),
     // console.analysis.create needs pg-boss and the Worker (SPEC §10.10); no procedure to call yet.
     startAnalysis: async () => {
@@ -269,7 +316,7 @@ export function createTrpcApi(): InstitutionsApi {
     listContentItems: async (exhibitionId) => {
       const [rows, files] = await Promise.all([
         q<ConsoleContentRow[]>("console.content.list", { code: exhibitionId }),
-        q<ConsoleFile[]>("listFiles", { exhibitionId }).catch(() => []),
+        q<ConsoleFile[]>("console.document.list", { code: exhibitionId }),
       ]);
       return rows.map((row, i) => toContentItem(row, i, files));
     },

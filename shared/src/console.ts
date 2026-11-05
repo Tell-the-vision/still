@@ -38,6 +38,20 @@ export const consoleVenueUpdateInput = z.object({
 // Documents (SPEC §9.4 업로드, §10.6)
 export const DOCUMENT_CATEGORIES = ["EXHIBITION_TEXT", "ARTWORK_LIST", "WALL_LABELS", "AUDIO_SCRIPT", "PRESS_KIT", "IMAGE", "OTHER"] as const;
 export const DOCUMENT_FAILURES = ["UNSUPPORTED_FORMAT", "ENCRYPTED", "CORRUPTED", "ENCODING_UNKNOWN", "EMPTY"] as const;
+// SPEC §9.4 업로드: the accepted formats and the per-file limit. ZIP is accepted by the SPEC but needs
+// browser-side unpacking that does not exist yet, so it is refused as unsupported for now.
+export const DOCUMENT_MAX_BYTES = 100 * 1024 * 1024;
+export const DOCUMENT_FORMATS = [
+  { ext: "pdf", mediaType: "application/pdf" },
+  { ext: "docx", mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+  { ext: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+  { ext: "pptx", mediaType: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+  { ext: "txt", mediaType: "text/plain" },
+  { ext: "jpg", mediaType: "image/jpeg" },
+  { ext: "png", mediaType: "image/png" },
+  { ext: "tiff", mediaType: "image/tiff" },
+  { ext: "webp", mediaType: "image/webp" },
+] as const;
 export const consoleDocumentCreateInput = z.union([
   z.object({
     code: codeSchema,

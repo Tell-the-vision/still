@@ -2,13 +2,27 @@
 export const MATERIAL_TAGS = ["Exhibition text", "Artwork list", "Wall labels", "Audio script", "Press kit"];
 export const THEME_OPTIONS = ["Overview", "Life & Death", "Science & Medicine", "Beauty & Fragility", "Faith & Belief"];
 export const CONTENT_TYPE_OPTIONS = ["Guide sentence", "Section text", "Artwork caption", "Narration", "Editorial copy"];
-// Initial upload formats from the developer handoff (2. End-to-end workflow, Bulk upload).
-// HWP/HWPX and web URLs need technical validation before they are offered. The server must check
-// the type too; `accept` only filters the file picker, not drag and drop.
-export const UPLOAD_EXTENSIONS = ["pdf", "docx", "xlsx", "csv", "txt", "md"];
+// Upload formats of SPEC §9.4 (mirrors DOCUMENT_FORMATS in shared/src/console.ts; this bundle does not import
+// the server package). CSV and MD are not in the SPEC (미결정 27); ZIP needs browser-side unpacking that is not
+// built yet. HWP/HWPX and web URLs are not supported. The server checks the type too; `accept` only filters
+// the file picker, not drag and drop.
+export const UPLOAD_FORMATS: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  txt: "text/plain",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  webp: "image/webp",
+};
+export const UPLOAD_EXTENSIONS = Object.keys(UPLOAD_FORMATS);
 export const UPLOAD_ACCEPT = UPLOAD_EXTENSIONS.map((e) => `.${e}`).join(",");
-export const UPLOAD_FORMATS_LABEL = "PDF, DOCX, XLSX, CSV, TXT";
-export const UPLOAD_MAX_BYTES = 100e6;
+export const UPLOAD_FORMATS_LABEL = "PDF, DOCX, XLSX, PPTX, TXT, JPG, PNG, TIFF, WebP";
+export const UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
 
 // Optional convenience only (handoff 4.1): museums never have to use it.
 export const ARTWORK_TEMPLATE_CSV =
