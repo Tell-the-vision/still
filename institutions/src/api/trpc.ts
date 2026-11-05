@@ -519,6 +519,10 @@ export function createTrpcApi(): InstitutionsApi {
     },
     // `theme` has no SPEC field and is ignored. The review screen's content-type options are not the SPEC
     // kinds, so a label that is not a kind is refused.
+    getContentDoc: (itemId) => knownItem(itemId).row.doc,
+    saveContentDoc: async (itemId, doc) => {
+      await updateRow(itemId, { doc });
+    },
     updateContentItem: async (itemId, patch) => {
       const { row, item } = knownItem(itemId);
       const change: Record<string, unknown> = {};
