@@ -171,14 +171,17 @@ export default function Review() {
                 {visible.map((i) => (
                   <li key={i.id} className="pick-row">
                     {reviewer && (
-                      <input
-                        type="checkbox"
-                        className="pick-row__box"
-                        aria-label={`Select ${i.title}`}
-                        disabled={i.removed || i.reviewStatus !== "IN_REVIEW"}
-                        checked={picked.has(i.id)}
-                        onChange={() => togglePick(i.id)}
-                      />
+                      // The label is the 24×24 target around the 15px box (WCAG 2.5.8).
+                      <label className="pick-row__hit">
+                        <input
+                          type="checkbox"
+                          className="pick-row__box"
+                          aria-label={`Select ${i.title}`}
+                          disabled={i.removed || i.reviewStatus !== "IN_REVIEW"}
+                          checked={picked.has(i.id)}
+                          onChange={() => togglePick(i.id)}
+                        />
+                      </label>
                     )}
                     <button type="button" className={`item${i.id === selected?.id ? " is-selected" : ""}`} onClick={() => setSelectedId(i.id)}>
                       <span className="item__no">{no(i)}</span>
