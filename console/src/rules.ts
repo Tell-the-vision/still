@@ -41,3 +41,10 @@ export const blockingAssets = (items: ContentItem[]) =>
     .filter((i) => i.reviewStatus === "APPROVED")
     .flatMap((i) => i.assets.map((a) => ({ item: i, asset: a, issue: rightsIssue(a) })))
     .filter((x) => x.issue);
+
+// ── Publication checks (SPEC §9.4) ─────────────────────
+/** The server names images by id in a check's detail ("image 3f2a… has no confirmed rights"); show the item's image name instead. */
+export function readableCheckDetail(detail: string, items: ContentItem[]): string {
+  const names = new Map(items.flatMap((i) => i.assets.map((a) => [a.id, `"${a.name}" in ${i.title}`] as const)));
+  return detail.replace(/\bimage ([0-9a-f]{8}-[0-9a-f-]{27})\b/gi, (_, id: string) => `image ${names.get(id) ?? "(not in any item)"}`);
+}

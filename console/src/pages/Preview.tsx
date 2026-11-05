@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ContentItem, StillDoc, StillNode } from "../api";
 import { VisitorPreview } from "../editor/VisitorPreview";
-import { rightsIssue } from "../rules";
+import { readableCheckDetail, rightsIssue } from "../rules";
 import { useWorkspace } from "../store";
 import { Arrow, Badge, EmptyState, NoExhibition, PageHead, StatusText, Stepper } from "../ui";
 
@@ -111,7 +111,7 @@ export default function Preview() {
                 <li key={c.id}>
                   <div>
                     <p className="strong">{c.title}</p>
-                    <p className="caption-sm">{c.detail}</p>
+                    <p className="caption-sm">{readableCheckDetail(c.detail, items)}</p>
                   </div>
                   <StatusText tone={c.ok ? "green" : "amber"}>{c.value}</StatusText>
                 </li>

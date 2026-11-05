@@ -59,7 +59,7 @@ export default function Account() {
             <label className="field field--stack">
               <span className="field__label">New password</span>
               <input className="input input--tall" type="password" autoComplete="new-password" value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
-              <span className="caption-sm">At least 10 characters.</span>
+              <span className="caption-sm">At least 12 characters.</span>
             </label>
             <label className="field field--stack">
               <span className="field__label">New password again</span>

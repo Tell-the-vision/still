@@ -3,11 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, type Venue } from "../api";
 import { RIGHTS_STATEMENT } from "../constants";
 import { VISITOR_HOST } from "../format";
+import { readableCheckDetail } from "../rules";
 import { useWorkspace } from "../store";
 import { Badge, NoExhibition, PageHead, Stepper } from "../ui";
 
 export default function Publish() {
-  const { exhibition, counts, checks, refreshChecks, reportError, updateExhibition, publishExhibition, createExhibition } = useWorkspace();
+  const { exhibition, counts, items, checks, refreshChecks, reportError, updateExhibition, publishExhibition, createExhibition } = useWorkspace();
   const navigate = useNavigate();
   const [form, setForm] = useState(() => ({
     title: exhibition?.title ?? "",
@@ -170,10 +171,10 @@ export default function Publish() {
           {noApproved && <li className="field-error">No content is approved yet. Only approved items are published.</li>}
           {failing.map((c) => (
             <li key={c.id} className="field-error">
-              {c.title}: {c.detail}. Fix it in <Link to="/materials/review">Review</Link> or <Link to="/guide">Digital guide</Link>.
+              {c.title}: {readableCheckDetail(c.detail, items)}. Fix it in <Link to="/materials/review">Review</Link> or <Link to="/guide">Digital guide</Link>.
             </li>
           ))}
-          {warnings.map((c) => <li key={c.id} className="caption-sm">{c.title}: {c.detail}. You can still publish.</li>)}
+          {warnings.map((c) => <li key={c.id} className="caption-sm">{c.title}: {readableCheckDetail(c.detail, items)}. You can still publish.</li>)}
           {counts.needReview > 0 && (
             <li className="caption-sm">Only approved items are published. An item still in review blocks publication while it sits in a visible guide section: approve it, or take it out of the guide.</li>
           )}

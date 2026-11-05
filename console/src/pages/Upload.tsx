@@ -131,7 +131,7 @@ export default function Upload() {
                 <button type="button" className="btn btn--secondary" onClick={() => input.current?.click()}>Browse files</button>
                 <span className="small muted">
                   No STILL template needed. HWP/HWPX files and website links are not supported yet.{" "}
-                  <button type="button" className="link-btn link-btn--inline" onClick={downloadTemplate}>Optional artwork list template (CSV)</button>
+                  <button type="button" className="link-btn link-btn--inline" onClick={downloadTemplate}>Optional artwork list template (CSV — save it as .xlsx before uploading)</button>
                 </span>
               </div>
             </div>
