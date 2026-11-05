@@ -34,5 +34,9 @@
     "tidewave": "^0.10.0",
     "typescript": "^5",
     "vite": "^6.3.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.67.5",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }
