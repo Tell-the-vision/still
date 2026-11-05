@@ -7,6 +7,7 @@ import { contents, documents, exhibitions, images } from "../../db/schema";
 import { databaseUrl } from "../../db/url";
 import { alignStructure, type AlignedContent } from "./align";
 import { readManifest } from "./manifests";
+import { runStorageDelete, STORAGE_DELETE_OPTIONS, STORAGE_DELETE_QUEUE, type StorageDelete } from "./storage-jobs";
 
 // SPEC §9.4 구조화, §10.10 Worker 호출. One queue runs a whole analysis; SPEC splits it into structure and
 // finalize jobs, which this simplification folds into one handler.
@@ -24,6 +25,7 @@ export function getBoss(): Promise<PgBoss> {
     boss.on("error", (e) => console.error("pg-boss", e));
     await boss.start();
     await boss.createQueue(ANALYSIS_QUEUE, { retryLimit: RETRY_LIMIT });
+    await boss.createQueue(STORAGE_DELETE_QUEUE, STORAGE_DELETE_OPTIONS);
     return boss;
   })();
   return globalForBoss.stillBoss;
@@ -31,6 +33,7 @@ export function getBoss(): Promise<PgBoss> {
 
 export async function startWorkers() {
   const boss = await getBoss();
+  await boss.work<StorageDelete>(STORAGE_DELETE_QUEUE, async ([job]) => runStorageDelete(job.data));
   await boss.work<JobData>(ANALYSIS_QUEUE, async ([job]) => {
     try {
       await runAnalysis(job.data);

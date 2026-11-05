@@ -4,9 +4,11 @@ import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "../../db/client";
 import { contents, exhibitionPlaylists, exhibitions, guideSentences, images } from "../../db/schema";
-import { copyPrivateToPublic, deleteObject } from "../../media/r2";
+import { copyPrivateToPublic } from "../../media/r2";
 import { AppError } from "../../trpc/init";
 import { compileDraft, withScrapIds } from "./compile";
+import { getBoss } from "./analysis-jobs";
+import { enqueueStorageDeletes } from "./storage-jobs";
 import { exhibitionRows } from "./exhibition-rows";
 import { loadDraft, publicationChecks, type LoadedDraft } from "./preview";
 
@@ -105,7 +107,8 @@ export async function publishExhibition(input: { institutionId: string; userId: 
   const copiedKeys = await copyDisplayFiles(await loadDraft(db, row.id));
 
   // 3. One transaction. The exhibition row lock holds off draft writes; the contents' locks hold off reviews.
-  const removedKeys = await db.transaction(async (tx) => {
+  const boss = await getBoss();
+  await db.transaction(async (tx) => {
     const [locked] = await tx.select({ draftRevision: exhibitions.draftRevision }).from(exhibitions).where(eq(exhibitions.id, row.id)).for("update");
     if (locked.draftRevision !== revision) throw preconditionFailed("REVISION_MISMATCH");
     const loaded = await loadDraft(tx, row.id, { lockContents: true });
@@ -158,12 +161,10 @@ export async function publishExhibition(input: { institutionId: string; userId: 
     } else {
       await tx.delete(exhibitionPlaylists).where(eq(exhibitionPlaylists.exhibitionId, row.id));
     }
-    return unused.map((i) => i.objectKey!);
+    await enqueueStorageDeletes(boss, tx, unused.map((i) => ({ bucket: "public", key: i.objectKey! })));
   });
 
-  // After COMMIT, best effort: a failed delete leaves a harmless public object. TODO: SPEC queues these as
-  // `storage.delete` jobs (pg-boss, #66), and purges the CDN after commit (미결정 35); neither exists yet.
-  await Promise.allSettled(removedKeys.map(deleteObject));
+  // The CDN purge after commit (미결정 35) does not exist yet.
 }
 
 // PUBLISHED -> UNPUBLISHED. The public columns and guide_sentences stay, so republishing continues the
