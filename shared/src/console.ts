@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { codeSchema } from "./code";
-import { CONTENT_KINDS, contentBlocks } from "./console-content";
+import { CONTENT_KINDS } from "./console-content";
+import { contentSources, stillDoc } from "./still-doc";
 import { exhibitionDraft } from "./console-draft";
 
 // Institution console inputs (SPEC §9.5 console.*). Exhibitions are identified by `code`; the
@@ -87,7 +88,8 @@ export const consoleContentGetInput = z.object({ id: z.uuid() });
 export const consoleContentCreateInput = z.object({
   code: codeSchema,
   kind: z.enum(CONTENT_KINDS),
-  blocks: contentBlocks,
+  doc: stillDoc,
+  sources: contentSources.optional(),
   fields: z.record(z.string(), z.unknown()).nullable().optional(),
   editorialNote: z.string().max(10_000).nullable().optional(),
 });
@@ -96,7 +98,8 @@ export const consoleContentUpdateInput = z.object({
   revision: z.uuid(),
   status: z.enum(["APPROVED", "REJECTED"]).optional(),
   kind: z.enum(CONTENT_KINDS).optional(),
-  blocks: contentBlocks.optional(),
+  doc: stillDoc.optional(),
+  sources: contentSources.optional(),
   fields: z.record(z.string(), z.unknown()).nullable().optional(),
   editorialNote: z.string().max(10_000).nullable().optional(),
 });

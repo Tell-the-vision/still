@@ -25,14 +25,14 @@ export const consoleContentRouter = router({
     return contentRows(exhibition.id);
   }),
 
-  // One item. `sources` (the referenced source text and page renders) needs the analysis manifests,
-  // which do not exist yet, so it is empty.
+  // One item. `sources` maps node ids to refs and ranges; the referenced source text needs the analysis
+  // manifests, which do not exist yet, so it is not included.
   get: consoleProcedure.input(consoleContentGetInput).query(async ({ ctx, input }) => {
     const [owned] = await db.select({ exhibitionId: contents.exhibitionId }).from(contents).where(eq(contents.id, input.id));
     const [exhibition] = owned ? await exhibitionRows(ctx.institutionId, { where: eq(exhibitions.id, owned.exhibitionId) }) : [];
     const [row] = exhibition ? await contentRows(exhibition.id, { where: eq(contents.id, input.id) }) : [];
     if (!row) throw new TRPCError({ code: "NOT_FOUND" });
-    return { ...row, sources: [] };
+    return row;
   }),
 
   // A manual item (SPEC §9.4), READY.

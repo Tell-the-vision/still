@@ -60,7 +60,7 @@ test("a file that reviewed content refers to cannot be removed", async ({ page }
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   const id = await seedDocument(account, exhibition, "statement.pdf");
-  await seedContent(exhibition, { kind: "CURATOR_STATEMENT", status: "APPROVED", blocks: [paragraph([`${id}:s1`])] });
+  await seedContent(exhibition, { kind: "CURATOR_STATEMENT", status: "APPROVED", doc: [], blocks: [paragraph([`${id}:s1`])] });
   await openMaterials(page, account, exhibition.title);
 
   await page.getByRole("button", { name: "Remove statement.pdf" }).click();
@@ -123,6 +123,7 @@ test("console.document.get / delete: ownership, analysis lock, references, casca
   const imageId = await seedImage(exhibition, id);
   const withImage = await seedContent(exhibition, {
     kind: "ARTWORK", status: "NEEDS_REVIEW",
+    doc: [],
     blocks: [{ type: "image", id: "i1", imageId, display: "INLINE", captionRefs: [] }],
   });
   const inUse = await consoleCall(page, "console.document.delete", { id });

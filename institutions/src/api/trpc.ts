@@ -85,14 +85,20 @@ export const toExhibition = (row: ConsoleExhibitionRow): Exhibition => ({
 
 // console.content.list rows (src/server/services/console/content-rows.ts, SPEC §10.8).
 type ContentKind = "INTRODUCTION" | "ARTIST" | "CURATOR_STATEMENT" | "THEME" | "ARTWORK" | "GALLERY_SECTION" | "AUDIO_NARRATION" | "PRESS_EXCERPT" | "CLOSING" | "OTHER";
-type ContentBlock =
-  | { type: "heading" | "paragraph" | "sentence"; id: string; text: string; origin: "SOURCE" | "EDITED"; refs: string[] }
-  | { type: "image"; id: string; imageId: string; display: string; captionRefs: string[] };
+type DocText = { type: "text"; text: string; marks?: { type: "scrap"; attrs: { sentenceId: string | null } }[] };
+type DocParagraph = { type: "paragraph"; attrs?: { id: string }; content?: DocText[] };
+type DocBlock =
+  | { type: "paragraph" | "heading"; attrs: { id: string; level?: number }; content?: DocText[] }
+  | { type: "blockquote"; attrs: { id: string }; content: DocParagraph[] }
+  | { type: "bulletList" | "orderedList"; attrs: { id: string }; content: { type: "listItem"; content: DocParagraph[] }[] }
+  | { type: "stillImage"; attrs: { id: string; imageId: string; display: string; caption: string | null } };
+type ContentDoc = { type: "doc"; content: DocBlock[] };
 export type ConsoleContentRow = {
   id: string;
   kind: ContentKind;
   status: "READY" | "NEEDS_REVIEW" | "APPROVED" | "REJECTED";
-  blocks: ContentBlock[];
+  doc: ContentDoc;
+  sources: Record<string, { refs: string[]; start: number; end: number }>;
   editorialNote: string | null;
   revision: string;
   updatedAt: string;
@@ -115,18 +121,19 @@ const KIND_LABELS: Record<ContentKind, string> = {
 const REVIEW_STATUS = { READY: "IN_REVIEW", NEEDS_REVIEW: "IN_REVIEW", APPROVED: "APPROVED", REJECTED: "REJECTED" } as const;
 const USAGE_PERMISSION = { CONFIRMED: "GRANTED", RESTRICTED: "DENIED" } as const;
 
+const plainText = (b: DocBlock) => (b.type === "paragraph" || b.type === "heading" ? (b.content ?? []).map((t) => t.text).join("") : "");
+
 // `documents` are the exhibition's source files: a ref "{documentId}:{segmentId}" naming one of them
 // gives the item its source file. Page locations need analysis manifests, which do not exist yet.
 export function toContentItem(row: ConsoleContentRow, order: number, documents: ConsoleFile[]): ContentItem {
   const label = KIND_LABELS[row.kind];
-  const heading = row.blocks.find((b) => b.type === "heading");
-  const sentences = row.blocks.filter((b) => b.type === "sentence");
-  const texts = row.blocks.flatMap((b) => (b.type === "paragraph" || b.type === "sentence" ? [b.text] : []));
+  const heading = row.doc.content.find((b) => b.type === "heading");
+  const texts = row.doc.content.filter((b) => b.type === "paragraph").map(plainText);
   const text = texts.join("\n\n");
-  const refs = row.blocks.flatMap((b) => (b.type === "image" ? [] : b.refs));
+  const refs = Object.values(row.sources).flatMap((s) => s.refs);
   const source = documents.find((d) => refs.some((ref) => ref.split(":")[0] === d.id));
-  const assets = row.blocks.flatMap((b): MediaAsset[] => {
-    const image = b.type === "image" ? row.images.find((i) => i.id === b.imageId) : undefined;
+  const assets = row.doc.content.flatMap((b): MediaAsset[] => {
+    const image = b.type === "stillImage" ? row.images.find((i) => i.id === b.attrs.imageId) : undefined;
     if (!image) return [];
     return [{
       id: image.id,
@@ -142,13 +149,13 @@ export function toContentItem(row: ConsoleContentRow, order: number, documents: 
       reviewedAt: null,
     }];
   });
-  const title = heading && "text" in heading ? heading.text : label;
+  const title = heading ? plainText(heading) || label : label;
   return {
     id: row.id,
     order,
     title,
     kind: label,
-    summary: sentences.length ? `${sentences.length} sentence${sentences.length === 1 ? "" : "s"}` : `${texts.length} paragraph${texts.length === 1 ? "" : "s"}`,
+    summary: `${texts.length} paragraph${texts.length === 1 ? "" : "s"}`,
     itemCount: 1,
     reviewStatus: REVIEW_STATUS[row.status],
     sourceFileName: source?.name ?? "Added in the console",
@@ -205,16 +212,24 @@ async function updateRow(itemId: string, change: Record<string, unknown>): Promi
   }
 }
 
-// The item's text blocks (paragraph and sentence: what `text` shows) with `text` spread over them.
-// One block takes the text as is; several take blank-line separated parts, in order, when the counts match.
-function blocksWithText(row: ConsoleContentRow, text: string): ContentBlock[] {
-  const isText = (b: ContentBlock) => b.type === "paragraph" || b.type === "sentence";
-  const count = row.blocks.filter(isText).length;
+// The doc with `text` spread over its paragraphs (what `text` shows). One paragraph takes the text as is;
+// several take blank-line separated parts, in order, when the counts match. A paragraph whose text is
+// unchanged stays as it is (node ids and scrap marks); a changed one becomes one plain text node.
+function docWithText(row: ConsoleContentRow, text: string): ContentDoc {
+  const count = row.doc.content.filter((b) => b.type === "paragraph").length;
   const parts = count === 1 ? [text] : text.split(/\n\s*\n/);
   if (count === 0) throw new ApiError("This item has no text to edit.");
-  if (parts.length !== count) throw new ApiError(`This item has ${count} text blocks; separate the text into ${count} parts with blank lines.`);
+  if (parts.length !== count) throw new ApiError(`This item has ${count} paragraphs; separate the text into ${count} parts with blank lines.`);
   let next = 0;
-  return row.blocks.map((b) => (isText(b) && "text" in b ? { ...b, text: parts[next++] } : b));
+  return {
+    ...row.doc,
+    content: row.doc.content.map((b): DocBlock => {
+      if (b.type !== "paragraph") return b;
+      const part = parts[next++];
+      if (plainText(b) === part) return b;
+      return { ...b, content: part ? [{ type: "text", text: part }] : [] };
+    }),
+  };
 }
 
 const KIND_BY_LABEL = Object.fromEntries(Object.entries(KIND_LABELS).map(([kind, label]) => [label, kind]));
@@ -502,7 +517,7 @@ export function createTrpcApi(): InstitutionsApi {
       const { row, item } = knownItem(itemId);
       const change: Record<string, unknown> = {};
       if (patch.note !== undefined && patch.note !== item.note) change.editorialNote = patch.note || null;
-      if (patch.text !== undefined && patch.text !== item.text) change.blocks = blocksWithText(row, patch.text);
+      if (patch.text !== undefined && patch.text !== item.text) change.doc = docWithText(row, patch.text);
       if (patch.contentType !== undefined && patch.contentType !== item.contentType) {
         const kind = KIND_BY_LABEL[patch.contentType];
         if (!kind) throw new ApiError(`"${patch.contentType}" is not a content type the server knows yet.`);

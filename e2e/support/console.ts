@@ -34,12 +34,12 @@ export type SeededContent = { id: string };
 // APPROVED rows need approved_at (contents_approved_check). Rows are created oldest first.
 export async function seedContent(
   exhibition: SeededExhibition,
-  opts: { kind: string; status: string; blocks: unknown[]; fields?: unknown; editorialNote?: string },
+  opts: { kind: string; status: string; doc?: unknown[]; blocks?: unknown[]; sources?: unknown; fields?: unknown; editorialNote?: string },
 ): Promise<SeededContent> {
   const [row] = await e2eSql<{ id: string }>(
-    `INSERT INTO contents (exhibition_id, kind, status, blocks, fields, editorial_note, approved_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-    [exhibition.id, opts.kind, opts.status, JSON.stringify(opts.blocks), opts.fields === undefined ? null : JSON.stringify(opts.fields),
+    `INSERT INTO contents (exhibition_id, kind, status, blocks, doc, sources, fields, editorial_note, approved_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [exhibition.id, opts.kind, opts.status, JSON.stringify(opts.blocks ?? []), JSON.stringify({ type: "doc", content: opts.doc ?? [] }), JSON.stringify(opts.sources ?? {}), opts.fields === undefined ? null : JSON.stringify(opts.fields),
       opts.editorialNote ?? null, opts.status === "APPROVED" ? new Date() : null],
   );
   return row;

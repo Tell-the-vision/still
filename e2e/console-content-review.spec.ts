@@ -9,9 +9,11 @@ import { consoleCall, e2eSql, seedInstitutionAccount, signInConsole, type Instit
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-const heading = (text: string) => ({ type: "heading", id: "h1", text, origin: "SOURCE", refs: [] });
-const paragraph = (id: string, text: string, refs: string[] = []) => ({ type: "paragraph", id, text, origin: "SOURCE", refs });
-const edited = (id: string, text: string) => ({ type: "paragraph", id, text, origin: "EDITED", refs: [] });
+const text = (value: string) => ({ type: "text", text: value });
+const heading = (value: string) => ({ type: "heading", attrs: { id: "h1", level: 2 }, content: [text(value)] });
+const paragraph = (id: string, value: string) => ({ type: "paragraph", attrs: { id }, content: [text(value)] });
+
+const doc = (content: unknown[]) => ({ type: "doc", content });
 
 async function openReview(page: Page, exhibition: SeededExhibition) {
   await page.goto("/institutions/exhibitions");
@@ -37,8 +39,8 @@ async function signedIn(page: Page, account: InstitutionAccount) {
 
 test("staff approve and reject items on the review screen", async ({ page }) => {
   const { account, exhibition } = await setup();
-  const alpha = await seedContent(exhibition, { kind: "ARTWORK", status: "READY", blocks: [heading("Alpha piece"), paragraph("b1", "Alpha text.")] });
-  const bravo = await seedContent(exhibition, { kind: "ARTWORK", status: "NEEDS_REVIEW", blocks: [heading("Bravo piece"), paragraph("b1", "Bravo text.")] });
+  const alpha = await seedContent(exhibition, { kind: "ARTWORK", status: "READY", doc: [heading("Alpha piece"), paragraph("b1", "Alpha text.")] });
+  const bravo = await seedContent(exhibition, { kind: "ARTWORK", status: "NEEDS_REVIEW", doc: [heading("Bravo piece"), paragraph("b1", "Bravo text.")] });
   await signedIn(page, account);
   await openReview(page, exhibition);
 
@@ -57,28 +59,28 @@ test("staff approve and reject items on the review screen", async ({ page }) => 
 
 test("staff edit an item's text and it is saved after reload", async ({ page }) => {
   const { account, exhibition } = await setup();
-  const item = await seedContent(exhibition, { kind: "CLOSING", status: "READY", blocks: [heading("Farewell"), paragraph("b1", "Old words.", ["d1:s1"])] });
+  const item = await seedContent(exhibition, { kind: "CLOSING", status: "READY", doc: [heading("Farewell"), paragraph("b1", "Old words.")] });
   await signedIn(page, account);
   await openReview(page, exhibition);
 
   await row(page, "Farewell").click();
   await page.locator("textarea.input--lg").fill("New words.");
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect.poll(async () => (await e2eSql<{ blocks: { text: string }[] }>("SELECT blocks FROM contents WHERE id = $1", [item.id]))[0].blocks[1].text).toBe("New words.");
+  await expect.poll(async () => (await e2eSql<{ doc: { content: { content: { text: string }[] }[] } }>("SELECT doc FROM contents WHERE id = $1", [item.id]))[0].doc.content[1].content[0].text).toBe("New words.");
 
   await page.reload();
   await openReview(page, exhibition);
   await row(page, "Farewell").click();
   await expect(page.locator("textarea.input--lg")).toHaveValue("New words.");
-  const [saved] = await e2eSql<{ blocks: { text: string; origin: string; refs: string[] }[] }>("SELECT blocks FROM contents WHERE id = $1", [item.id]);
-  expect(saved.blocks[1]).toMatchObject({ text: "New words.", origin: "EDITED", refs: ["d1:s1"] });
+  const [saved] = await e2eSql<{ doc: { content: { attrs: { id: string }; content: { text: string }[] }[] } }>("SELECT doc FROM contents WHERE id = $1", [item.id]);
+  expect(saved.doc.content[1]).toMatchObject({ attrs: { id: "b1" }, content: [{ text: "New words." }] });
 });
 
 test("Approve all ready approves READY items and leaves NEEDS_REVIEW ones", async ({ page }) => {
   const { account, exhibition } = await setup();
-  const one = await seedContent(exhibition, { kind: "ARTIST", status: "READY", blocks: [heading("Ready one"), paragraph("b1", "One.")] });
-  const two = await seedContent(exhibition, { kind: "ARTIST", status: "READY", blocks: [heading("Ready two"), paragraph("b1", "Two.")] });
-  const unsure = await seedContent(exhibition, { kind: "ARTIST", status: "NEEDS_REVIEW", blocks: [heading("Unsure one"), paragraph("b1", "Unsure.")] });
+  const one = await seedContent(exhibition, { kind: "ARTIST", status: "READY", doc: [heading("Ready one"), paragraph("b1", "One.")] });
+  const two = await seedContent(exhibition, { kind: "ARTIST", status: "READY", doc: [heading("Ready two"), paragraph("b1", "Two.")] });
+  const unsure = await seedContent(exhibition, { kind: "ARTIST", status: "NEEDS_REVIEW", doc: [heading("Unsure one"), paragraph("b1", "Unsure.")] });
   await signedIn(page, account);
   await openReview(page, exhibition);
 
@@ -95,9 +97,9 @@ test("Approve all ready approves READY items and leaves NEEDS_REVIEW ones", asyn
 
 test("a stale revision is REVISION_MISMATCH and another institution's item is NOT_FOUND", async ({ page }) => {
   const { account, exhibition } = await setup();
-  const item = await seedContent(exhibition, { kind: "OTHER", status: "READY", blocks: [paragraph("b1", "Text.")] });
+  const item = await seedContent(exhibition, { kind: "OTHER", status: "READY", doc: [paragraph("b1", "Text.")] });
   const other = await seedExhibition(await seedInstitutionAccount());
-  const foreign = await seedContent(other, { kind: "OTHER", status: "READY", blocks: [paragraph("b1", "Foreign.")] });
+  const foreign = await seedContent(other, { kind: "OTHER", status: "READY", doc: [paragraph("b1", "Foreign.")] });
   await signedIn(page, account);
 
   const stale = await revisionOf(item.id);
@@ -118,8 +120,8 @@ test("a stale revision is REVISION_MISMATCH and another institution's item is NO
 
 test("rejecting removes the item from the draft sections; REJECTED is terminal", async ({ page }) => {
   const { account, exhibition } = await setup();
-  const keep = await seedContent(exhibition, { kind: "ARTIST", status: "APPROVED", blocks: [paragraph("b1", "Keep.")] });
-  const drop = await seedContent(exhibition, { kind: "ARTIST", status: "APPROVED", blocks: [paragraph("b1", "Drop.")] });
+  const keep = await seedContent(exhibition, { kind: "ARTIST", status: "APPROVED", doc: [paragraph("b1", "Keep.")] });
+  const drop = await seedContent(exhibition, { kind: "ARTIST", status: "APPROVED", doc: [paragraph("b1", "Drop.")] });
   const sections = [{ id: "s1", kind: "ARTIST", title: "Artist", visible: true, contentIds: [keep.id, drop.id] }];
   await e2eSql("UPDATE exhibitions SET draft = jsonb_set(draft, '{sections}', $1::jsonb) WHERE id = $2", [JSON.stringify(sections), exhibition.id]);
   await signedIn(page, account);
@@ -131,7 +133,7 @@ test("rejecting removes the item from the draft sections; REJECTED is terminal",
   expect(after.draft_revision).not.toBe(exhibition.draftRevision);
 
   const revision = await revisionOf(drop.id);
-  for (const change of [{ status: "APPROVED" }, { editorialNote: "again" }, { blocks: [edited("b1", "Back.")] }]) {
+  for (const change of [{ status: "APPROVED" }, { editorialNote: "again" }, { doc: doc([paragraph("b1", "Back.")]) }]) {
     const res = await call(page, "console.content.update", { id: drop.id, revision, ...change });
     expect(res.status).toBe(409);
   }
@@ -140,7 +142,7 @@ test("rejecting removes the item from the draft sections; REJECTED is terminal",
 
 test("approving needs READY or NEEDS_REVIEW, and editing an APPROVED item returns it to READY", async ({ page }) => {
   const { account, exhibition } = await setup();
-  const item = await seedContent(exhibition, { kind: "ARTWORK", status: "NEEDS_REVIEW", blocks: [paragraph("b1", "Original.", ["d1:s1"]), paragraph("b2", "Untouched.", ["d1:s2"])] });
+  const item = await seedContent(exhibition, { kind: "ARTWORK", status: "NEEDS_REVIEW", doc: [paragraph("b1", "Original."), paragraph("b2", "Untouched.")] });
   await signedIn(page, account);
 
   const approved = await call(page, "console.content.update", { id: item.id, revision: await revisionOf(item.id), status: "APPROVED" });
@@ -149,50 +151,75 @@ test("approving needs READY or NEEDS_REVIEW, and editing an APPROVED item return
   expect(approved.data.approvedBy).not.toBeNull();
   expect((await call(page, "console.content.update", { id: item.id, revision: approved.data.revision, status: "APPROVED" })).status).toBe(409);
 
-  const blocks = approved.data.blocks;
+  const { content } = approved.data.doc;
   const reedit = await call(page, "console.content.update", {
     id: item.id,
     revision: approved.data.revision,
     kind: "CLOSING",
-    blocks: [{ ...blocks[0], text: "Changed." }, blocks[1]],
+    doc: doc([paragraph("b1", "Changed."), content[1]]),
   });
   expect(reedit.data).toMatchObject({ status: "READY", kind: "CLOSING", approvedAt: null, approvedBy: null });
-  expect(reedit.data.blocks[0]).toMatchObject({ text: "Changed.", origin: "EDITED", refs: ["d1:s1"] });
-  expect(reedit.data.blocks[1]).toMatchObject({ text: "Untouched.", origin: "SOURCE", refs: ["d1:s2"] });
+  expect(reedit.data.doc.content.map((b: { content: { text: string }[] }) => b.content[0].text)).toEqual(["Changed.", "Untouched."]);
 });
 
-test("edits are validated: unique block ids, this exhibition's images, no new refs", async ({ page }) => {
+test("edits are validated: ids, headings, images, sources and node limit", async ({ page }) => {
   const { account, exhibition } = await setup();
   const other = await seedExhibition(await seedInstitutionAccount());
-  const [foreignImage] = await e2eSql<{ id: string }>(
-    "INSERT INTO images (exhibition_id, object_key, width, height, rights, verification) VALUES ($1, $2, 10, 10, 'CONFIRMED', 'VERIFIED') RETURNING id",
-    [other.id, `e2e/${randomUUID()}`],
-  );
-  const [ownImage] = await e2eSql<{ id: string }>(
-    "INSERT INTO images (exhibition_id, object_key, width, height, rights, verification) VALUES ($1, $2, 10, 10, 'CONFIRMED', 'VERIFIED') RETURNING id",
-    [exhibition.id, `e2e/${randomUUID()}`],
-  );
-  const item = await seedContent(exhibition, { kind: "ARTWORK", status: "READY", blocks: [paragraph("b1", "Text.", ["d1:s1"])] });
+  const insertImage = async (exhibitionId: string) =>
+    (await e2eSql<{ id: string }>(
+      "INSERT INTO images (exhibition_id, object_key, width, height, rights, verification) VALUES ($1, $2, 10, 10, 'CONFIRMED', 'VERIFIED') RETURNING id",
+      [exhibitionId, `e2e/${randomUUID()}`],
+    ))[0];
+  const foreignImage = await insertImage(other.id);
+  const ownImage = await insertImage(exhibition.id);
+  const item = await seedContent(exhibition, { kind: "ARTWORK", status: "READY", doc: [paragraph("b1", "Text.")] });
   await signedIn(page, account);
   const revision = await revisionOf(item.id);
-  const update = (blocks: unknown[]) => call(page, "console.content.update", { id: item.id, revision, blocks });
-  const image = (imageId: string) => ({ type: "image", id: "b2", imageId, display: "HERO", captionRefs: [] });
+  const update = (blocks: unknown[], sources?: unknown) => call(page, "console.content.update", { id: item.id, revision, doc: doc(blocks), sources });
+  const image = (imageId: string) => ({ type: "stillImage", attrs: { id: "b2", imageId, display: "HERO", caption: null } });
 
-  expect((await update([edited("b1", "A"), edited("b1", "B")])).status).toBe(400);
-  expect((await update([paragraph("b1", "Text.", ["d1:s1"]), image(foreignImage.id)])).status).toBe(400);
-  expect((await update([paragraph("b1", "Text.", ["d9:s9"])])).status).toBe(400);
+  expect((await update([paragraph("b1", "A"), paragraph("b1", "B")])).status).toBe(400);
+  expect((await update([{ ...heading("Title"), attrs: { id: "h1", level: 1 } }])).status).toBe(400);
+  expect((await update([paragraph("b1", "Text."), image(foreignImage.id)])).status).toBe(400);
+  expect((await update(Array.from({ length: 300 }, (_, i) => paragraph(`p${i}`, "x")))).status).toBe(400);
+  expect((await update([paragraph("b1", "Text.")], { nope: { refs: [`${randomUUID()}:s001`], start: 0, end: 1 } })).status).toBe(400);
+  expect((await update([paragraph("b1", "Text.")], { b1: { refs: [`${randomUUID()}:s001`], start: 0, end: 1 } })).status).toBe(400);
   expect(await revisionOf(item.id)).toBe(revision);
-  expect((await update([paragraph("b1", "Text.", ["d1:s1"]), image(ownImage.id)])).status).toBe(200);
+  expect((await update([paragraph("b1", "Text."), image(ownImage.id)])).status).toBe(200);
+});
+
+test("a scrap mark's sentenceId is server-owned: only ids already stored are kept", async ({ page }) => {
+  const { account, exhibition } = await setup();
+  const published = randomUUID();
+  const scrap = (sentenceId: string, value: string) => ({ type: "text", text: value, marks: [{ type: "scrap", attrs: { sentenceId } }] });
+  const item = await seedContent(exhibition, {
+    kind: "ARTWORK",
+    status: "READY",
+    doc: [{ type: "paragraph", attrs: { id: "b1" }, content: [scrap(published, "Light stays.")] }],
+  });
+  await signedIn(page, account);
+
+  const res = await call(page, "console.content.update", {
+    id: item.id,
+    revision: await revisionOf(item.id),
+    doc: doc([
+      { type: "paragraph", attrs: { id: "b1" }, content: [scrap(published, "Light stays here.")] },
+      { type: "paragraph", attrs: { id: "b2" }, content: [scrap(randomUUID(), "A new line.")] },
+    ]),
+  });
+  expect(res.status).toBe(200);
+  const marks = res.data.doc.content.map((b: { content: { marks: { attrs: { sentenceId: string | null } }[] }[] }) => b.content[0].marks[0].attrs.sentenceId);
+  expect(marks).toEqual([published, null]);
 });
 
 test("create makes a READY item, delete removes it and its place in the draft sections", async ({ page }) => {
   const { account, exhibition } = await setup();
   await signedIn(page, account);
 
-  const created = await call(page, "console.content.create", { code: exhibition.code, kind: "CLOSING", blocks: [edited("b1", "Thank you for visiting.")], editorialNote: "typed by hand" });
+  const created = await call(page, "console.content.create", { code: exhibition.code, kind: "CLOSING", doc: doc([paragraph("b1", "Thank you for visiting.")]), editorialNote: "typed by hand" });
   expect(created.status).toBe(200);
   expect(created.data).toMatchObject({ kind: "CLOSING", status: "READY", editorialNote: "typed by hand", approvedAt: null });
-  expect(await call(page, "console.content.create", { code: exhibition.code, kind: "CLOSING", blocks: [paragraph("b1", "x", ["d1:s1"])] })).toMatchObject({ status: 400 });
+  expect(await call(page, "console.content.create", { code: exhibition.code, kind: "CLOSING", doc: [paragraph("b1", "x")] })).toMatchObject({ status: 400 });
 
   const sections = [{ id: "s1", kind: "CLOSING", title: "Closing", visible: true, contentIds: [created.data.id] }];
   await e2eSql("UPDATE exhibitions SET draft = jsonb_set(draft, '{sections}', $1::jsonb) WHERE id = $2", [JSON.stringify(sections), exhibition.id]);
@@ -204,9 +231,9 @@ test("create makes a READY item, delete removes it and its place in the draft se
 
 test("batchUpdate approves every READY item and never a NEEDS_REVIEW one", async ({ page }) => {
   const { account, exhibition } = await setup();
-  const ready = await seedContent(exhibition, { kind: "ARTIST", status: "READY", blocks: [paragraph("b1", "Ready.")] });
-  const unsure = await seedContent(exhibition, { kind: "ARTIST", status: "NEEDS_REVIEW", blocks: [paragraph("b1", "Unsure.")] });
-  const done = await seedContent(exhibition, { kind: "ARTIST", status: "APPROVED", blocks: [paragraph("b1", "Done.")] });
+  const ready = await seedContent(exhibition, { kind: "ARTIST", status: "READY", doc: [paragraph("b1", "Ready.")] });
+  const unsure = await seedContent(exhibition, { kind: "ARTIST", status: "NEEDS_REVIEW", doc: [paragraph("b1", "Unsure.")] });
+  const done = await seedContent(exhibition, { kind: "ARTIST", status: "APPROVED", doc: [paragraph("b1", "Done.")] });
   await signedIn(page, account);
 
   const res = await call(page, "console.content.batchUpdate", { code: exhibition.code, status: "APPROVED", where: { status: "READY" } });
@@ -215,29 +242,4 @@ test("batchUpdate approves every READY item and never a NEEDS_REVIEW one", async
   expect(res.data[0].approvedAt).not.toBeNull();
   expect(await statusOf(unsure.id)).toBe("NEEDS_REVIEW");
   expect(await statusOf(done.id)).toBe("APPROVED");
-});
-
-test("a sentence keeps its published sentence id whatever the client sends", async ({ page }) => {
-  const { account, exhibition } = await setup();
-  const published = randomUUID();
-  const item = await seedContent(exhibition, {
-    kind: "ARTWORK",
-    status: "READY",
-    blocks: [{ type: "sentence", id: "s1", text: "Light stays.", origin: "SOURCE", refs: [], guideSentenceId: published }],
-  });
-  await signedIn(page, account);
-
-  // The client drops the id on an edit, and invents one on a new sentence block.
-  const res = await call(page, "console.content.update", {
-    id: item.id,
-    revision: await revisionOf(item.id),
-    blocks: [
-      { type: "sentence", id: "s1", text: "Light stays here.", origin: "EDITED", refs: [] },
-      { type: "sentence", id: "s2", text: "A new line.", origin: "EDITED", refs: [], guideSentenceId: randomUUID() },
-    ],
-  });
-  expect(res.status).toBe(200);
-  const [stored] = await e2eSql<{ blocks: { id: string; guideSentenceId?: string }[] }>("SELECT blocks FROM contents WHERE id = $1", [item.id]);
-  expect(stored.blocks.find((b) => b.id === "s1")?.guideSentenceId).toBe(published);
-  expect(stored.blocks.find((b) => b.id === "s2")?.guideSentenceId).toBeUndefined();
 });

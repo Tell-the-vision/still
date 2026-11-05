@@ -1,4 +1,4 @@
-import { contentBlocks, type ContentBlock } from "@still/shared/console-content";
+import { contentSources, stillDoc, type ContentSources, type StillDoc } from "@still/shared/still-doc";
 import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "../../db/client";
 import { contents, images } from "../../db/schema";
@@ -20,7 +20,8 @@ export type ConsoleContentRow = {
   id: string;
   kind: string;
   status: string;
-  blocks: ContentBlock[];
+  doc: StillDoc;
+  sources: ContentSources;
   fields: unknown;
   suggestions: unknown;
   editorialNote: string | null;
@@ -33,15 +34,15 @@ export type ConsoleContentRow = {
 };
 
 // The contents of `exhibitionId` matching `where`, oldest first (ties by id). Image rows are read
-// within the same exhibition, so a block cannot pull in another institution's image.
+// within the same exhibition, so a node cannot pull in another institution's image.
 export async function contentRows(exhibitionId: string, { where }: { where?: SQL } = {}): Promise<ConsoleContentRow[]> {
   const rows = await db
     .select()
     .from(contents)
     .where(and(eq(contents.exhibitionId, exhibitionId), where))
     .orderBy(asc(contents.createdAt), asc(contents.id));
-  const blocksOf = rows.map((row) => contentBlocks.parse(row.blocks));
-  const imageIds = [...new Set(blocksOf.flat().flatMap((block) => (block.type === "image" ? [block.imageId] : [])))];
+  const docs = rows.map((row) => stillDoc.parse(row.doc));
+  const imageIds = [...new Set(docs.flatMap((doc) => doc.content.flatMap((block) => (block.type === "stillImage" ? [block.attrs.imageId] : []))))];
   const imageRows = imageIds.length
     ? await db
         .select({ id: images.id, altText: images.altText, credit: images.credit, rights: images.rights, verification: images.verification, width: images.width, height: images.height })
@@ -53,7 +54,8 @@ export async function contentRows(exhibitionId: string, { where }: { where?: SQL
     id: row.id,
     kind: row.kind,
     status: row.status,
-    blocks: blocksOf[i],
+    doc: docs[i],
+    sources: contentSources.parse(row.sources),
     fields: row.fields,
     suggestions: row.suggestions,
     editorialNote: row.editorialNote,
@@ -62,8 +64,8 @@ export async function contentRows(exhibitionId: string, { where }: { where?: SQL
     approvedBy: row.approvedBy,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    images: blocksOf[i].flatMap((block) => {
-      const image = block.type === "image" ? imageById.get(block.imageId) : undefined;
+    images: docs[i].content.flatMap((block) => {
+      const image = block.type === "stillImage" ? imageById.get(block.attrs.imageId) : undefined;
       return image ? [image] : [];
     }),
   }));

@@ -1,9 +1,11 @@
-import { contentBlocks, type ContentBlock } from "@still/shared/console-content";
+import { SOURCE_REF } from "@still/shared/manifest";
+import { contentSources, countNodes, EMPTY_DOC, MAX_NODES, scrapRuns, stillDoc, type ContentSources, type StillDoc } from "@still/shared/still-doc";
+import { z } from "zod";
 import { exhibitionDraft } from "@still/shared/console-draft";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client";
-import { contents, exhibitions, images } from "../../db/schema";
+import { contents, documents, exhibitions, images } from "../../db/schema";
 import { AppError } from "../../trpc/init";
 
 // Writes to contents (SPEC §10.8 상태 전이 and 쓰기 경로). An item of another institution is NOT_FOUND.
@@ -12,7 +14,8 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Row = typeof contents.$inferSelect;
 export type ContentEdit = {
   kind?: Row["kind"];
-  blocks?: ContentBlock[];
+  doc?: StillDoc;
+  sources?: ContentSources;
   fields?: Record<string, unknown> | null;
   editorialNote?: string | null;
 };
@@ -20,41 +23,52 @@ export type ContentEdit = {
 const badRequest = (message: string) => new TRPCError({ code: "BAD_REQUEST", message });
 const notFound = () => new TRPCError({ code: "NOT_FOUND" });
 
-// The refs of one block, or of one fields entry ({ value, origin, refs }).
-const refsOf = (block: ContentBlock) => (block.type === "image" ? block.captionRefs : block.refs);
 const fieldRefs = (field: unknown): string[] =>
   field && typeof field === "object" && "refs" in field && Array.isArray(field.refs) ? field.refs.map(String) : [];
 
 // Refs must exist in a manifest of the exhibition's documents (SPEC §10.8), and no manifest exists yet.
-// So the only refs accepted are the ones the item already carries on the same block id / field name:
-// they were validated when analysis wrote them and a write cannot add one.
+// So the only refs accepted are the ones the item already carries on the same field name: they were
+// validated when analysis wrote them and a write cannot add one.
 function assertNoNewRefs(refs: string[], existing: string[], where: string) {
   const unknown = refs.filter((ref) => !existing.includes(ref));
   if (unknown.length) throw badRequest(`${where} references ${unknown.join(", ")}, which is not in the exhibition's documents`);
 }
 
-// Blocks as they are stored: ids unique, images from this exhibition, refs not new, and a text block whose text
-// changed (or is new) is EDITED, whatever origin the caller sent.
-async function checkedBlocks(tx: Tx, exhibitionId: string, blocks: ContentBlock[], existing: ContentBlock[]): Promise<ContentBlock[]> {
-  if (new Set(blocks.map((b) => b.id)).size !== blocks.length) throw badRequest("block ids must be unique");
-  const imageIds = [...new Set(blocks.flatMap((b) => (b.type === "image" ? [b.imageId] : [])))];
+// A doc as it is stored (SPEC §10.8 저장 시 검증): contents allow headings 2-3 only, top-level ids are
+// unique, the node count is within MAX_NODES and images belong to this exhibition. A scrap mark's sentenceId
+// is owned by the server (assigned at publication): one the stored doc does not already hold becomes null.
+async function checkedDoc(tx: Tx, exhibitionId: string, doc: StillDoc, existing: StillDoc): Promise<StillDoc> {
+  const ids = doc.content.map((b) => b.attrs.id);
+  if (new Set(ids).size !== ids.length) throw badRequest("node ids must be unique");
+  if (doc.content.some((b) => b.type === "heading" && b.attrs.level === 1)) throw badRequest("headings in an item are level 2 or 3");
+  if (countNodes(doc) > MAX_NODES) throw badRequest(`a document has at most ${MAX_NODES} nodes`);
+  const imageIds = [...new Set(doc.content.flatMap((b) => (b.type === "stillImage" ? [b.attrs.imageId] : [])))];
   if (imageIds.length) {
     const own = await tx.select({ id: images.id }).from(images).where(and(eq(images.exhibitionId, exhibitionId), inArray(images.id, imageIds)));
     if (own.length !== imageIds.length) throw badRequest("imageId is not an image of this exhibition");
   }
-  return blocks.map((block) => {
-    const before = existing.find((b) => b.id === block.id);
-    assertNoNewRefs(refsOf(block), before ? refsOf(before) : [], `block ${block.id}`);
-    if (block.type === "image") return block;
-    const unchanged = before && before.type === block.type && "text" in before && before.text === block.text;
-    const origin = unchanged && "origin" in before ? before.origin : "EDITED";
-    if (block.type !== "sentence") return { ...block, origin };
-    // A sentence's guideSentenceId is assigned at publication and owned by the server (SPEC §10.9): keep the
-    // stored one and ignore whatever the client sends, so visitors' kept lines keep their sentence id.
-    const sentence = { id: block.id, type: block.type, text: block.text, refs: block.refs, origin };
-    const kept = before?.type === "sentence" ? before.guideSentenceId : undefined;
-    return kept ? { ...sentence, guideSentenceId: kept } : sentence;
-  });
+  const stored = new Set(scrapRuns(existing).flatMap((run) => (run.sentenceId ? [run.sentenceId] : [])));
+  const keepKnown = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(keepKnown);
+    if (!value || typeof value !== "object") return value;
+    const node = value as Record<string, unknown>;
+    if (node.type === "scrap") return { ...node, attrs: { sentenceId: stored.has(String((node.attrs as { sentenceId: unknown }).sentenceId)) ? (node.attrs as { sentenceId: unknown }).sentenceId : null } };
+    return Object.fromEntries(Object.entries(node).map(([key, child]) => [key, keepKnown(child)]));
+  };
+  return keepKnown(doc) as StillDoc;
+}
+
+// sources keys are top-level node ids of `doc`; their refs "{documentId}:{segmentId}" name documents of this exhibition.
+async function checkedSources(tx: Tx, exhibitionId: string, doc: StillDoc, sources: ContentSources): Promise<ContentSources> {
+  const ids = new Set(doc.content.map((b) => b.attrs.id));
+  const unknownKey = Object.keys(sources).find((key) => !ids.has(key));
+  if (unknownKey) throw badRequest(`sources names ${unknownKey}, which is not a node of the document`);
+  const documentIds = [...new Set(Object.values(sources).flatMap((s) => s.refs.map((ref) => (SOURCE_REF.test(ref) ? ref.split(":")[0] : ref))))];
+  if (documentIds.length) {
+    const own = await tx.select({ id: documents.id }).from(documents).where(and(eq(documents.exhibitionId, exhibitionId), inArray(documents.id, documentIds.filter((id) => z.uuid().safeParse(id).success))));
+    if (own.length !== documentIds.length) throw badRequest("sources refer to a document that is not in this exhibition");
+  }
+  return sources;
 }
 
 // fields entries whose value changed become EDITED; refs follow the same rule as blocks.
@@ -97,13 +111,13 @@ async function lockOwnedContent(tx: Tx, institutionId: string, id: string): Prom
   return row;
 }
 
-export async function createContent(exhibitionId: string, input: ContentEdit & { kind: Row["kind"]; blocks: ContentBlock[] }) {
+export async function createContent(exhibitionId: string, input: ContentEdit & { kind: Row["kind"]; doc: StillDoc }) {
   return db.transaction(async (tx) => {
-    // A manual item has no source text: every text block is the institution's own (EDITED).
-    const blocks = await checkedBlocks(tx, exhibitionId, input.blocks, []);
+    const doc = await checkedDoc(tx, exhibitionId, input.doc, EMPTY_DOC);
+    const sources = await checkedSources(tx, exhibitionId, doc, input.sources ?? {});
     const [row] = await tx
       .insert(contents)
-      .values({ exhibitionId, kind: input.kind, status: "READY", blocks, fields: input.fields ? checkedFields(input.fields, null) : null, editorialNote: input.editorialNote ?? null })
+      .values({ exhibitionId, kind: input.kind, status: "READY", doc, sources, fields: input.fields ? checkedFields(input.fields, null) : null, editorialNote: input.editorialNote ?? null })
       .returning({ id: contents.id });
     return row.id;
   });
@@ -122,11 +136,18 @@ export async function updateContent(
 
     const edits: Partial<typeof contents.$inferInsert> = {};
     if (input.kind !== undefined) edits.kind = input.kind;
-    if (input.blocks !== undefined) edits.blocks = await checkedBlocks(tx, row.exhibitionId, input.blocks, contentBlocks.parse(row.blocks));
+    const stored = stillDoc.parse(row.doc);
+    if (input.doc !== undefined || input.sources !== undefined) {
+      const doc = input.doc ? await checkedDoc(tx, row.exhibitionId, input.doc, stored) : stored;
+      // Sources not sent follow the doc: entries of removed nodes go.
+      const kept = Object.fromEntries(Object.entries(contentSources.parse(row.sources)).filter(([key]) => doc.content.some((b) => b.attrs.id === key)));
+      if (input.doc) edits.doc = doc;
+      edits.sources = await checkedSources(tx, row.exhibitionId, doc, input.sources ?? kept);
+    }
     if (input.fields !== undefined) edits.fields = input.fields && checkedFields(input.fields, row.fields);
     if (input.editorialNote !== undefined) edits.editorialNote = input.editorialNote;
-    // Block, field and kind edits send an APPROVED item back to READY (the editorial note does not).
-    const contentEdited = input.kind !== undefined || input.blocks !== undefined || input.fields !== undefined;
+    // Doc, source, field and kind edits send an APPROVED item back to READY (the editorial note does not).
+    const contentEdited = input.kind !== undefined || input.doc !== undefined || input.sources !== undefined || input.fields !== undefined;
     const status = input.status ?? (contentEdited && row.status === "APPROVED" ? "READY" : row.status);
     const approved = status === "APPROVED";
     const stays = approved && row.status === "APPROVED";
