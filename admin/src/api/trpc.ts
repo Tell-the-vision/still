@@ -129,7 +129,11 @@ export function createTrpcApi(): PlatformApi {
       } while (cursor);
       return institutions;
     },
-    listAccounts: async () => (await call<AccountRow[]>("admin.account.list", {})).map(toAccount),
+    listAccounts: async (filter = {}) => (await call<AccountRow[]>("admin.account.list", filter)).map(toAccount),
+    issueInstitutionAccount: async (institutionId, name, email) => {
+      const issued = await call<{ account: AccountRow; temporaryPassword: string }>("admin.account.create", { role: "INSTITUTION", institutionId, email, displayName: name });
+      return { account: toAccount(issued.account), temporaryPassword: issued.temporaryPassword };
+    },
     addOperator: async (name, email) => {
       const issued = await call<{ account: AccountRow; temporaryPassword: string }>("admin.account.create", { role: "ADMIN", email, displayName: name });
       return { account: toAccount(issued.account), temporaryPassword: issued.temporaryPassword };
@@ -143,15 +147,5 @@ export function createTrpcApi(): PlatformApi {
     createInstitution,
     issueWorkspaceAdmin: issueAccount,
     setInstitutionStatus: async (id, status) => toInstitution(await call("admin.institution.update", { id, status })),
-    // The workspace admin is the institution's first account (admin.account.list is oldest first).
-    resetWorkspaceAdminPassword: async (institutionId) => {
-      const [workspaceAdmin] = await call<AccountRow[]>("admin.account.list", { institutionId });
-      if (!workspaceAdmin) throw new ApiError("This institution has no account yet.", "NOT_FOUND");
-      const { account, temporaryPassword } = await call<{ account: AccountRow; temporaryPassword: string }>("admin.account.update", {
-        id: workspaceAdmin.id,
-        resetPassword: true,
-      });
-      return { email: account.email, temporaryPassword };
-    },
   };
 }

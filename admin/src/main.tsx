@@ -6,7 +6,7 @@ import { AuthProvider } from "./auth";
 import SignIn from "./pages/SignIn";
 import ChangePassword from "./pages/ChangePassword";
 import Institutions from "./pages/Institutions";
-import Users from "./pages/Users";
+import Operators from "./pages/Operators";
 import Placeholder from "./pages/Placeholder";
 import "./styles.css";
 
@@ -20,11 +20,11 @@ createRoot(document.getElementById("root")!).render(
           <Route path="change-password" element={<ChangePassword />} />
           <Route element={<Layout />}>
             <Route index element={<Navigate to="/institutions" replace />} />
-            <Route path="institutions" element={<Institutions />} />
-            <Route path="overview" element={<Placeholder title="Overview" />} />
-            <Route path="users" element={<Users />} />
-            <Route path="audit" element={<Placeholder title="Audit log" />} />
-            <Route path="settings" element={<Placeholder title="Platform settings" />} />
+            {/* One route each, so moving between records keeps the page (and its list) mounted. */}
+            <Route path="institutions/:id?" element={<Institutions />} />
+            <Route path="operators/:id?" element={<Operators />} />
+            <Route path="team" element={<Navigate to="/operators" replace />} />
+            <Route path="users" element={<Navigate to="/operators" replace />} />
             <Route path="*" element={<Placeholder title="Not found" />} />
           </Route>
         </Routes>

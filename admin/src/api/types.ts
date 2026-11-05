@@ -53,6 +53,12 @@ export interface Account {
   lastSignInAt: ISODateTime | null;
 }
 
+/** admin.account.list filters: one institution's staff, or one role (operators are role ADMIN). */
+export interface AccountFilter {
+  institutionId?: string;
+  role?: Account["role"];
+}
+
 /** The one seam between screens and backend. */
 export interface PlatformApi {
   /** Operators sign in with the email and password STILL Admin issued them (SPEC §9.2, admin.session.create). */
@@ -73,12 +79,10 @@ export interface PlatformApi {
   issueWorkspaceAdmin(institution: Institution, admin: Pick<NewInstitution, "adminName" | "adminEmail">): Promise<Issued>;
   /** Suspend or reactivate. Suspending ends every staff session of that institution; nothing is deleted. */
   setInstitutionStatus(id: string, status: "ACTIVE" | "SUSPENDED"): Promise<Institution>;
-  /**
-   * Sets a new temporary password for the institution's workspace admin (its first account) and ends that account's
-   * sessions (SPEC §9.2 재설정). The password is returned once; the operator passes it on.
-   */
-  resetWorkspaceAdminPassword(institutionId: string): Promise<{ email: string; temporaryPassword: string }>;
-  listAccounts(): Promise<Account[]>;
+  /** Accounts, oldest first (an institution's first account is its workspace admin). Filtered on the server. */
+  listAccounts(filter?: AccountFilter): Promise<Account[]>;
+  /** Issues one more staff account of an institution (STILL issues every account, SPEC §9.2); the password is returned once. */
+  issueInstitutionAccount(institutionId: string, name: string, email: string): Promise<{ account: Account; temporaryPassword: string }>;
   /** Issues an operator (role ADMIN); the temporary password is returned once. */
   addOperator(name: string, email: string): Promise<{ account: Account; temporaryPassword: string }>;
   /** Suspending ends the account's sessions. Suspending the last active operator throws LAST_ADMIN. */

@@ -78,7 +78,20 @@ export function createMockApi(): PlatformApi {
       return wait(undefined, 300);
     },
     getMe: () => wait(me),
-    listAccounts: () => wait(accounts),
+    listAccounts: (filter = {}) => {
+      const name = filter.institutionId ? find(filter.institutionId).name : null;
+      return wait(accounts.filter((a) => (!filter.role || a.role === filter.role) && (!name || a.institution === name)));
+    },
+    async issueInstitutionAccount(institutionId, name, email) {
+      const inst = find(institutionId);
+      const address = email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new ApiError("Enter a valid email.", "BAD_REQUEST");
+      if (accounts.some((x) => x.email.toLowerCase() === address)) throw new ApiError("This email already signs in to another account.", "CONFLICT", "LOGIN_ID_TAKEN");
+      const created: Account = { id: `acc-${Date.now()}`, role: "INSTITUTION", institution: inst.name, email: address, name: name.trim() || null, status: "ACTIVE", lastSignInAt: null };
+      accounts.push(created);
+      if (inst.adminEmail === "—") inst.adminEmail = address;
+      return wait({ account: created, temporaryPassword: "mock-Temp-Pass-44" }, 300);
+    },
     async addOperator(name, email) {
       const created: Account = { id: `acc-${Date.now()}`, role: "ADMIN", institution: null, email: email.trim(), name: name.trim(), status: "ACTIVE", lastSignInAt: null };
       accounts.push(created);
@@ -134,13 +147,6 @@ export function createMockApi(): PlatformApi {
       // Reactivating an institution whose accounts never signed in puts it back to PENDING, not ACTIVE.
       inst.status = status === "ACTIVE" && inst.lastActiveAt === null ? "PENDING" : status;
       return wait(inst, 300);
-    },
-    async resetWorkspaceAdminPassword(id) {
-      const groups = Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 6).padEnd(4, "x"));
-      const inst = find(id);
-      // Like the server: no account yet (adminEmail "—", as toInstitution shows it) means nothing to reset.
-      if (inst.adminEmail === "—") throw new ApiError("This institution has no account yet.", "NOT_FOUND");
-      return wait({ email: inst.adminEmail, temporaryPassword: groups.join("-") }, 300);
     },
   };
 

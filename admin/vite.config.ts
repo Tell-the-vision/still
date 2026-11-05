@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import tidewave from "tidewave/vite-plugin";
 
 // The platform admin app (STILL staff only) is a separate bundle served by Next at /admin (see next.config.ts).
 // It is built after the Expo web export, into public/admin, so visitors and museum staff never download its code.
@@ -8,7 +9,7 @@ export default defineConfig(({ mode }) => {
   const target = env.VITE_API_PROXY || "http://localhost:3000";
   return {
     base: "/admin/",
-    plugins: [react()],
+    plugins: [tidewave(), react()],
     build: {
       outDir: "../public/admin",
       emptyOutDir: true,

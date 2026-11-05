@@ -34,14 +34,13 @@ export default function SignIn() {
   return (
     <div className="pa-signin">
       <header className="pa-signin__head">
-        <p className="pa-top__brand">STILL</p>
-        <span className="pa-top__label">Platform admin</span>
+        <p className="pa-signin__brand">STILL</p>
+        <p className="pa-signin__portal">Platform admin</p>
       </header>
       <main className="pa-signin__body">
         <form className="pa-signin__card" onSubmit={submit} noValidate>
-          <p className="pa-side__heading pa-signin__eyebrow">STILL internal</p>
           <h1 className="pa-title pa-signin__title">Sign in to platform admin</h1>
-          <p className="pa-desc">For STILL operators only. Use the email and password you were issued.</p>
+          <p className="pa-desc pa-signin__desc">For STILL operators only. Use the email and password you were issued.</p>
           <label className="pa-signin__field">
             <span className="pa-field-label">Email</span>
             <input className="pa-input" type="email" name="email" autoComplete="username" aria-invalid={error ? true : undefined} aria-describedby={error ? "pa-signin-error" : undefined}

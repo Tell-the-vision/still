@@ -33,12 +33,11 @@ export default function ChangePassword() {
   return (
     <div className="pa-signin">
       <header className="pa-signin__head">
-        <p className="pa-top__brand">STILL</p>
-        <span className="pa-top__label">Platform admin</span>
+        <p className="pa-signin__brand">STILL</p>
+        <p className="pa-signin__portal">Platform admin</p>
       </header>
       <main className="pa-signin__body">
         <form className="pa-signin__card" onSubmit={submit} noValidate>
-          <p className="pa-side__heading pa-signin__eyebrow">STILL internal</p>
           <h1 className="pa-title pa-signin__title">Choose a new password</h1>
           <p className="pa-desc">You signed in with a temporary password. Choose your own to continue. Other devices are signed out.</p>
           <label className="pa-signin__field">
