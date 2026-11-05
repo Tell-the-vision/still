@@ -9,7 +9,11 @@ import { AppError, callerProcedure, router } from "../init";
 export const passwordRouter = router({
   update: callerProcedure.input(passwordUpdateInput).mutation(async ({ input, ctx }) => {
     if (ctx.surface === "visitor") throw new TRPCError({ code: "FORBIDDEN" }); // visitors have no password
-    if (input.newPassword.length < MIN_PASSWORD_LENGTH) {
+    if (input.newPassword === input.currentPassword) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Choose a password different from the current one.", cause: new AppError("PASSWORD_TOO_WEAK") });
+    }
+    // Characters, not UTF-16 units (SPEC §11.1 counts NFC code points).
+    if ([...input.newPassword.normalize("NFC")].length < MIN_PASSWORD_LENGTH) {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: `The new password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
