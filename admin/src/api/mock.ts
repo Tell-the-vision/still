@@ -1,6 +1,6 @@
 // In-memory PlatformApi for building screens without a backend. State resets on reload.
 import { AccountNotIssuedError, ApiError } from "./errors";
-import type { Institution, InstitutionStatus, PlatformApi } from "./types";
+import type { Account, Institution, InstitutionStatus, PlatformApi } from "./types";
 
 const wait = <T,>(value: T, ms = 150): Promise<T> => new Promise((r) => setTimeout(() => r(structuredClone(value)), ms));
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
@@ -44,6 +44,18 @@ export function createMockApi(): PlatformApi {
     createdAt: `${created}T09:00:00+09:00`,
     lastActiveAt: last === null ? null : daysAgo(last),
   }));
+  const accounts: Account[] = [
+    { id: "acc-1", role: "ADMIN", institution: null, email: me.email, name: "STILL Admin", status: "ACTIVE", lastSignInAt: daysAgo(0) },
+    ...db.slice(0, 5).map((i): Account => ({ id: `acc-${i.id}`, role: "INSTITUTION", institution: i.name, email: i.adminEmail, name: null, status: "ACTIVE", lastSignInAt: i.lastActiveAt })),
+  ];
+  const account = (id: string) => {
+    const hit = accounts.find((x) => x.id === id);
+    if (!hit) throw new ApiError("Account not found.", "NOT_FOUND");
+    return hit;
+  };
+  const assertNotLastOperator = (a: Account) => {
+    if (a.role === "ADMIN" && a.status === "ACTIVE" && accounts.filter((x) => x.role === "ADMIN" && x.status === "ACTIVE").length === 1) throw new ApiError("Conflict.", "CONFLICT", "LAST_ADMIN");
+  };
   const find = (id: string) => {
     const hit = db.find((x) => x.id === id);
     if (!hit) throw new ApiError("Institution not found.", "NOT_FOUND");
@@ -66,6 +78,24 @@ export function createMockApi(): PlatformApi {
       return wait(undefined, 300);
     },
     getMe: () => wait(me),
+    listAccounts: () => wait(accounts),
+    async addOperator(name, email) {
+      const created: Account = { id: `acc-${Date.now()}`, role: "ADMIN", institution: null, email: email.trim(), name: name.trim(), status: "ACTIVE", lastSignInAt: null };
+      accounts.push(created);
+      return wait({ account: created, temporaryPassword: "mock-Temp-Pass-42" }, 300);
+    },
+    async setAccountStatus(id, status) {
+      const a = account(id);
+      if (status === "SUSPENDED") assertNotLastOperator(a);
+      a.status = status;
+      return wait(a, 300);
+    },
+    async resetAccountPassword(id) { return wait({ email: account(id).email, temporaryPassword: "mock-Temp-Pass-43" }, 300); },
+    async deleteAccount(id) {
+      assertNotLastOperator(account(id));
+      accounts.splice(accounts.findIndex((x) => x.id === id), 1);
+      return wait(undefined, 300);
+    },
     listInstitutions: () => wait(db),
     async createInstitution({ name, code, adminName, adminEmail }) {
       const c = code.trim().toUpperCase();

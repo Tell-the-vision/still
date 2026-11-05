@@ -41,6 +41,18 @@ export interface PlatformAdmin {
   mustChangePassword: boolean;
 }
 
+/** One sign-in account as admin.account.list returns it (SPEC §9.5). */
+export interface Account {
+  id: string;
+  role: "ADMIN" | "INSTITUTION";
+  /** Institution name; null for operators. */
+  institution: string | null;
+  email: string;
+  name: string | null;
+  status: "ACTIVE" | "SUSPENDED";
+  lastSignInAt: ISODateTime | null;
+}
+
 /** The one seam between screens and backend. */
 export interface PlatformApi {
   /** Operators sign in with the email and password STILL Admin issued them (SPEC §9.2, admin.session.create). */
@@ -66,4 +78,12 @@ export interface PlatformApi {
    * sessions (SPEC §9.2 재설정). The password is returned once; the operator passes it on.
    */
   resetWorkspaceAdminPassword(institutionId: string): Promise<{ email: string; temporaryPassword: string }>;
+  listAccounts(): Promise<Account[]>;
+  /** Issues an operator (role ADMIN); the temporary password is returned once. */
+  addOperator(name: string, email: string): Promise<{ account: Account; temporaryPassword: string }>;
+  /** Suspending ends the account's sessions. Suspending the last active operator throws LAST_ADMIN. */
+  setAccountStatus(id: string, status: "ACTIVE" | "SUSPENDED"): Promise<Account>;
+  resetAccountPassword(id: string): Promise<{ email: string; temporaryPassword: string }>;
+  /** Deleting the last active operator throws LAST_ADMIN. */
+  deleteAccount(id: string): Promise<void>;
 }

@@ -1,7 +1,7 @@
 // PlatformApi over the still server (tRPC at /api/trpc, no transformer = plain JSON).
 // Procedure names follow the SPEC (admin.*, me.get, session.delete); see ../../API.md for what is still missing.
 import { AccountNotIssuedError, ApiError } from "./errors";
-import type { Institution, NewInstitution, PlatformAdmin, PlatformApi } from "./types";
+import type { Account, Institution, NewInstitution, PlatformAdmin, PlatformApi } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -38,7 +38,13 @@ export type InstitutionRow = {
 };
 
 // admin.account.* return this row (src/server/services/admin/account-rows.ts); only the fields the screens use.
-type AccountRow = { id: string; email: string };
+type AccountRow = {
+  id: string; email: string; role: "ADMIN" | "INSTITUTION"; institution: { name: string } | null;
+  displayName: string | null; status: "ACTIVE" | "SUSPENDED"; lastLoginAt: string | null;
+};
+const toAccount = (r: AccountRow): Account => ({
+  id: r.id, role: r.role, institution: r.institution?.name ?? null, email: r.email, name: r.displayName, status: r.status, lastSignInAt: r.lastLoginAt,
+});
 
 export const toInstitution = (row: InstitutionRow): Institution => ({
   id: row.id,
@@ -102,6 +108,17 @@ export function createTrpcApi(): PlatformApi {
       } while (cursor);
       return institutions;
     },
+    listAccounts: async () => (await call<AccountRow[]>("admin.account.list", {})).map(toAccount),
+    addOperator: async (name, email) => {
+      const issued = await call<{ account: AccountRow; temporaryPassword: string }>("admin.account.create", { role: "ADMIN", email, displayName: name });
+      return { account: toAccount(issued.account), temporaryPassword: issued.temporaryPassword };
+    },
+    setAccountStatus: async (id, status) => toAccount((await call<{ account: AccountRow }>("admin.account.update", { id, status })).account),
+    resetAccountPassword: async (id) => {
+      const { account, temporaryPassword } = await call<{ account: AccountRow; temporaryPassword: string }>("admin.account.update", { id, resetPassword: true });
+      return { email: account.email, temporaryPassword };
+    },
+    deleteAccount: async (id) => { await call("admin.account.delete", { id }); },
     createInstitution,
     issueWorkspaceAdmin: issueAccount,
     setInstitutionStatus: async (id, status) => toInstitution(await call("admin.institution.update", { id, status })),
