@@ -50,7 +50,6 @@ test("confirming an image's permission on the review screen passes the Image rig
   const [row] = await e2eSql<{ rights: string }>("SELECT rights FROM images WHERE id = $1", [image.id]);
   expect(row.rights).toBe("CONFIRMED");
   expect((await imageRights(page, exhibition.code)).ok).toBe(true);
-  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/images/panel.png" });
 });
 
 test("alt text and permission saved without a copyright holder leave no rights issue", async ({ page }) => {

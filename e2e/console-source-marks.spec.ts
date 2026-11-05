@@ -70,7 +70,6 @@ async function extract(page: Page, s: Setup, manifest: unknown, version = 1) {
 
 const text = (value: string) => ({ type: "text", text: value });
 const paragraph = (id: string, value: string) => ({ type: "paragraph", attrs: { id }, content: [text(value)] });
-const SHOTS = "/Users/phihu/Desktop/still-wt/shots/edsources";
 
 // SPEC §9.4 원문 대조 표시, §10.8 sources: the label is computed against the manifest text, and
 // "Revert to source" writes the source text back.
@@ -98,7 +97,6 @@ test("blocks are labelled Source / Edited / No source and an edited one reverts 
   const panel = page.locator(".source-panel");
   await expect(panel.locator("del, ins").first()).toBeVisible();
   await expect(panel.locator("del")).toContainText("two.");
-  await panel.screenshot({ path: `${SHOTS}/source-panel.png` });
   await labels.nth(0).click();
   await expect(page.locator(".source-panel").getByRole("button", { name: "Revert to source" })).toHaveCount(0);
   await labels.nth(1).click();

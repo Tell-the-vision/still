@@ -23,7 +23,6 @@ test("the operator manages accounts from Users & access", async ({ page }) => {
   await expect(notice).toContainText("shown only once");
   await expect(notice.locator("code")).toHaveText(/^[a-z0-9]{4}(-[a-z0-9]{4}){3}$/i);
   await expect(notice.getByRole("button", { name: "Copy" })).toBeVisible();
-  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/users/users.png" });
 
   // Suspend and reactivate an institution account.
   const row = page.getByRole("row").filter({ hasText: staff.email });

@@ -64,5 +64,4 @@ test("on a phone a HERO image spans the screen and GALLERY images share one scro
   const row = page.getByTestId("gallery-row");
   expect(await row.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await page.getByAltText("Hero shot").scrollIntoViewIfNeeded();
-  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/viewer/guide.png" });
 });
