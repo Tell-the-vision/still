@@ -3,7 +3,7 @@ import { api, type EditSuggestion } from "../api";
 import { useWorkspace } from "../store";
 import { useDecisionFocus } from "./useDecisionFocus";
 
-// The open edit suggestions of one item (SPEC §9.4 편집 제안). Accepting applies the proposal text to its node;
+// The open edit suggestions of one item that point at no block (block ones sit beside their block, InlineSuggestions) (SPEC §9.4 편집 제안). Accepting applies the proposal text to its node;
 // dismissing only records the decision. Either way the item is reloaded: its text and status can change.
 export function Suggestions({ itemId, editable, flash }: { itemId: string; editable: boolean; flash: (msg: string) => void }) {
   const { exhibition, reloadExhibitionData, reportError } = useWorkspace();
@@ -15,7 +15,7 @@ export function Suggestions({ itemId, editable, flash }: { itemId: string; edita
   useEffect(() => {
     if (!exhibitionId) return;
     api.listSuggestions(exhibitionId)
-      .then((all) => setOpen(all.filter((s) => s.contentId === itemId && s.status === "OPEN")))
+      .then((all) => setOpen(all.filter((s) => s.contentId === itemId && s.status === "OPEN" && !s.node)))
       .catch(reportError);
   }, [exhibitionId, itemId]); // eslint-disable-line react-hooks/exhaustive-deps -- reportError is not stable and must not refetch
 

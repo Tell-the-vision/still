@@ -80,7 +80,7 @@ async function decideWideSuggestion(
     if (input.status === "ACCEPTED") {
       for (const { contentId, node } of decided.target?.items ?? []) {
         const [row] = await tx.select().from(contents).where(and(eq(contents.id, contentId), eq(contents.exhibitionId, ex.id))).for("update");
-        if (!row) continue;
+        if (!row) throw new TRPCError({ code: "BAD_REQUEST", message: "Target item not found in this exhibition" });
         const doc = stillDoc.parse(row.doc);
         const next = applySuggestion(doc, contentSources.parse(row.sources), { ...decided, target: { node } });
         if (next.doc === doc) continue; // nothing to change in this item (as on the item path)
