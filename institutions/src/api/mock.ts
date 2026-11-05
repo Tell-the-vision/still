@@ -225,6 +225,7 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
     listProcessingEvents: (id) => wait(db.events[id] ?? []),
 
     listContentItems: (id) => wait([...(db.items[id] ?? [])].sort((a, b) => a.order - b.order)),
+    listImages: () => wait([]),
     getContentDoc: (itemId) => ({
       type: "doc",
       content: findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
