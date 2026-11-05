@@ -27,4 +27,15 @@ test("the review screen previews the item as visitors see it", async ({ page }) 
   await expect(preview.getByRole("heading", { name: "Preview heading" })).toBeVisible();
   await expect(preview.getByText("Preview paragraph text.")).toBeVisible();
   await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/edpreview/review-preview.png" });
+
+  // The Preview toggle hides and shows the phone frame; the editor keeps a readable measure.
+  const toggle = page.getByRole("button", { name: "Preview", exact: true });
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await toggle.click();
+  await expect(preview).toBeHidden();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect((await page.locator(".still-editor").boundingBox())!.width).toBeGreaterThanOrEqual(560);
+  await toggle.click();
+  await expect(preview).toBeVisible();
+  await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/layout/review.png" });
 });
