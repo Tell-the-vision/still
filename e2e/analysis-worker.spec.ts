@@ -137,10 +137,43 @@ test("/structure/text returns a structureOutput with usage and sends the page te
   expect(prompts[0]).toContain("An introduction to the show.");
 });
 
-test("/structure/text maps malformed output to INVALID_OUTPUT", async () => {
-  for (const text of ["not json", JSON.stringify({ items: [{ kind: "NOPE" }], outline: [], variants: [] })]) {
-    const res = (await textCall(() => geminiAnswer(text))).response;
-    expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ error: "INVALID_OUTPUT" });
-  }
+test("/structure/text maps malformed output to INVALID_OUTPUT, naming the broken rule", async () => {
+  const notJson = (await textCall(() => geminiAnswer("not json"))).response;
+  expect(notJson.status).toBe(502);
+  expect(await notJson.json()).toEqual({ error: "INVALID_OUTPUT" });
+  const wrongKind = (await textCall(() => geminiAnswer(JSON.stringify({ items: [{ kind: "NOPE" }], outline: [], variants: [] })))).response;
+  expect(wrongKind.status).toBe(502);
+  const body = await wrongKind.json();
+  expect(body.error).toBe("INVALID_OUTPUT");
+  expect(body.issues[0].path).toMatch(/^items\.0/);
+  expect(JSON.stringify(body)).not.toContain("NOPE"); // paths and codes only, never model text
+});
+
+// Real Gemini placed images with ids it was never offered, which failed whole chunks; empty texts and
+// list items are dropped too, since the contract forbids them.
+test("/structure/text drops images it did not offer and empty texts instead of failing", async () => {
+  const answer = {
+    ...textOutput,
+    items: [{
+      ...textOutput.items[0],
+      blocks: [
+        ...textOutput.items[0].blocks,
+        { type: "stillImage", imageId: "image-7", display: "INLINE", caption: null },
+        { type: "paragraph", text: "  " },
+        { type: "bulletList", items: ["", "Kept point"] },
+        { type: "orderedList", items: [""] },
+      ],
+      fields: [{ name: "title", value: "Forms of Stillness" }, { name: "", value: "nameless" }, { name: "x".repeat(65), value: "too long" }],
+    }],
+  };
+  const { response } = await textCall(() => geminiAnswer(JSON.stringify(answer)));
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.items[0].blocks).toEqual([
+    { type: "heading", level: 2, text: "Forms of Stillness" },
+    { type: "paragraph", text: "An introduction to the show." },
+    { type: "stillImage", imageId: "a01", display: "HERO", caption: null },
+    { type: "bulletList", items: ["Kept point"] },
+  ]);
+  expect(body.items[0].fields).toEqual({ title: "Forms of Stillness" });
 });
