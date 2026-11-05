@@ -50,8 +50,8 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
     const blocked = blockingAssets(items).length;
     return (db.checks[id] ?? []).map((c) =>
       // Approval is not "all items approved": in-review items are simply left out of the guide.
-      c.title === "Content approval" ? { ...c, value: `${approved} / ${total}`, ok: approved > 0 }
-      : c.title === "Image permissions" ? { ...c, value: assets.length ? `${assets.length - blocked} / ${assets.length}` : "No images", ok: blocked === 0 }
+      c.title === "Content approval" ? { ...c, value: `${approved} / ${total}`, ok: approved > 0, blocks: approved === 0 }
+      : c.title === "Image permissions" ? { ...c, value: assets.length ? `${assets.length - blocked} / ${assets.length}` : "No images", ok: blocked === 0, blocks: blocked > 0 }
       : c,
     );
   };
@@ -164,11 +164,14 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
       content: findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
     },
     // Keeps the edited doc and its paragraph text, so reopening the item and the preview show the edit (#125).
+    // As on the server, editing an approved item sends it back to review.
     async saveContentDoc(itemId, doc) {
       docs.set(itemId, structuredClone(doc));
+      const item = findItem(itemId);
       const text = paragraphText(doc);
-      if (text !== null) findItem(itemId).text = text;
-      await edited(findItem(itemId));
+      if (text !== null) item.text = text;
+      if (item.reviewStatus === "APPROVED") item.reviewStatus = "IN_REVIEW";
+      return edited(item);
     },
     async updateContentItem(itemId, patch) {
       const item = findItem(itemId);
@@ -204,7 +207,8 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
       return edited(findItem(itemId));
     },
 
-    listPublicationChecks: (id) => wait(derivedChecks(id)),
+    // The sample images have no files, so the preview draws a placeholder for each.
+    getPreview: (id) => wait({ checks: derivedChecks(id), imageUrls: {} }),
 
     getGuide: (id) => wait<Guide>(db.guides[id] ?? { sections: [], hasUnpublishedChanges: false }),
     async saveGuide(id, sections) {

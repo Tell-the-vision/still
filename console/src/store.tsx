@@ -15,9 +15,11 @@ interface ExhibitionData {
   items: ContentItem[];
   events: ProcessingEvent[];
   checks: PublicationCheck[];
+  /** Public URLs of the images the compiled guide shows, by image id (console.preview.get). */
+  imageUrls: Record<string, string>;
   guide: Guide;
 }
-const EMPTY: ExhibitionData = { files: [], items: [], events: [], checks: [], guide: { sections: [], hasUnpublishedChanges: false } };
+const EMPTY: ExhibitionData = { files: [], items: [], events: [], checks: [], imageUrls: {}, guide: { sections: [], hasUnpublishedChanges: false } };
 
 function useWorkspaceState() {
   const [status, setStatus] = useState<Status>("loading");
@@ -30,6 +32,9 @@ function useWorkspaceState() {
   const [dataStatus, setDataStatus] = useState<Status>("ready");
   // Rows that are not on the server yet: uploading, or failed (unsupported, too big, interrupted).
   const [localFiles, setLocalFiles] = useState<SourceFile[]>([]);
+  // Bumped when an item's document changed outside the editor (a decided suggestion, a revert, a reload after
+  // REVISION_MISMATCH), so the editor reopens on it. The editor's own autosaves do not bump it.
+  const [docVersion, setDocVersion] = useState(0);
   const retryable = useRef(new Map<string, File>());
   // Upload queue (handoff 4.1): a few files at a time, the rest wait as QUEUED and can be canceled.
   const queue = useRef<{ rowId: string; file: File; exhibitionId: string }[]>([]);
@@ -73,18 +78,18 @@ function useWorkspaceState() {
 
   // Each part loads on its own: one failing call reports an error without blanking the others.
   const loadExhibitionData = useCallback(async (id: string) => {
-    const [files, items, events, checks, guide] = await Promise.allSettled([
-      api.listFiles(id), api.listContentItems(id), api.listProcessingEvents(id), api.listPublicationChecks(id), api.getGuide(id),
+    const [files, items, events, preview, guide] = await Promise.allSettled([
+      api.listFiles(id), api.listContentItems(id), api.listProcessingEvents(id), api.getPreview(id), api.getGuide(id),
     ]);
     const value = <T,>(part: PromiseSettledResult<T>, fallback: T) => (part.status === "fulfilled" ? part.value : fallback);
     setData({
       files: value(files, EMPTY.files),
       items: value(items, EMPTY.items),
       events: value(events, EMPTY.events),
-      checks: value(checks, EMPTY.checks),
+      ...value(preview, { checks: EMPTY.checks, imageUrls: EMPTY.imageUrls }),
       guide: value(guide, EMPTY.guide),
     });
-    const failed = [files, items, events, checks, guide].find((part) => part.status === "rejected");
+    const failed = [files, items, events, preview, guide].find((part) => part.status === "rejected");
     if (failed) throw failed.reason;
   }, []);
 
@@ -126,14 +131,20 @@ function useWorkspaceState() {
     };
   }, [data.items]);
 
+  const replaceItem = (itemId: string, item: ContentItem) => setData((d) => ({ ...d, items: d.items.map((i) => (i.id === itemId ? item : i)) }));
+  // Re-reads the publication checks and preview images (console.preview.get).
+  const refreshPreview = async () => {
+    if (!currentId) return;
+    const { checks, imageUrls } = await api.getPreview(currentId);
+    setData((d) => ({ ...d, checks, imageUrls }));
+  };
   // Runs an item mutation, swaps in the returned item, then refreshes the publication checks it can change.
-  const applyItem = async (itemId: string, fn: () => Promise<ContentItem>) => {
+  // `docChanged`: the mutation rewrote the document, so the editor reopens on it.
+  const applyItem = async (itemId: string, fn: () => Promise<ContentItem>, docChanged = false) => {
     const item = await fn();
-    setData((d) => ({ ...d, items: d.items.map((i) => (i.id === itemId ? item : i)) }));
-    if (currentId) {
-      const checks = await api.listPublicationChecks(currentId);
-      setData((d) => ({ ...d, checks }));
-    }
+    replaceItem(itemId, item);
+    if (docChanged) setDocVersion((n) => n + 1);
+    await refreshPreview();
   };
 
   const MAX_PARALLEL_UPLOADS = 2;
@@ -186,8 +197,14 @@ function useWorkspaceState() {
     selectExhibition: setCurrentId,
     clearError: () => setError(null),
     reportError: fail,
-    /** Re-reads the items and checks after a change the server made to several parts (a decided suggestion). */
-    reloadExhibitionData: () => (currentId ? loadExhibitionData(currentId).catch(fail) : Promise.resolve()),
+    /** Re-reads the items and checks after a change the server made to several parts (a decided suggestion); the editor reopens on the new text. */
+    reloadExhibitionData: () => (currentId ? loadExhibitionData(currentId).then(() => setDocVersion((n) => n + 1)).catch(fail) : Promise.resolve()),
+    /** Re-reads the publication checks, e.g. when Preview or Publish opens. Failures go to the banner. */
+    refreshChecks: () => refreshPreview().catch(fail),
+    /** Editor autosave: swaps in the returned item (an approved one goes back to review). Errors are rethrown for the editor. */
+    saveDoc: async (itemId: string, doc: unknown) => {
+      replaceItem(itemId, await api.saveContentDoc(itemId, doc));
+    },
     reloadWorkspace: () => api.getWorkspace().then(setWorkspace).catch(fail),
     /** Errors stay on the form (not the app banner) and are rethrown for it. */
     signIn: async (request: SignInRequest) => {
@@ -274,8 +291,9 @@ function useWorkspaceState() {
       await loadExhibitionData(currentId);
     }),
 
-    updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch))),
-    revertBlock: (itemId: string, nodeId: string) => run(() => applyItem(itemId, () => api.revertBlockToSource(itemId, nodeId))),
+    // A text patch rewrites the document, so the editor reopens on it.
+    updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch), patch.text !== undefined)),
+    revertBlock: (itemId: string, nodeId: string) => run(() => applyItem(itemId, () => api.revertBlockToSource(itemId, nodeId), true)),
     approveItem: (itemId: string) => run(() => applyItem(itemId, () => api.approveContentItem(itemId))),
     // Rejecting also takes the item out of the guide draft on the server (SPEC §10.8), so re-read the guide.
     rejectItem: (itemId: string) => run(async () => {
@@ -301,7 +319,7 @@ function useWorkspaceState() {
   return {
     status, dataStatus, error, workspace, me, exhibitions, exhibition, counts,
     files: [...data.files, ...localFiles], items: data.items, approvedItems,
-    events: data.events, checks: data.checks, guide: data.guide,
+    events: data.events, checks: data.checks, imageUrls: data.imageUrls, guide: data.guide, docVersion,
     ...actions,
   };
 }

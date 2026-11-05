@@ -10,7 +10,8 @@ export default function Published() {
   const { exhibition, createExhibition } = useWorkspace();
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
-  const liveUrl = exhibition ? `https://${visitorUrl(exhibition.code)}` : "";
+  // The visitor guide is served from the same origin as this console.
+  const liveUrl = exhibition ? `${window.location.origin}/e/${encodeURIComponent(exhibition.code)}` : "";
 
   if (!exhibition) return <NoExhibition title="Publication" onCreate={createExhibition} />;
   if (exhibition.status !== "PUBLISHED") {
@@ -52,7 +53,7 @@ export default function Published() {
       <div className="share">
         <div className="share__url">
           <p className="eyebrow">Visitor guide URL</p>
-          <p className="share__link">{url}</p>
+          <p className="share__link">{liveUrl}</p>
           <button type="button" className="btn btn--secondary btn--wide" onClick={copy}>{copied ? "Copied" : "Copy link"}</button>
         </div>
         <div className="qr-block" id="qr">

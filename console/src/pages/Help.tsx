@@ -24,7 +24,7 @@ const FAQ = [
   },
   {
     q: "Can I change a guide after it is published?",
-    a: "Yes. Edits stay in draft until you choose Publish changes in Digital guide, so the live guide is not affected while you work.",
+    a: "Yes. Edits stay in the draft until you publish again from Prepare publication, where the content rights are checked, so the live guide is not affected while you work.",
   },
   {
     q: "What happens to visitor data?",

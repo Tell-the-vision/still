@@ -1,14 +1,37 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ContentItem } from "../api";
+import type { ContentItem, StillDoc, StillNode } from "../api";
+import { VisitorPreview } from "../editor/VisitorPreview";
 import { rightsIssue } from "../rules";
 import { useWorkspace } from "../store";
 import { Arrow, Badge, EmptyState, NoExhibition, PageHead, StatusText, Stepper } from "../ui";
 
 const shown = (i: ContentItem | undefined): i is ContentItem => !!i && i.reviewStatus === "APPROVED";
 
+// The item's document as the visitor renderer draws it. Sample (mock) items have no document: their images
+// and text stand in. Images whose rights are not clear are left out, as on the live guide; "Not shown" lists them.
+function visitorDoc(i: ContentItem): StillDoc {
+  const doc: StillDoc = i.doc ?? {
+    type: "doc",
+    content: [
+      ...i.assets.map((a): StillNode => ({ type: "stillImage", attrs: { imageId: a.id, display: "INLINE", caption: a.credit } })),
+      ...i.text.split(/\n\s*\n/).map((t): StillNode => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
+    ],
+  };
+  const unclear = new Set(i.assets.filter((a) => rightsIssue(a)).map((a) => a.id));
+  return { ...doc, content: doc.content.filter((n) => !(n.type === "stillImage" && unclear.has(n.attrs?.imageId ?? ""))) };
+}
+
 export default function Preview() {
-  const { exhibition, counts, items, guide, checks, createExhibition } = useWorkspace();
+  const { exhibition, counts, items, guide, checks, imageUrls, refreshChecks, createExhibition } = useWorkspace();
   const navigate = useNavigate();
+
+  // The guide draft may have changed since the checks were read (a saved section, new details).
+  useEffect(() => {
+    if (exhibition) void refreshChecks();
+    // Once per opened exhibition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exhibition?.id]);
 
   if (!exhibition) return <NoExhibition title="Preview digital guide" onCreate={createExhibition} />;
 
@@ -66,20 +89,11 @@ export default function Preview() {
           {sections.map((s) => (
             <section key={s.id} className="phone__section">
               <h3 className="phone__h3">{s.title}</h3>
-              {s.content.map((i) => {
-                const images = i.assets.filter((a) => !rightsIssue(a));
-                return (
-                  <div key={i.id} className="phone__block">
-                    {images.map((a) => (
-                      <figure key={a.id} className="phone__figure">
-                        <div className="phone__image" role="img" aria-label={a.altText ?? a.name}>Image</div>
-                        {a.credit && <figcaption className="phone__credit">{a.credit}</figcaption>}
-                      </figure>
-                    ))}
-                    <p className={`phone__body${i.contentType === "Guide sentence" ? " phone__quote" : ""}`}>{i.text}</p>
-                  </div>
-                );
-              })}
+              {s.content.map((i) => (
+                <div key={i.id} className="phone__block">
+                  <VisitorPreview doc={visitorDoc(i)} imageUrls={imageUrls} embedded />
+                </div>
+              ))}
               {s.content.length === 0 && <p className="phone__body phone__empty">No approved content in this section yet.</p>}
             </section>
           ))}

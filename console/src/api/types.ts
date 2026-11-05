@@ -125,8 +125,18 @@ export interface PublicationCheck {
   id: string;
   title: string;
   detail: string;
-  value: string; // "31 / 31", "Ready", "Needs check"
+  value: string; // "31 / 31", "Ready", "Warning", "Needs check"
+  /** Passed with nothing to look at. */
   ok: boolean;
+  /** Failed in a way that stops publication. A warning is neither ok nor blocking. */
+  blocks: boolean;
+}
+
+/** console.preview.get: the publication checks and the public URL of each image the compiled guide shows. */
+export interface PreviewData {
+  checks: PublicationCheck[];
+  /** By image id; an image without a public file yet has no entry. */
+  imageUrls: Record<string, string>;
 }
 
 // SPEC §10.9 draft sections. A section's opening text is its first THEME / INTRODUCTION content item.
@@ -231,8 +241,8 @@ export interface ConsoleApi {
   updateContentItem(itemId: string, patch: ContentItemPatch): Promise<ContentItem>;
   /** The item's document (Tiptap JSON, SPEC §9.4 schema) as last loaded. */
   getContentDoc(itemId: string): unknown;
-  /** Autosave of the editor: replaces the whole document. REVISION_MISMATCH reads as "changed elsewhere". */
-  saveContentDoc(itemId: string, doc: unknown): Promise<void>;
+  /** Autosave of the editor: replaces the whole document and returns the item (an approved one goes back to review). REVISION_MISMATCH reads as "changed elsewhere". */
+  saveContentDoc(itemId: string, doc: unknown): Promise<ContentItem>;
   /** The text blocks of an item with the source text each is traced to (`sourceText` is null without a source entry). */
   listBlockSources(itemId: string): Promise<BlockSource[]>;
   /** Rewrites one block to its source text (no scrap marks) and saves. */
@@ -253,7 +263,7 @@ export interface ConsoleApi {
   /** `exhibitionId` (the code) names the exhibition of an exhibition-wide suggestion. */
   decideSuggestion(suggestion: EditSuggestion, status: "ACCEPTED" | "DISMISSED", exhibitionId?: string): Promise<void>;
 
-  listPublicationChecks(exhibitionId: string): Promise<PublicationCheck[]>;
+  getPreview(exhibitionId: string): Promise<PreviewData>;
 
   getGuide(exhibitionId: string): Promise<Guide>;
   saveGuide(exhibitionId: string, sections: GuideSection[]): Promise<Guide>;

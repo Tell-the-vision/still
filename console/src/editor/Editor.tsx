@@ -3,7 +3,6 @@ import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
 import { Mark, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import UniqueID from "@tiptap/extension-unique-id";
-import { api } from "../api";
 import { ApiError } from "../api/errors";
 import { useWorkspace } from "../store";
 import { InlineSuggestions } from "./InlineSuggestions";
@@ -27,7 +26,7 @@ type Saved = "idle" | "saving" | "saved";
 export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { itemId: string; exhibitionId: string; doc: JSONContent; editable: boolean; onChange?: (doc: JSONContent) => void }) {
   const [state, setState] = useState<Saved>("idle");
   const [error, setError] = useState<string | null>(null);
-  const { reloadExhibitionData, reportError } = useWorkspace();
+  const { reloadExhibitionData, reportError, saveDoc } = useWorkspace();
   const [saves, setSaves] = useState(0); // counts finished saves, so source marks refresh
   const timer = useRef<number>(0);
   // The latest edit that has not been sent yet; flushed on unmount instead of dropped.
@@ -55,13 +54,14 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
       timer.current = window.setTimeout(async () => {
         try {
           pending.current = null;
-          await api.saveContentDoc(itemId, ed.getJSON());
+          // The returned item replaces the old one: an approved item goes back to review when edited.
+          await saveDoc(itemId, ed.getJSON());
           setError(null);
           setState("saved");
           setSaves((n) => n + 1);
         } catch (e) {
           if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") {
-            // SPEC §9.4: load the latest version; the new revision remounts this editor with it.
+            // SPEC §9.4: load the latest version; the reload remounts this editor with it.
             await reloadExhibitionData();
             reportError(new Error("This item changed elsewhere. The latest version is loaded."));
             return;
@@ -76,7 +76,7 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
     window.clearTimeout(timer.current);
     // The editor is gone, so the app-wide banner reports a failed last save instead of dropping it (#125).
     if (pending.current) {
-      void api.saveContentDoc(itemId, pending.current).catch((e) =>
+      void saveDoc(itemId, pending.current).catch((e) =>
         reportError(new Error(`Your last edit was not saved: ${e instanceof Error ? e.message : String(e)}`)));
     }
   }, [itemId]);

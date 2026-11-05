@@ -4,7 +4,7 @@ import { api, type EditSuggestion } from "../api";
 import { useWorkspace } from "../store";
 
 // Open suggestions that point at a block sit in a right gutter, level with that block (SPEC §9.4 편집 제안 표시).
-// Deciding reloads the item, which reopens the editor on the new revision.
+// Deciding reloads the item, which reopens the editor on the new document (the store's docVersion).
 export function InlineSuggestions({ editor, itemId, editable }: { editor: Editor; itemId: string; editable: boolean }) {
   const { exhibition, reloadExhibitionData, reportError } = useWorkspace();
   const [open, setOpen] = useState<EditSuggestion[]>([]);

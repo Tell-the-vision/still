@@ -18,7 +18,7 @@ const KINDS: { value: SectionKind; label: string }[] = [
 const kindLabel = (k: SectionKind) => KINDS.find((x) => x.value === k)?.label ?? k;
 
 export default function Guide() {
-  const { exhibition, guide, counts, items, approvedItems, saveGuide, publishGuide, createExhibition } = useWorkspace();
+  const { exhibition, guide, counts, items, approvedItems, saveGuide, createExhibition } = useWorkspace();
   const navigate = useNavigate();
 
   // Local working copy; saved to the server on "Publish changes".
@@ -66,7 +66,7 @@ export default function Guide() {
     setSectionItems(sectionId, next);
   };
 
-  // Saves the working copy as the guide draft (live guide unchanged until Publish changes).
+  // Saves the working copy as the guide draft (live guide unchanged until it is published from Prepare publication).
   const saveDraft = async () => {
     setBusy(true);
     try { await saveGuide(sections); } catch { /* error banner */ } finally { setBusy(false); }
@@ -77,7 +77,7 @@ export default function Guide() {
     setBusy(true);
     try {
       if (localDirty) await saveGuide(sections);
-      await publishGuide();
+      navigate("/materials/publish");
     } catch { /* error banner */ } finally {
       setBusy(false);
     }
@@ -99,7 +99,7 @@ export default function Guide() {
               Preview guide
             </button>
             <button type="button" className="btn btn--primary btn--xwide" aria-disabled={!unpublished || busy} onClick={() => unpublished && !busy && publish()}>
-              {busy ? "Publishing…" : "Publish changes"}
+              {busy ? "Saving…" : "Publish changes"}
             </button>
           </>
         }

@@ -125,9 +125,9 @@ export function sampleSeed(): Seed {
     },
     checks: {
       [ex]: [
-        { id: "pc1", title: "Content approval", detail: "All visitor-facing text approved", value: "—", ok: false },
-        { id: "pc2", title: "Image permissions", detail: "Rights recorded for every image in approved content", value: "Needs check", ok: false },
-        { id: "pc3", title: "Mobile layout", detail: "390 × 844 responsive preview", value: "Ready", ok: true },
+        { id: "pc1", title: "Content approval", detail: "All visitor-facing text approved", value: "—", ok: false, blocks: true },
+        { id: "pc2", title: "Image permissions", detail: "Rights recorded for every image in approved content", value: "Needs check", ok: false, blocks: true },
+        { id: "pc3", title: "Mobile layout", detail: "390 × 844 responsive preview", value: "Ready", ok: true, blocks: false },
       ],
     },
     guides: {

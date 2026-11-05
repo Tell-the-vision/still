@@ -3,12 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, type Venue } from "../api";
 import { RIGHTS_STATEMENT } from "../constants";
 import { VISITOR_HOST } from "../format";
-import { blockingAssets } from "../rules";
 import { useWorkspace } from "../store";
 import { Badge, NoExhibition, PageHead, Stepper } from "../ui";
 
 export default function Publish() {
-  const { exhibition, counts, items, updateExhibition, publishExhibition, createExhibition } = useWorkspace();
+  const { exhibition, counts, checks, refreshChecks, reportError, updateExhibition, publishExhibition, createExhibition } = useWorkspace();
   const navigate = useNavigate();
   const [form, setForm] = useState(() => ({
     title: exhibition?.title ?? "",
@@ -27,6 +26,8 @@ export default function Publish() {
 
   useEffect(() => {
     api.listVenues().then(setVenues).catch(reportError);
+    // The server's checks may be older than the guide draft (a saved section, an approval elsewhere).
+    void refreshChecks();
     // Load once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -36,11 +37,14 @@ export default function Publish() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setSaved(false); setForm({ ...form, [k]: e.target.value }); };
   const missing = !form.title.trim() || !form.venueId || !form.startDate || !form.endDate || !form.code.trim();
   const badDates = !!form.startDate && !!form.endDate && form.endDate < form.startDate;
-  // Handoff 4.6 / 12: publish is blocked until metadata, approval and rights checks are complete.
+  // Handoff 4.6 / 12: publish is blocked until metadata, approval and rights checks are complete. The checks
+  // are the server's (console.preview.get); basic info is left to this form, which checks the unsaved values.
+  // A warning is shown but does not block.
   const noApproved = counts.approved === 0;
-  const rightsBlocked = blockingAssets(items);
-  const blocked = noApproved || rightsBlocked.length > 0 || !rightsConfirmed || missing || badDates;
-  const ready = !noApproved && rightsBlocked.length === 0;
+  const failing = checks.filter((c) => c.blocks && c.id !== "basic-info");
+  const warnings = checks.filter((c) => !c.ok && !c.blocks);
+  const blocked = noApproved || failing.length > 0 || !rightsConfirmed || missing || badDates;
+  const ready = !noApproved && failing.length === 0;
 
   const details = () => ({
     title: form.title.trim(),
@@ -98,7 +102,7 @@ export default function Publish() {
         lede="Set the visitor access details and confirm the content that will go live."
       >
         <div className="page-head__badge">
-          {ready ? <Badge tone="green" className="badge--wide">Ready to publish</Badge> : <Badge tone="amber" className="badge--wide">{noApproved ? "No approved content" : rightsBlocked.length === 1 ? "1 image needs rights" : `${rightsBlocked.length} images need rights`}</Badge>}
+          {ready ? <Badge tone="green" className="badge--wide">Ready to publish</Badge> : <Badge tone="amber" className="badge--wide">{noApproved ? "No approved content" : failing.length === 1 ? "1 check to fix" : `${failing.length} checks to fix`}</Badge>}
         </div>
       </PageHead>
       <hr className="rule" />
@@ -137,8 +141,9 @@ export default function Publish() {
             <span className="field__label">Visitor URL</span>
             <span className="input-prefix">
               <span className="input-prefix__text">{VISITOR_HOST}</span>
-              <input className="input input--tall" value={form.code} onChange={set("code")} />
+              <input className="input input--tall" value={form.code} readOnly aria-describedby="code-hint" />
             </span>
+            <span className="caption-sm" id="code-hint">Set when the exhibition is created. It cannot be changed.</span>
           </label>
         </section>
 
@@ -163,13 +168,14 @@ export default function Publish() {
         </label>
         <ul className="blockers">
           {noApproved && <li className="field-error">No content is approved yet. Only approved items are published.</li>}
-          {rightsBlocked.map(({ item, asset, issue }) => (
-            <li key={asset.id} className="field-error">
-              {asset.name} ({item.title}): {issue}. Confirm its rights, or take the item out of the guide, in <Link to="/materials/review">Review</Link>.
+          {failing.map((c) => (
+            <li key={c.id} className="field-error">
+              {c.title}: {c.detail}. Fix it in <Link to="/materials/review">Review</Link> or <Link to="/guide">Digital guide</Link>.
             </li>
           ))}
-          {counts.needReview + counts.rejected > 0 && (
-            <li className="caption-sm">{counts.needReview} {counts.needReview === 1 ? "item" : "items"} in review and {counts.rejected} rejected items will not be included.</li>
+          {warnings.map((c) => <li key={c.id} className="caption-sm">{c.title}: {c.detail}. You can still publish.</li>)}
+          {counts.needReview > 0 && (
+            <li className="caption-sm">Only approved items are published. An item still in review blocks publication while it sits in a visible guide section: approve it, or take it out of the guide.</li>
           )}
         </ul>
         {attempted && !rightsConfirmed && <p className="field-error" role="alert">Confirm content rights before publishing.</p>}

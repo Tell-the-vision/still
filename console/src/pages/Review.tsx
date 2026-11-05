@@ -237,12 +237,19 @@ interface EditorProps {
 }
 
 function Editor({ item, flash, onOpen, onDoc }: EditorProps) {
-  const { exhibition, items, updateItem, approveItem, rejectItem, reopenItem, dismissDuplicate } = useWorkspace();
+  const { exhibition, items, docVersion, updateItem, approveItem, rejectItem, reopenItem, dismissDuplicate } = useWorkspace();
   // Everyone in an institution has the same permissions (SPEC §9.2); a rejected item is final (§10.8).
   const editable = item.reviewStatus !== "REJECTED";
   const themeSuggestions = [...new Set([...THEME_OPTIONS, ...items.map((i) => i.theme)])].filter(Boolean);
   const initial = { text: item.text, theme: item.theme, contentType: item.contentType, note: item.note };
   const [draft, setDraft] = useState(initial);
+  // Autosave swaps in the saved item, so its text moves on while this form stays open. A draft text nobody
+  // changed here follows it; otherwise "Save" would write the older text back over the edit.
+  const [textBase, setTextBase] = useState(item.text);
+  if (item.text !== textBase) {
+    setTextBase(item.text);
+    if (draft.text === textBase) setDraft({ ...draft, text: item.text });
+  }
   const [saving, setSaving] = useState(false);
   // Rejecting is final (SPEC §10.8), so it always asks once on the page.
   const [confirmReject, setConfirmReject] = useState(false);
@@ -319,7 +326,8 @@ function Editor({ item, flash, onOpen, onDoc }: EditorProps) {
       <fieldset className="plain-fieldset" disabled={!editable}>
         <div className="field field--first" role="group" aria-labelledby="editor-label">
           <span className="field__label" id="editor-label">{item.fieldLabel}</span>
-          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} exhibitionId={exhibition?.id ?? ""} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} />
+          {/* Not keyed by revision: every autosave makes a new one, and remounting would lose the cursor. */}
+          <RichEditor key={`${item.id}:${docVersion}`} itemId={item.id} exhibitionId={exhibition?.id ?? ""} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} />
           <span className="field__foot">
             <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
           </span>

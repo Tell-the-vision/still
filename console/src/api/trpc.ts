@@ -1,7 +1,8 @@
 // ConsoleApi over the still server: tRPC at /api/trpc, plain JSON, the console.* procedures of SPEC §9.5.
 // Rows are mapped to the screens' shapes here, so the screens never see server field names.
+import { UPLOAD_FORMATS } from "../constants";
 import { ApiError } from "./errors";
-import type { ContentItem, EditSuggestion, Exhibition, ExhibitionImage, Guide, GuideSection, ConsoleApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
+import type { ContentItem, EditSuggestion, Exhibition, ExhibitionImage, Guide, GuideSection, ConsoleApi, MediaAsset, Me, PreviewData, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -245,14 +246,6 @@ const FAILURE_TEXT: Record<string, string> = {
   EMPTY: "The file has no content.",
   MANIFEST_INVALID: "The extracted content could not be read.",
 };
-const MEDIA_TYPES: Record<string, string> = {
-  pdf: "application/pdf",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  csv: "text/csv",
-  txt: "text/plain",
-  md: "text/markdown",
-};
 const toSourceFile = (doc: ConsoleDocument): SourceFile => ({
   id: doc.id,
   name: doc.name,
@@ -296,7 +289,8 @@ async function removeDocument(id: string) {
 // SPEC §9.4: hash in the browser, register the document, PUT the bytes straight to private R2 with the
 // presigned URL, then tell the server they are there. The server never receives the file.
 async function uploadDocument(code: string, file: File, options?: UploadOptions): Promise<SourceFile> {
-  const mediaType = MEDIA_TYPES[file.name.split(".").pop()?.toLowerCase() ?? ""];
+  // The same list the upload screen offers (it mirrors the server's DOCUMENT_FORMATS).
+  const mediaType = UPLOAD_FORMATS[file.name.split(".").pop()?.toLowerCase() ?? ""];
   if (!mediaType) throw new ApiError("This format is not supported.");
   const sha256 = await sha256Hex(file);
   if (options?.signal?.aborted) throw abortError();
@@ -373,9 +367,17 @@ async function writeDraft(code: string, edit: (draft: ServerDraft) => ServerDraf
 // The version of the rights statement shown on the publish page (SPEC §9.4).
 const RIGHTS_STATEMENT_VERSION = "2026-11";
 const RIGHTS_REQUIRED = "Confirm the content rights on the publish settings page before publishing.";
+// The server's `ok` means "does not block"; a warning is a check that failed without blocking.
 type ConsoleCheck = { id: string; title: string; ok: boolean; warning: boolean; detail: string };
 const toPublicationChecks = (checks: ConsoleCheck[]): PublicationCheck[] =>
-  checks.map(({ id, title, ok, warning, detail }) => ({ id, title, detail, ok: ok && !warning, value: ok && !warning ? "Ready" : "Needs check" }));
+  checks.map(({ id, title, ok, warning, detail }) => ({
+    id, title, detail, ok: ok && !warning, blocks: !ok, value: !ok ? "Needs check" : warning ? "Warning" : "Ready",
+  }));
+type ConsolePreview = { checks: ConsoleCheck[]; images: Record<string, { url: string | null }> };
+const toPreview = ({ checks, images }: ConsolePreview): PreviewData => ({
+  checks: toPublicationChecks(checks),
+  imageUrls: Object.fromEntries(Object.entries(images).flatMap(([id, image]) => (image.url ? [[id, image.url]] : []))),
+});
 function publicationError(e: unknown) {
   if (!(e instanceof ApiError)) return e;
   if (e.appCode === "REVISION_MISMATCH") return new ApiError("The draft changed while you were publishing. Check the preview and publish again.", e.code, e.appCode);
@@ -474,9 +476,8 @@ export function createTrpcApi(): ConsoleApi {
     },
     listImages: (exhibitionId) => q<ExhibitionImage[]>("console.image.list", { code: exhibitionId }),
     getContentDoc: (itemId) => knownItem(itemId).row.doc,
-    saveContentDoc: async (itemId, doc) => {
-      await updateRow(itemId, { doc });
-    },
+    // Editing an approved item returns it to READY on the server; the row that comes back says so.
+    saveContentDoc: (itemId, doc) => updateRow(itemId, { doc }),
     listBlockSources: async (itemId) => {
       const row = await q<Omit<ConsoleContentRow, "sources"> & { sources: ConsoleSources }>("console.content.get", { id: itemId });
       return row.doc.content.filter((b) => b.type === "paragraph" || b.type === "heading")
@@ -529,7 +530,7 @@ export function createTrpcApi(): ConsoleApi {
       }
     },
 
-    listPublicationChecks: async (exhibitionId) => toPublicationChecks((await q<{ checks: ConsoleCheck[] }>("console.preview.get", { code: exhibitionId })).checks),
+    getPreview: async (exhibitionId) => toPreview(await q<ConsolePreview>("console.preview.get", { code: exhibitionId })),
 
     getGuide: async (exhibitionId) => {
       const { draft, ...row } = await getRow(exhibitionId);
