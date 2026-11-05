@@ -46,5 +46,10 @@ export async function dryRunDelete(bucket: string, key: string) {
   await rm(need(bucket, key), { force: true });
 }
 
+// Removes every object under a key prefix.
+export async function dryRunDeletePrefix(bucket: string, prefix: string) {
+  await rm(need(bucket, prefix.replace(/\/$/, "")), { force: true, recursive: true });
+}
+
 // Whether a request path (already split into segments) names a storable object; the route answers 404 otherwise.
 export const dryRunPathOk = (segments: string[]) => segments.length >= 2 && fileOf(segments[0], segments.slice(1).join("/")) !== null;

@@ -7,13 +7,15 @@ import {
   DOCUMENT_FORMATS,
   DOCUMENT_MAX_BYTES,
 } from "@still/shared/console";
+import { getBoss } from "../../../services/console/analysis-jobs";
+import { enqueueStorageDeletes } from "../../../services/console/storage-jobs";
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "../../../db/client";
 import { contents, documents, exhibitions, images } from "../../../db/schema";
-import { deletePrivateObject, presignPrivateGet, presignPrivatePut, privateObjectSize, putPrivateObject } from "../../../media/r2";
+import { presignPrivateGet, presignPrivatePut, privateObjectSize, putPrivateObject } from "../../../media/r2";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
 import { documentPrefix, manifestVersionOf, validateManifest } from "../../../services/console/manifests";
 import { AppError, consoleProcedure, router } from "../../init";
@@ -186,7 +188,8 @@ export const consoleDocumentRouter = router({
     const current = await documentView(ctx.institutionId, input.id);
     if (!current) throw new TRPCError({ code: "NOT_FOUND" });
 
-    const objectKeys = await db.transaction(async (tx) => {
+    const boss = await getBoss();
+    await db.transaction(async (tx) => {
       const [{ exhibitionId }] = await tx.select({ exhibitionId: documents.exhibitionId }).from(documents).where(eq(documents.id, input.id));
       // Locking the exhibition row keeps two deletes (and any writer that takes the same lock) from
       // interleaving with the checks below.
@@ -204,12 +207,10 @@ export const consoleDocumentRouter = router({
       await assertUnreferenced(tx, exhibitionId, exhibition, doomed.map((d) => d.id));
 
       await tx.delete(documents).where(eq(documents.id, input.id));
-      return doomed.flatMap((d) => [d.objectKey, d.manifestObjectKey]).filter((key): key is string => key !== null);
+      // Queued in this transaction (SPEC §10.11): the jobs exist exactly when the rows are gone.
+      const keys = doomed.flatMap((d) => [d.objectKey, d.manifestObjectKey]).filter((key): key is string => key !== null);
+      await enqueueStorageDeletes(boss, tx, keys.map((key) => ({ bucket: "private", key })));
     });
-
-    // SPEC queues a storage.delete job for this (issue #66, pg-boss is not built). Until then the objects are
-    // removed here, after the commit and best effort: a failure leaves an orphan object, never a failed request.
-    await Promise.all(objectKeys.map((key) => deletePrivateObject(key).catch((e) => console.error(`console.document.delete: could not remove ${key}`, e))));
     return { id: input.id };
   }),
 });
@@ -227,6 +228,7 @@ async function recordManifest(institutionId: string, id: string, manifestKey: st
   const current = doc.manifestObjectKey ? manifestVersionOf(prefix, doc.manifestObjectKey) : null;
   if (current !== null && version <= current) throw new TRPCError({ code: "BAD_REQUEST", message: "A re-extraction needs a newer manifest version." });
 
+  const boss = await getBoss();
   const checked = await validateManifest({ id, sha256: doc.sha256, prefix }, manifestKey);
 
   await db.transaction(async (tx) => {
@@ -244,6 +246,12 @@ async function recordManifest(institutionId: string, id: string, manifestKey: st
       return;
     }
     if (doc.status === "EXTRACTED") await assertUnreferenced(tx, doc.exhibitionId, exhibition, [id]);
+    // The replaced extraction's outputs: its old manifest and any public image files.
+    const replaced = await tx.select({ key: images.objectKey }).from(images).where(eq(images.documentId, id));
+    await enqueueStorageDeletes(boss, tx, [
+      ...(doc.manifestObjectKey ? [{ bucket: "private" as const, key: doc.manifestObjectKey }] : []),
+      ...replaced.flatMap((i) => (i.key ? [{ bucket: "public" as const, key: i.key }] : [])),
+    ]);
     await tx.delete(images).where(eq(images.documentId, id));
     if (checked.assets.length) {
       await tx.insert(images).values(

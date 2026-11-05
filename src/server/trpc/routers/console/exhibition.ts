@@ -10,7 +10,8 @@ import { and, count, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../../../db/client";
 import { isUniqueViolation } from "../../../db/errors";
 import { archives, contents, documents, exhibitions, images, venues } from "../../../db/schema";
-import { deleteObject } from "../../../media/r2";
+import { getBoss } from "../../../services/console/analysis-jobs";
+import { enqueueStorageDeletes } from "../../../services/console/storage-jobs";
 import { draftTitle, exhibitionRows } from "../../../services/console/exhibition-rows";
 import { AppError, consoleProcedure, router } from "../../init";
 
@@ -103,7 +104,8 @@ export const consoleExhibitionRouter = router({
   // The row lock serializes with publishing and with a visitor creating an archive (its foreign key
   // check waits for the lock), so neither can slip in between the checks and the delete.
   delete: consoleProcedure.input(consoleExhibitionDeleteInput).mutation(async ({ ctx, input }) => {
-    const objectKeys = await db.transaction(async (tx) => {
+    const boss = await getBoss();
+    await db.transaction(async (tx) => {
       const [exhibition] = await tx
         .select({ id: exhibitions.id, state: exhibitions.state })
         .from(exhibitions)
@@ -114,16 +116,14 @@ export const consoleExhibitionRouter = router({
       if (await tx.$count(archives, eq(archives.exhibitionId, exhibition.id))) {
         throw new TRPCError({ code: "CONFLICT", cause: new AppError("EXHIBITION_HAS_ARCHIVES") });
       }
-      const documentKeys = await tx
-        .select({ key: documents.objectKey, manifestKey: documents.manifestObjectKey })
-        .from(documents)
-        .where(eq(documents.exhibitionId, exhibition.id));
       const imageKeys = await tx.select({ key: images.objectKey }).from(images).where(eq(images.exhibitionId, exhibition.id));
       // Documents, contents and images go with the row (ON DELETE CASCADE).
       await tx.delete(exhibitions).where(eq(exhibitions.id, exhibition.id));
-      return [...documentKeys.flatMap((d) => [d.key, d.manifestKey]), ...imageKeys.map((i) => i.key)].filter((key) => key !== null);
+      // Queued in this transaction: every private original and manifest lives under the exhibition's prefix.
+      await enqueueStorageDeletes(boss, tx, [
+        { bucket: "private", prefix: `${ctx.institutionId}/${exhibition.id}/` },
+        ...imageKeys.flatMap((i) => (i.key ? [{ bucket: "public" as const, key: i.key }] : [])),
+      ]);
     });
-    // Best effort after commit. TODO: SPEC queues these as `storage.delete` jobs (pg-boss), which do not exist yet.
-    await Promise.allSettled(objectKeys.map(deleteObject));
   }),
 });

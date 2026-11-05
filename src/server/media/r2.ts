@@ -1,6 +1,6 @@
 import { AwsClient } from "aws4fetch";
 import { z } from "zod";
-import { dryRunDelete, dryRunEnabled, dryRunGet, dryRunPut, dryRunSize, dryRunUrl } from "./r2-dry-run";
+import { dryRunDelete, dryRunDeletePrefix, dryRunEnabled, dryRunGet, dryRunPut, dryRunSize, dryRunUrl } from "./r2-dry-run";
 
 const r2Env = z.object({
   R2_ENDPOINT: z.url(),
@@ -156,4 +156,19 @@ export async function listObjects(prefix: string) {
     token = xml.match(/<NextContinuationToken>(.*?)<\/NextContinuationToken>/)?.[1];
   } while (token);
   return keys;
+}
+
+// Removes every public object under a prefix.
+export async function deletePrefix(prefix: string) {
+  for (const key of await listObjects(prefix)) await deleteObject(key);
+}
+
+// Removes every private object under a prefix (an exhibition's originals and manifests).
+export async function deletePrivatePrefix(prefix: string) {
+  if (dryRun()) return dryRunDeletePrefix(privateBucket(), prefix);
+  const { client, env } = r2Client();
+  const query = new URLSearchParams({ "list-type": "2", prefix });
+  const res = await client.fetch(`${env.R2_ENDPOINT}/${privateBucket()}?${query}`, { method: "GET" });
+  if (!res.ok) throw new Error(`R2 list of ${prefix} failed: ${res.status}`);
+  for (const [, key] of (await res.text()).matchAll(/<Key>(.*?)<\/Key>/g)) await deletePrivateObject(key);
 }
