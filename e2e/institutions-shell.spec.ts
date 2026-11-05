@@ -16,7 +16,7 @@ test("/institutions opens the museum workspace shell for signed-in staff and is 
   await signInConsole(page, await seedInstitutionAccount());
   await page.goto("/institutions");
   await expect(page).toHaveURL(/\/institutions\/overview$/);
-  await expect(page.getByText("Museum workspace", { exact: true })).toBeVisible();
+  await expect(page.getByRole("banner").getByText("Museum workspace", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Published exhibitions" })).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
 });
@@ -24,7 +24,7 @@ test("/institutions opens the museum workspace shell for signed-in staff and is 
 test("institutions deep links load the institutions app, and the sidebar labels navigate", async ({ page }) => {
   await signInConsole(page, await seedInstitutionAccount());
   await page.goto("/institutions/exhibitions");
-  await expect(page.getByText("Museum workspace", { exact: true })).toBeVisible();
+  await expect(page.getByRole("banner").getByText("Museum workspace", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Workspace", exact: true }).click();
   await expect(page).toHaveURL(/\/institutions\/workspace$/);
   await page.getByRole("link", { name: "Account", exact: true }).click();

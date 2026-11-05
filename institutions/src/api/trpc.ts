@@ -2,7 +2,7 @@
 // Calls with a full path ("console.session.create", "me.get") use the SPEC procedures (console.*, SPEC §9.5);
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
-import type { InstitutionsApi, Me, Workspace } from "./types";
+import type { Exhibition, InstitutionsApi, Me, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -42,6 +42,38 @@ type StaffMe = {
 const toMe = (me: StaffMe): Me => ({ id: me.id, name: me.displayName ?? me.email, email: me.email, role: "INSTITUTION_ADMIN", canPublish: true });
 const toWorkspace = (me: StaffMe): Workspace => ({ institutionName: me.institution.name, institutionId: me.institution.code, role: me.displayName ?? me.email });
 
+// console.exhibition.* rows (src/server/services/console/exhibition-rows.ts, SPEC §9.4 목록).
+export type ConsoleExhibitionRow = {
+  id: string;
+  code: string;
+  state: "DRAFT" | "PUBLISHED" | "UNPUBLISHED";
+  displayStatus: "DRAFT" | "UNPUBLISHED" | "SCHEDULED" | "LIVE" | "ENDED";
+  title: string;
+  subtitle: string | null;
+  venue: { id: string; name: string; city: string } | null;
+  startDate: string | null;
+  endDate: string | null;
+  draftRevision: string;
+  hasUnpublishedChanges: boolean;
+  publishedAt: string | null;
+  updatedAt: string;
+  createdAt: string;
+};
+type Page<T> = { items: T[]; nextCursor: string | null; totalSize: number };
+
+// Console procedures identify an exhibition by its code (SPEC §9.5), so the screens' exhibition id is the code.
+export const toExhibition = (row: ConsoleExhibitionRow): Exhibition => ({
+  id: row.code,
+  code: row.code,
+  title: row.title,
+  subtitle: row.subtitle,
+  venueName: row.venue?.name ?? "",
+  startDate: row.startDate,
+  endDate: row.endDate,
+  status: row.state,
+  updatedAt: row.updatedAt,
+});
+
 export function createTrpcApi(): InstitutionsApi {
   return {
     getWorkspace: async () => toWorkspace(await q<StaffMe>("me.get")),
@@ -64,7 +96,17 @@ export function createTrpcApi(): InstitutionsApi {
     removeMember: (memberId) => m("removeMember", { memberId }),
     sendSupportRequest: (request) => m("sendSupportRequest", request),
 
-    listExhibitions: () => q("listExhibitions"),
+    // Every page: the screens search, filter and sort the full list themselves.
+    listExhibitions: async () => {
+      const rows: ConsoleExhibitionRow[] = [];
+      let cursor: string | null = null;
+      do {
+        const page: Page<ConsoleExhibitionRow> = await q("console.exhibition.list", { limit: 50, cursor });
+        rows.push(...page.items);
+        cursor = page.nextCursor;
+      } while (cursor);
+      return rows.map(toExhibition);
+    },
     createExhibition: () => m("createExhibition"),
     updateExhibition: (id, patch) => m("updateExhibition", { id, ...patch }),
     publishExhibition: (id) => m("publishExhibition", { id }),

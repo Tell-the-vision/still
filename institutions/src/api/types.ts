@@ -12,7 +12,8 @@ export interface Workspace {
   role: string; // "Curator"
 }
 
-export type PublicationStatus = "DRAFT" | "PUBLISHED";
+// SPEC §10.3 exhibitions.state: UNPUBLISHED is a guide taken offline after it was published.
+export type PublicationStatus = "DRAFT" | "PUBLISHED" | "UNPUBLISHED";
 
 export interface Exhibition {
   id: string;
