@@ -89,8 +89,9 @@ export function createTrpcApi(): InstitutionsApi {
     changePassword: (currentPassword, newPassword) => m("password.update", { currentPassword, newPassword }),
     getWorkspaceSettings: () => q("getWorkspaceSettings"),
     updateWorkspaceSettings: (patch) => m("updateWorkspaceSettings", patch),
-    listVenues: () => q("listVenues"),
-    createVenue: (venue) => m("createVenue", venue),
+    // Venues are shared between institutions (SPEC §9.4); the server picks the code from the name.
+    listVenues: () => q("console.venue.list", {}),
+    createVenue: ({ name, city }) => m("console.venue.create", { name, city }),
     listMembers: () => q("listMembers"),
     inviteMember: (email, role) => m("inviteMember", { email, role }),
     updateMember: (memberId, patch) => m("updateMember", { memberId, ...patch }),

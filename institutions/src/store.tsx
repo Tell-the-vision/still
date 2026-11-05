@@ -72,11 +72,21 @@ function useWorkspaceState() {
     setStatus("signed-out");
   };
 
+  // Each part loads on its own: one failing call reports an error without blanking the others.
   const loadExhibitionData = useCallback(async (id: string) => {
-    const [files, items, events, checks, guide] = await Promise.all([
+    const [files, items, events, checks, guide] = await Promise.allSettled([
       api.listFiles(id), api.listContentItems(id), api.listProcessingEvents(id), api.listPublicationChecks(id), api.getGuide(id),
     ]);
-    setData({ files, items, events, checks, guide });
+    const value = <T,>(part: PromiseSettledResult<T>, fallback: T) => (part.status === "fulfilled" ? part.value : fallback);
+    setData({
+      files: value(files, EMPTY.files),
+      items: value(items, EMPTY.items),
+      events: value(events, EMPTY.events),
+      checks: value(checks, EMPTY.checks),
+      guide: value(guide, EMPTY.guide),
+    });
+    const failed = [files, items, events, checks, guide].find((part) => part.status === "rejected");
+    if (failed) throw failed.reason;
   }, []);
 
   useEffect(() => {
