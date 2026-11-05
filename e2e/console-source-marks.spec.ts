@@ -90,15 +90,21 @@ test("blocks are labelled Source / Edited / No source and an edited one reverts 
   await page.goto("/console/exhibitions");
   await page.getByText(s.exhibition.title, { exact: true }).click();
   await page.goto("/console/materials/review");
-  const rows = page.locator(".source-marks__row");
-  await expect(rows.nth(0).locator(".source-marks__label")).toHaveText("Source");
-  await expect(rows.nth(1).locator(".source-marks__label")).toHaveText("Edited");
-  await expect(rows.nth(2).locator(".source-marks__label")).toHaveText("No source");
-  await expect(page.getByRole("button", { name: "Revert to source" })).toHaveCount(1);
-  await page.locator(".source-marks").screenshot({ path: `${SHOTS}/source-marks.png` });
+  const labels = page.locator(".source-gutter__label");
+  await expect(labels.nth(0)).toHaveText("Source");
+  await expect(labels.nth(1)).toHaveText("Edited");
+  await expect(labels.nth(2)).toHaveText("No source");
+  await labels.nth(1).click();
+  const panel = page.locator(".source-panel");
+  await expect(panel.locator("del, ins").first()).toBeVisible();
+  await expect(panel.locator("del")).toContainText("two.");
+  await panel.screenshot({ path: `${SHOTS}/source-panel.png` });
+  await labels.nth(0).click();
+  await expect(page.locator(".source-panel").getByRole("button", { name: "Revert to source" })).toHaveCount(0);
+  await labels.nth(1).click();
 
-  await page.getByRole("button", { name: "Revert to source" }).click();
-  await expect(rows.nth(1).locator(".source-marks__label")).toHaveText("Source");
+  await page.locator(".source-panel").getByRole("button", { name: "Revert to source" }).click();
+  await expect(labels.nth(1)).toHaveText("Source");
   // The editor shows the reverted text, not the text it was opened with.
   await expect(page.locator(".ProseMirror")).not.toContainText("One 2 changed.");
   const [row] = await e2eSql<{ doc: { content: { attrs: { id: string }; content: { text: string }[] }[] } }>("SELECT doc FROM contents WHERE id = $1", [content.id]);
@@ -119,6 +125,7 @@ test("a block traced to a document without a manifest reads No source and cannot
   await page.goto("/console/exhibitions");
   await page.getByText(s.exhibition.title, { exact: true }).click();
   await page.goto("/console/materials/review");
-  await expect(page.locator(".source-marks__row").first().locator(".source-marks__label")).toHaveText("No source");
+  await expect(page.locator(".source-gutter__label").first()).toHaveText("No source");
+  await page.locator(".source-gutter__label").first().click();
   await expect(page.getByRole("button", { name: "Revert to source" })).toHaveCount(0);
 });
