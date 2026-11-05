@@ -53,6 +53,24 @@ test("confirming an image's permission on the review screen passes the Image rig
   await page.screenshot({ path: "/Users/phihu/Desktop/still-wt/shots/images/panel.png" });
 });
 
+test("alt text and permission saved without a copyright holder leave no rights issue", async ({ page }) => {
+  const { account, exhibition, image } = await setup();
+  await signInConsole(page, account);
+  await page.goto("/institutions/exhibitions");
+  await page.getByText(exhibition.title, { exact: true }).click();
+  await page.goto("/institutions/materials/review");
+  await page.locator(".item", { hasText: "Pictured work" }).click();
+  await page.getByLabel("Alt text").fill("A still life with pears");
+  await page.getByLabel("Usage permission").selectOption("GRANTED");
+  await page.getByRole("button", { name: "Save image rights" }).click();
+  await expect(page.getByText("Image rights saved")).toBeVisible();
+
+  const [row] = await e2eSql<{ alt_text: string; credit: string | null }>("SELECT alt_text, credit FROM images WHERE id = $1", [image.id]);
+  expect(row).toEqual({ alt_text: "A still life with pears", credit: null });
+  await expect(page.locator(".asset__head")).toContainText("Rights confirmed");
+  expect((await imageRights(page, exhibition.code)).ok).toBe(true);
+});
+
 test("image list hides keys and another institution's image is NOT_FOUND", async ({ page }) => {
   const { account, exhibition, image } = await setup();
   await signInConsole(page, account);

@@ -140,6 +140,7 @@ export function toContentItem(row: ConsoleContentRow, order: number, documents: 
     return [{
       id: image.id,
       caption: image.altText ?? image.credit ?? "",
+      altText: image.altText ?? "",
       creator: "",
       copyrightHolder: image.credit ?? "", // the server keeps one credit line, so creator is not split out again
       imageSource: "",
@@ -568,6 +569,7 @@ export function createTrpcApi(): InstitutionsApi {
       const credit = [patch.creator ?? asset.creator, patch.copyrightHolder ?? asset.copyrightHolder].filter(Boolean).join(" · ");
       await m("console.image.update", {
         id: assetId,
+        ...(patch.altText !== undefined && { altText: patch.altText.trim() || null }),
         ...(patch.usagePermission && { rights: RIGHTS[patch.usagePermission] }),
         ...((patch.creator !== undefined || patch.copyrightHolder !== undefined) && { credit: credit || null }),
       });

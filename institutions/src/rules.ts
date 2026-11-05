@@ -56,7 +56,6 @@ export function rightsIssue(a: MediaAsset): string | null {
   if (a.excluded) return null;
   if (a.usagePermission === "DENIED") return "Permission denied";
   if (a.usagePermission !== "GRANTED") return "Permission not confirmed";
-  if (!a.copyrightHolder.trim()) return "Copyright holder missing";
   if (a.expiresOn && a.expiresOn < today()) return "Permission expired";
   return null;
 }

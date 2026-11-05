@@ -415,7 +415,7 @@ function Assets({ item, canEditRights, flash }: { item: ContentItem; canEditRigh
 function AssetRights({ itemId, asset, editable, flash }: { itemId: string; asset: MediaAsset; editable: boolean; flash: (msg: string) => void }) {
   const { updateAsset } = useWorkspace();
   const initial = {
-    creator: asset.creator, copyrightHolder: asset.copyrightHolder, imageSource: asset.imageSource,
+    altText: asset.altText, creator: asset.creator, copyrightHolder: asset.copyrightHolder, imageSource: asset.imageSource,
     usagePermission: asset.usagePermission, usageScope: asset.usageScope, expiresOn: asset.expiresOn ?? "", excluded: asset.excluded,
   };
   const [d, setD] = useState(initial);
@@ -426,7 +426,7 @@ function AssetRights({ itemId, asset, editable, flash }: { itemId: string; asset
 
   const save = async () => {
     const patch: MediaAssetPatch = {
-      ...d, creator: d.creator.trim(), copyrightHolder: d.copyrightHolder.trim(), imageSource: d.imageSource.trim(),
+      ...d, altText: d.altText.trim(), creator: d.creator.trim(), copyrightHolder: d.copyrightHolder.trim(), imageSource: d.imageSource.trim(),
       usageScope: d.usageScope.trim(), expiresOn: d.expiresOn || null,
     };
     try { await updateAsset(itemId, asset.id, patch); flash("Image rights saved"); } catch { /* error banner */ }
@@ -444,6 +444,11 @@ function AssetRights({ itemId, asset, editable, flash }: { itemId: string; asset
       </button>
       {open && (
         <fieldset className="plain-fieldset asset__body" disabled={!editable}>
+          <label className="field">
+            <span className="field__label">Alt text</span>
+            <input className="input" value={d.altText} onChange={set("altText")} />
+            <span className="caption-sm">Describes the image for people using screen readers.</span>
+          </label>
           <div className="field-row">
             <label className="field"><span className="field__label">Creator</span><input className="input" value={d.creator} onChange={set("creator")} /></label>
             <label className="field"><span className="field__label">Copyright holder</span><input className="input" value={d.copyrightHolder} onChange={set("copyrightHolder")} /></label>
