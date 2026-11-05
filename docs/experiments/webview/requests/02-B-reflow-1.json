@@ -1,0 +1,26 @@
+{
+  "endpoint": "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=<GEMINI_KEY>",
+  "body": {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Write ONE <section> of a mobile reading page for this part of an exhibition guide.\n\nRules:\n- Output only the <section>…</section> fragment. No <html>/<head>/<body>, no markdown fences, no explanations.\n- Reproduce ALL text verbatim in order. Do not paraphrase, shorten, translate, or add words. Keep Korean.\n- Map roles: [h1]/[h2] → h2/h3, [body] → p, [small] → p class=\"small\", [display] → p class=\"display\", [h3] → h4.\n- Wrap each body sentence in <span class=\"s\"> (split only at sentence ends: . ? !). No inline styles.\n\nSOURCE:\n[display] 데이미안 허스트\n\n[display] LIFE, DEATH & EVERYTHING IN BETWEEN\n\n[display] 삶과 죽음, 그 사이의 모든 것\n\n[display] 국립현대미술관 서울 전시 기간: 2026.03.20 — 2026.06.28"
+          }
+        ]
+      }
+    ],
+    "systemInstruction": {
+      "parts": [
+        {
+          "text": "You are a conversion engine, not a writer. You never paraphrase, summarise, translate, correct, or add text. Every character of the author's text must be reproduced exactly as given (same wording, punctuation, line order). Output only the requested format."
+        }
+      ]
+    },
+    "generationConfig": {
+      "temperature": 0,
+      "maxOutputTokens": 65536
+    }
+  }
+}

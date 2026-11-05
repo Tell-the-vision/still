@@ -1,0 +1,701 @@
+{
+  "model": "gemini-2.5-flash",
+  "A": [
+    {
+      "page": 1,
+      "ms": 6988,
+      "tokens": {
+        "promptTokenCount": 475,
+        "candidatesTokenCount": 215,
+        "totalTokenCount": 1696,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 475
+          }
+        ],
+        "thoughtsTokenCount": 1006,
+        "serviceTier": "standard"
+      },
+      "blocks": 4,
+      "roles": [
+        "title",
+        "subheading",
+        "body",
+        "footer"
+      ],
+      "charSimilarity": 0.9867,
+      "originalSentences": 7,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [
+        "데이미안허스트",
+        "LIFE, DEATH & EVERYTHING IN BETWEEN삶과 죽음, 그 사이의 모든 것"
+      ],
+      "originalChars": 150,
+      "candidateChars": 148
+    },
+    {
+      "page": 2,
+      "ms": 13072,
+      "tokens": {
+        "promptTokenCount": 727,
+        "candidatesTokenCount": 669,
+        "totalTokenCount": 3533,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 727
+          }
+        ],
+        "thoughtsTokenCount": 2137,
+        "serviceTier": "standard"
+      },
+      "blocks": 18,
+      "roles": [
+        "title",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "toc",
+        "footer"
+      ],
+      "charSimilarity": 1,
+      "originalSentences": 18,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 245,
+      "candidateChars": 245
+    },
+    {
+      "page": 3,
+      "ms": 8510,
+      "tokens": {
+        "promptTokenCount": 1282,
+        "candidatesTokenCount": 812,
+        "totalTokenCount": 3216,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1282
+          }
+        ],
+        "thoughtsTokenCount": 1122,
+        "serviceTier": "standard"
+      },
+      "blocks": 4,
+      "roles": [
+        "heading",
+        "body",
+        "body",
+        "footer"
+      ],
+      "charSimilarity": 1,
+      "originalSentences": 34,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1065,
+      "candidateChars": 1065
+    }
+  ],
+  "B": [
+    {
+      "section": "(front)",
+      "ms": 4913,
+      "tokens": {
+        "promptTokenCount": 282,
+        "candidatesTokenCount": 93,
+        "totalTokenCount": 1148,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 282
+          }
+        ],
+        "thoughtsTokenCount": 773,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 4,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 104,
+      "candidateChars": 104
+    },
+    {
+      "section": "목차",
+      "ms": 7656,
+      "tokens": {
+        "promptTokenCount": 386,
+        "candidatesTokenCount": 278,
+        "totalTokenCount": 2032,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 386
+          }
+        ],
+        "thoughtsTokenCount": 1368,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 17,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 199,
+      "candidateChars": 199
+    },
+    {
+      "section": "1. 전시 소개",
+      "ms": 21341,
+      "tokens": {
+        "promptTokenCount": 1198,
+        "candidatesTokenCount": 1172,
+        "totalTokenCount": 6159,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1198
+          }
+        ],
+        "thoughtsTokenCount": 3789,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 27,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1782,
+      "candidateChars": 1782
+    },
+    {
+      "section": "작가 소개",
+      "ms": 21299,
+      "tokens": {
+        "promptTokenCount": 1280,
+        "candidatesTokenCount": 1252,
+        "totalTokenCount": 6454,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1280
+          }
+        ],
+        "thoughtsTokenCount": 3922,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 27,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1956,
+      "candidateChars": 1956
+    },
+    {
+      "section": "3-1. 삶과 죽음",
+      "ms": 10662,
+      "tokens": {
+        "promptTokenCount": 625,
+        "candidatesTokenCount": 544,
+        "totalTokenCount": 3124,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 625
+          }
+        ],
+        "thoughtsTokenCount": 1955,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 16,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 762,
+      "candidateChars": 762
+    },
+    {
+      "section": "3-2. 과학과 의학",
+      "ms": 9538,
+      "tokens": {
+        "promptTokenCount": 569,
+        "candidatesTokenCount": 458,
+        "totalTokenCount": 2649,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 569
+          }
+        ],
+        "thoughtsTokenCount": 1622,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 14,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 653,
+      "candidateChars": 653
+    },
+    {
+      "section": "3-3. 아름다움과 취약함",
+      "ms": 10968,
+      "tokens": {
+        "promptTokenCount": 596,
+        "candidatesTokenCount": 498,
+        "totalTokenCount": 3076,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 596
+          }
+        ],
+        "thoughtsTokenCount": 1982,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 14,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 653,
+      "candidateChars": 653
+    },
+    {
+      "section": "3-4. 믿음과 신념",
+      "ms": 6104,
+      "tokens": {
+        "promptTokenCount": 597,
+        "candidatesTokenCount": 476,
+        "totalTokenCount": 1778,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 597
+          }
+        ],
+        "thoughtsTokenCount": 705,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 13,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 683,
+      "candidateChars": 683
+    },
+    {
+      "section": "3-5. 시간과 통제",
+      "ms": 13211,
+      "tokens": {
+        "promptTokenCount": 582,
+        "candidatesTokenCount": 511,
+        "totalTokenCount": 3605,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 582
+          }
+        ],
+        "thoughtsTokenCount": 2512,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 17,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 683,
+      "candidateChars": 683
+    },
+    {
+      "section": "4-1. 살아 있는 자의 마음속 죽음의 물리적 불가능성",
+      "ms": 11508,
+      "tokens": {
+        "promptTokenCount": 833,
+        "candidatesTokenCount": 770,
+        "totalTokenCount": 3375,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 833
+          }
+        ],
+        "thoughtsTokenCount": 1772,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 22,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1140,
+      "candidateChars": 1140
+    },
+    {
+      "section": "4-2. 천 년",
+      "ms": 13005,
+      "tokens": {
+        "promptTokenCount": 747,
+        "candidatesTokenCount": 667,
+        "totalTokenCount": 3857,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 747
+          }
+        ],
+        "thoughtsTokenCount": 2443,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 20,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 958,
+      "candidateChars": 958
+    },
+    {
+      "section": "4-3. 스팟 페인팅",
+      "ms": 9751,
+      "tokens": {
+        "promptTokenCount": 731,
+        "candidatesTokenCount": 652,
+        "totalTokenCount": 2948,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 731
+          }
+        ],
+        "thoughtsTokenCount": 1565,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 19,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 950,
+      "candidateChars": 950
+    },
+    {
+      "section": "4-4. 신의 사랑을 위하여",
+      "ms": 12682,
+      "tokens": {
+        "promptTokenCount": 748,
+        "candidatesTokenCount": 671,
+        "totalTokenCount": 3758,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 748
+          }
+        ],
+        "thoughtsTokenCount": 2339,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 18,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 915,
+      "candidateChars": 915
+    },
+    {
+      "section": "4-5. 약장 시리즈",
+      "ms": 13040,
+      "tokens": {
+        "promptTokenCount": 740,
+        "candidatesTokenCount": 659,
+        "totalTokenCount": 3750,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 740
+          }
+        ],
+        "thoughtsTokenCount": 2351,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 20,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 975,
+      "candidateChars": 975
+    },
+    {
+      "section": "4-6. 스핀 페인팅",
+      "ms": 8867,
+      "tokens": {
+        "promptTokenCount": 703,
+        "candidatesTokenCount": 616,
+        "totalTokenCount": 2678,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 703
+          }
+        ],
+        "thoughtsTokenCount": 1359,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 20,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 857,
+      "candidateChars": 857
+    },
+    {
+      "section": "5-1. 3전시실",
+      "ms": 15933,
+      "tokens": {
+        "promptTokenCount": 933,
+        "candidatesTokenCount": 888,
+        "totalTokenCount": 4727,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 933
+          }
+        ],
+        "thoughtsTokenCount": 2906,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 23,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1352,
+      "candidateChars": 1352
+    },
+    {
+      "section": "5-2. 4전시실",
+      "ms": 14912,
+      "tokens": {
+        "promptTokenCount": 889,
+        "candidatesTokenCount": 828,
+        "totalTokenCount": 4473,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 889
+          }
+        ],
+        "thoughtsTokenCount": 2756,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 23,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1236,
+      "candidateChars": 1236
+    },
+    {
+      "section": "5-3. 5전시실",
+      "ms": 22678,
+      "tokens": {
+        "promptTokenCount": 1288,
+        "candidatesTokenCount": 1289,
+        "totalTokenCount": 6739,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1288
+          }
+        ],
+        "thoughtsTokenCount": 4162,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 32,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1894,
+      "candidateChars": 1894
+    },
+    {
+      "section": "6. 작품 세계와 감상의 확장",
+      "ms": 12983,
+      "tokens": {
+        "promptTokenCount": 958,
+        "candidatesTokenCount": 918,
+        "totalTokenCount": 4109,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 958
+          }
+        ],
+        "thoughtsTokenCount": 2233,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 24,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1402,
+      "candidateChars": 1402
+    },
+    {
+      "section": "7. 전시를 마치며",
+      "ms": 10320,
+      "tokens": {
+        "promptTokenCount": 816,
+        "candidatesTokenCount": 746,
+        "totalTokenCount": 3322,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 816
+          }
+        ],
+        "thoughtsTokenCount": 1760,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 19,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1105,
+      "candidateChars": 1105
+    }
+  ],
+  "C": [
+    {
+      "page": 1,
+      "ms": 24127,
+      "tokens": {
+        "promptTokenCount": 763,
+        "candidatesTokenCount": 446,
+        "totalTokenCount": 5539,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 505
+          },
+          {
+            "modality": "IMAGE",
+            "tokenCount": 258
+          }
+        ],
+        "thoughtsTokenCount": 4330,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 7,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 150,
+      "candidateChars": 150
+    },
+    {
+      "page": 2,
+      "ms": 10376,
+      "tokens": {
+        "promptTokenCount": 1015,
+        "candidatesTokenCount": 934,
+        "totalTokenCount": 3221,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 757
+          },
+          {
+            "modality": "IMAGE",
+            "tokenCount": 258
+          }
+        ],
+        "thoughtsTokenCount": 1272,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 0.8627,
+      "originalSentences": 18,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [
+        "1.",
+        "2.",
+        "3.",
+        "4.",
+        "• 살아 있는 자의 마음속 죽음의 물리적 불가능성",
+        "• 천 년",
+        "• 스팟 페인팅",
+        "• 신의 사랑을 위하여",
+        "• 약장 시리즈",
+        "• 스핀 페인팅",
+        "5.",
+        "• 3전시실 — 모든 질문에는 의심이 따른다",
+        "• 4전시실 — 우리는 시간 속에 산다",
+        "• 5전시실 — 침묵의 사치",
+        "6.",
+        "7."
+      ],
+      "originalChars": 245,
+      "candidateChars": 284
+    },
+    {
+      "page": 3,
+      "ms": 11013,
+      "tokens": {
+        "promptTokenCount": 1570,
+        "candidatesTokenCount": 1973,
+        "totalTokenCount": 4002,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1312
+          },
+          {
+            "modality": "IMAGE",
+            "tokenCount": 258
+          }
+        ],
+        "thoughtsTokenCount": 459,
+        "serviceTier": "standard"
+      },
+      "charSimilarity": 1,
+      "originalSentences": 34,
+      "sentenceCoverage": 1,
+      "missingSentences": [],
+      "addedSentences": [],
+      "originalChars": 1065,
+      "candidateChars": 1065
+    }
+  ],
+  "errors": []
+}

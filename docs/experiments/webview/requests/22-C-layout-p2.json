@@ -1,0 +1,32 @@
+{
+  "endpoint": "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=<GEMINI_KEY>",
+  "body": {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "inlineData": {
+              "mimeType": "image/png",
+              "data": "<base64 png, 73608 chars omitted>"
+            }
+          },
+          {
+            "text": "You are given an image of one A5 page (420×595 pt) from an exhibition guide e-book, plus its text lines with positions.\nRebuild this page as HTML + CSS so that it looks as close as possible to the image when rendered in a 420×595 px box.\n\nRules:\n- Output only one <div class=\"page\" style=\"position:relative;width:420px;height:595px;overflow:hidden;background:#fff\">…</div>. No markdown fences, no explanation.\n- Use the text EXACTLY as given in the lines (verbatim, same line breaks). Every line must appear once. Do not add text that is not in the lines (e.g. do not type what you see if it is not listed).\n- Position elements with absolute coordinates (px = pt here). Reproduce rules/lines, font sizes, weights, and the running footer. Font-family: 'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif.\n- Korean text must not be re-wrapped: use white-space:pre on each line or one element per line.\n\nLINES:\n  1 | y=23 x=13 size=36 | 목차\n  2 | y=140 x=67 size=13 | 전시 소개\n\n  3 | y=160 x=79 size=13 | 작가 소개\n\n  4 | y=180 x=79 size=13 | 작가의 예술을 이해하는 다섯 가지 키워드\n\n  5 | y=200 x=79 size=13 | 주요 작품 살펴보기\n\n  6 | y=220 x=98 size=13 | 살아 있는 자의 마음속 죽음의 물리적 불가능성\n\n  7 | y=240 x=98 size=13 | 천 년\n\n  8 | y=260 x=98 size=13 | 스팟 페인팅\n\n  9 | y=280 x=98 size=13 | 신의 사랑을 위하여\n\n 10 | y=300 x=98 size=13 | 약장 시리즈\n\n 11 | y=320 x=98 size=13 | 스핀 페인팅\n\n 12 | y=340 x=79 size=13 | 전시 공간별 해설\n\n 13 | y=360 x=98 size=13 | 3전시실 — 모든 질문에는 의심이 따른다\n\n 14 | y=380 x=98 size=13 | 4전시실 — 우리는 시간 속에 산다\n\n 15 | y=400 x=98 size=13 | 5전시실 — 침묵의 사치\n\n 16 | y=420 x=79 size=13 | 작품 세계와 감상의 확장\n\n 17 | y=440 x=79 size=13 | 전시를 마치며\n 18 | y=579 x=260 size=6 | STILL DIGITAL EXHIBITION GUIDE · DEMO EDITION"
+          }
+        ]
+      }
+    ],
+    "systemInstruction": {
+      "parts": [
+        {
+          "text": "You are a conversion engine, not a writer. You never paraphrase, summarise, translate, correct, or add text. Every character of the author's text must be reproduced exactly as given (same wording, punctuation, line order). Output only the requested format."
+        }
+      ]
+    },
+    "generationConfig": {
+      "temperature": 0,
+      "maxOutputTokens": 65536
+    }
+  }
+}
