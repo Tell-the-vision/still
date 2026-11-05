@@ -13,3 +13,12 @@ test("a finished analysis lists the Worker's suggestion as OPEN", async ({ page 
   expect(found).toHaveLength(1);
   expect(found[0]).toMatchObject({ status: "OPEN", decidedBy: null, decidedAt: null, proposal: { from: "--", to: "—" } });
 });
+
+// SPEC §10.10: analysis.suggest ends the analysis, so a watcher that stops at SUCCEEDED already sees the suggestions.
+test("the analysis reads SUCCEEDED only once its suggestions are stored", async ({ page }) => {
+  const { exhibition } = await extractedExhibition(page, "SLOW_SUGGEST one -- two.");
+  expect((await consoleCall(page, "console.analysis.create", { code: exhibition.code })).status).toBe(200);
+  await expect.poll(async () => (await e2eSql<{ result: string | null }>("SELECT analysis->>'result' AS result FROM exhibitions WHERE id = $1", [exhibition.id]))[0].result, { timeout: 30_000, intervals: [100] }).toBe("SUCCEEDED");
+  const [row] = await e2eSql<{ n: number }>("SELECT count(*)::int AS n FROM contents WHERE exhibition_id = $1 AND suggestions @> '[{\"kind\":\"PUNCTUATION_CONSISTENCY\"}]'", [exhibition.id]);
+  expect(row.n).toBe(1);
+});

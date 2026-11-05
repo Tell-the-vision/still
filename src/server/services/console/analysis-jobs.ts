@@ -18,7 +18,8 @@ export const ANALYSIS_QUEUE = "analysis.run";
 export const VERIFY_QUEUE = "document.verify";
 const RETRY_LIMIT = 2;
 type JobData = { exhibitionId: string; analysisId: string };
-type Analysis = { id: string; documentIds: string[]; result: string | null; coverage: Coverage | null };
+// `finalizedAt` marks that the contents are committed (only suggestions and the result remain), so a retry never inserts them twice.
+type Analysis = { id: string; documentIds: string[]; result: string | null; coverage: Coverage | null; finalizedAt?: string };
 type Coverage = { total: number; uncovered: number; refs: string[] };
 
 // One boss per process, shared by the tRPC routes (send) and instrumentation (work).
@@ -36,10 +37,14 @@ export function getBoss(): Promise<PgBoss> {
   return globalForBoss.stillBoss;
 }
 
+const ANALYSIS_CONCURRENCY = 4;
+
 export async function startWorkers() {
   const boss = await getBoss();
   await boss.work<StorageDelete>(STORAGE_DELETE_QUEUE, async ([job]) => runStorageDelete(job.data));
-  await boss.work<JobData>(ANALYSIS_QUEUE, async ([job]) => {
+  // pg-boss runs one job at a time per worker by default; one long analysis (minutes of Gemini) would then
+  // hold every other exhibition's analysis behind it on this server.
+  await boss.work<JobData>(ANALYSIS_QUEUE, { localConcurrency: ANALYSIS_CONCURRENCY }, async ([job]) => {
     try {
       await runAnalysis(job.data);
     } catch (e) {
@@ -144,6 +149,7 @@ async function structure(analysisId: string, document: { mediaType: string; cate
 async function runAnalysis({ exhibitionId, analysisId }: JobData) {
   const analysis = await analysisOf(exhibitionId);
   if (!isRunning(analysis, analysisId)) return; // cancelled (or replaced) before it ran
+  if (analysis!.finalizedAt) return finishAnalysis(exhibitionId, analysisId); // a retry after the contents were committed
 
   await notify(db, analysisId, "active");
   const docs = await db.select().from(documents).where(and(eq(documents.exhibitionId, exhibitionId), inArray(documents.id, analysis!.documentIds))).orderBy(documents.createdAt, documents.id);
@@ -175,10 +181,22 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
       }
       await tx.update(documents).set({ analyzedAt: new Date() }).where(eq(documents.id, documentId));
     }
-    await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, result: "SUCCEEDED" } }).where(eq(exhibitions.id, exhibitionId));
+    await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, finalizedAt: new Date().toISOString() } }).where(eq(exhibitions.id, exhibitionId));
+  });
+  // SPEC §10.10: analysis.suggest runs after the contents are committed, and only its end sets SUCCEEDED,
+  // so the console (which stops watching at the result) sees the items with their suggestions.
+  // Suggestions are optional: a failed /suggest still ends the analysis as SUCCEEDED.
+  if (created.length) await suggestEdits(exhibitionId, analysisId, created).catch((e) => console.error("analysis.suggest", e));
+  await finishAnalysis(exhibitionId, analysisId);
+}
+
+async function finishAnalysis(exhibitionId: string, analysisId: string) {
+  await db.transaction(async (tx) => {
+    const [row] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
+    if (!isRunning(row.analysis as Analysis, analysisId)) return; // cancelled meanwhile
+    await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), result: "SUCCEEDED" } }).where(eq(exhibitions.id, exhibitionId));
     await notify(tx, analysisId, "completed");
   });
-  await suggestEdits(exhibitionId, analysisId, created).catch((e) => console.error("analysis.suggest", e));
 }
 
 // Suggestions a person must look at before the item is ready (SPEC §9.4 "확인 필요").
