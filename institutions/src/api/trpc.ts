@@ -3,7 +3,7 @@
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
 import { UPLOAD_FORMATS } from "../constants";
-import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, ProcessingEvent, SourceFile, UploadOptions, Workspace } from "./types";
+import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -42,6 +42,12 @@ type StaffMe = {
 // gets the full workspace. The header shows the account name instead of a role (REVIEW §7-12).
 const toMe = (me: StaffMe): Me => ({ id: me.id, name: me.displayName ?? me.email, email: me.email, role: "INSTITUTION_ADMIN", canPublish: true, mustChangePassword: me.mustChangePassword });
 const toWorkspace = (me: StaffMe): Workspace => ({ institutionName: me.institution.name, institutionId: me.institution.code, role: me.displayName ?? me.email });
+
+// console.preview.get checks (src/server/services/console/preview.ts, SPEC §9.4 미리보기와 발행 점검).
+// A warning does not block publication, but the screen shows it like a check that needs attention.
+type ConsoleCheck = { id: string; title: string; ok: boolean; warning: boolean; detail: string };
+const toPublicationChecks = (checks: ConsoleCheck[]): PublicationCheck[] =>
+  checks.map(({ id, title, ok, warning, detail }) => ({ id, title, detail, ok: ok && !warning, value: ok && !warning ? "Ready" : "Needs check" }));
 
 // console.exhibition.* rows (src/server/services/console/exhibition-rows.ts, SPEC §9.4 목록).
 export type ConsoleExhibitionRow = {
@@ -331,7 +337,7 @@ export function createTrpcApi(): InstitutionsApi {
     mergeContentItems: (itemId, intoId, keep) => m("mergeContentItems", { itemId, intoId, keep }),
     splitContentItem: (itemId, at) => m("splitContentItem", { itemId, at }),
 
-    listPublicationChecks: (exhibitionId) => q("listPublicationChecks", { exhibitionId }),
+    listPublicationChecks: async (exhibitionId) => toPublicationChecks((await q<{ checks: ConsoleCheck[] }>("console.preview.get", { code: exhibitionId })).checks),
 
     getGuide: (exhibitionId) => q("getGuide", { exhibitionId }),
     saveGuide: (exhibitionId, guide) => m("saveGuide", { exhibitionId, ...guide }),
