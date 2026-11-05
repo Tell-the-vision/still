@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ContentBlock, ContentKind, ContentStatus } from "../../../../shared/src/console-content";
 import type { ExhibitionDraft } from "../../../../shared/src/console-draft";
-import { storedDocument, type StoredDocument } from "../../../../shared/src/document";
-import { blockText, inlineNodes, scrapRuns, type StillBlock, type StillDoc, type TextNode } from "../../../../shared/src/still-doc";
+import { inlineNodes, scrapRuns, stillDocument, type StillBlock, type StillDoc, type StillDocument, type TextNode } from "../../../../shared/src/still-doc";
 
 // Compiles an exhibition draft into the visitor documents (SPEC §9.4 가이드 편집과 컴파일).
 // Pure: no database, no clock. The preview (console.preview.get) and the publication worker share it.
@@ -31,9 +30,9 @@ export type CompiledSentence = {
 
 export type Compiled = {
   // The INTRODUCTION sections' blocks; null when there are none.
-  description: StoredDocument | null;
+  description: StillDocument | null;
   // Every other visible section; null when there are none.
-  guide: StoredDocument | null;
+  guide: StillDocument | null;
   // The `sentence` blocks that appear in `guide`, in order, once per (content, block).
   sentences: CompiledSentence[];
   // Images used by `description` and `guide` (not the cover, which lives in the draft).
@@ -57,38 +56,28 @@ export function sentenceIdOf(sentence: CompiledSentence): string {
   return sentence.guideSentenceId ?? placeholderSentenceId(sentence.contentId, sentence.blockId);
 }
 
-type StoredBlock = StoredDocument["blocks"][number];
-
-// What one content contributes, before the introduction / guide difference is applied.
-type Piece = StoredBlock | { type: "sentence-run"; blockId: string; text: string; guideSentenceId: string | null; docRun?: number };
-
-// The text of each paragraph of a block without its scrap runs (those become sentences).
-function plainParagraphs(block: StillBlock): string[] {
-  if (block.type === "stillImage") return [];
-  const paragraphs: TextNode[][] =
-    block.type === "paragraph" || block.type === "heading" ? [block.content ?? []]
-    : block.type === "blockquote" ? block.content.map((p) => p.content ?? [])
-    : block.content.flatMap((item) => item.content.map((p) => p.content ?? []));
-  return paragraphs.map((nodes) => nodes.filter((n) => !n.marks?.length).map((n) => n.text).join("")).filter((t) => t !== "");
+// A legacy `blocks`-only content as a STILL doc; a legacy sentence keeps its block id and stored sentence id.
+function legacyDoc(blocks: ContentBlock[]): StillDoc {
+  const text = (t: string) => (t ? [{ type: "text" as const, text: t }] : undefined);
+  return {
+    type: "doc",
+    content: blocks.map((b): StillBlock =>
+      b.type === "image" ? { type: "stillImage", attrs: { id: b.id, imageId: b.imageId, display: "INLINE", caption: null } }
+      : b.type === "heading" ? { type: "heading", attrs: { id: b.id, level: 2 }, content: text(b.text) }
+      : b.type === "sentence" ? { type: "paragraph", attrs: { id: b.id }, content: [{ type: "text", text: b.text || " ", marks: [{ type: "scrap", attrs: { sentenceId: b.guideSentenceId ?? null } }] }] }
+      : { type: "paragraph", attrs: { id: b.id }, content: text(b.text) }),
+  };
 }
 
-// A doc-based content as pieces: each block's plain text first, then its scrap runs, in order.
-function docPieces(doc: StillDoc): Piece[] {
-  const runs = scrapRuns(doc).map((run, docRun) => ({ ...run, docRun }));
-  return doc.content.flatMap((block): Piece[] => {
-    if (block.type === "stillImage") return [{ type: "image", imageId: block.attrs.imageId }];
-    const own = runs.filter((r) => r.blockId === block.attrs.id);
-    const text: Piece[] = block.type === "heading" ? [{ type: "heading", text: blockText(block) }] : plainParagraphs(block).map((t) => ({ type: "paragraph", text: t }));
-    return [...text, ...own.map((r): Piece => ({ type: "sentence-run", blockId: `${r.blockId}#${r.docRun}`, text: r.text, guideSentenceId: r.sentenceId, docRun: r.docRun }))];
-  });
+// A block with its scrap marks removed (the introduction has no sentences) or its node ids made unique.
+function mapNodes(block: StillBlock, change: (node: TextNode) => TextNode, id: string): StillBlock {
+  const copy = structuredClone(block);
+  copy.attrs = { ...copy.attrs, id } as typeof copy.attrs;
+  const paragraphs = copy.type === "stillImage" ? [] : copy.type === "paragraph" || copy.type === "heading" ? [copy] : copy.type === "blockquote" ? copy.content : copy.content.flatMap((i) => i.content);
+  for (const p of paragraphs) if (p.content) p.content = p.content.map(change);
+  return copy;
 }
-
-function legacyPieces(blocks: ContentBlock[]): Piece[] {
-  return blocks.map((b): Piece =>
-    b.type === "image" ? { type: "image", imageId: b.imageId }
-    : b.type === "sentence" ? { type: "sentence-run", blockId: b.id, text: b.text, guideSentenceId: b.guideSentenceId ?? null }
-    : { type: b.type, text: b.text });
-}
+const withoutScrap = (node: TextNode): TextNode => ({ type: "text", text: node.text });
 
 // A copy of `doc` where scrap run number k (as numbered by scrapRuns) carries ids.get(k).
 export function withScrapIds(doc: StillDoc, ids: Map<number, string>): StillDoc {
@@ -115,17 +104,19 @@ export function compileDraft(draft: ExhibitionDraft, contents: CompileContent[],
   const losses = new Set<string>();
   const sentences: CompiledSentence[] = [];
   const usedImages = new Set<string>();
-  const descriptionBlocks: StoredBlock[] = [];
-  const guideBlocks: StoredBlock[] = [];
+  const descriptionBlocks: StillBlock[] = [];
+  const guideBlocks: StillBlock[] = [];
 
   for (const section of draft.sections) {
     const isIntroduction = section.kind === "INTRODUCTION";
-    const blocks = isIntroduction ? descriptionBlocks : guideBlocks;
     if (!section.visible) {
       losses.add(`Hidden section "${section.title}" is left out`);
       continue;
     }
-    if (!isIntroduction) blocks.push({ type: "heading", text: section.title });
+    if (!isIntroduction) {
+      const id = `sec-${section.id}`.slice(0, 64);
+      guideBlocks.push({ type: "heading", attrs: { id, level: 1 }, content: section.title ? [{ type: "text", text: section.title }] : undefined });
+    }
 
     for (const contentId of section.contentIds) {
       const content = contentById.get(contentId);
@@ -136,35 +127,37 @@ export function compileDraft(draft: ExhibitionDraft, contents: CompileContent[],
       if (!isIntroduction && content.kind === "THEME") losses.add("Theme cards are shown as plain text");
       if (!isIntroduction && content.kind === "ARTWORK") losses.add("Artwork title and year are not shown as a caption");
 
-      const pieces = content.doc.content.length > 0 ? docPieces(content.doc) : legacyPieces(content.blocks);
-      for (const piece of pieces) {
-        if (piece.type === "image") {
-          if (!imageIds.has(piece.imageId)) {
-            losses.add(`An image in section "${section.title}" is not part of this exhibition and is left out`);
-            continue;
-          }
-          usedImages.add(piece.imageId);
-          blocks.push({ type: "image", imageId: piece.imageId });
-        } else if (piece.type === "sentence-run" && isIntroduction) {
-          losses.add("Sentences in the introduction become paragraphs");
-          blocks.push({ type: "paragraph", text: piece.text });
-        } else if (piece.type === "sentence-run") {
-          const sentence = { contentId, blockId: piece.blockId, text: piece.text, guideSentenceId: piece.guideSentenceId, docRun: piece.docRun };
-          blocks.push({ type: "sentence", sentenceId: sentenceIdOf(sentence) });
-          if (!sentences.some((s) => s.contentId === contentId && s.blockId === piece.blockId)) sentences.push(sentence);
-        } else {
-          blocks.push(piece);
+      const legacy = content.doc.content.length === 0;
+      const doc = legacy ? legacyDoc(content.blocks) : content.doc;
+      const runs = scrapRuns(doc).map((run, docRun) => ({ ...run, docRun }));
+      const found = runs.map((r) => ({ contentId, blockId: legacy ? r.blockId : `${r.blockId}#${r.docRun}`, text: r.text, guideSentenceId: r.sentenceId, docRun: legacy ? undefined : r.docRun }));
+      // Until publication assigns ids the marks carry the placeholder ids, so a preview is stable.
+      const marked = withScrapIds(doc, new Map(found.map((s, k) => [k, sentenceIdOf(s)])));
+      if (!isIntroduction) {
+        for (const s of found) if (!sentences.some((o) => o.contentId === contentId && o.blockId === s.blockId)) sentences.push(s);
+      }
+
+      const prefix = contentId.slice(0, 8);
+      for (const block of marked.content) {
+        if (block.type === "stillImage" && !imageIds.has(block.attrs.imageId)) {
+          losses.add(`An image in section "${section.title}" is not part of this exhibition and is left out`);
+          continue;
         }
+        if (block.type === "stillImage") usedImages.add(block.attrs.imageId);
+        const id = `${prefix}-${block.attrs.id}`.slice(0, 64);
+        if (isIntroduction && runs.length) losses.add("Sentences in the introduction become paragraphs");
+        (isIntroduction ? descriptionBlocks : guideBlocks).push(mapNodes(block, isIntroduction ? withoutScrap : (n) => n, id));
       }
     }
   }
 
-  const description = descriptionBlocks.length ? { version: 1 as const, blocks: descriptionBlocks } : null;
-  const guide = guideBlocks.length ? { version: 1 as const, blocks: guideBlocks } : null;
+  const toDocument = (content: StillBlock[]) => (content.length ? { version: 1 as const, type: "doc" as const, content } : null);
+  const description = toDocument(descriptionBlocks);
+  const guide = toDocument(guideBlocks);
   const invalid = [description && ["description", description], guide && ["guide", guide]]
     .filter((entry) => entry !== null)
     .flatMap(([name, doc]) => {
-      const result = storedDocument.safeParse(doc);
+      const result = stillDocument.safeParse(doc);
       return result.success ? [] : result.error.issues.map((issue) => `${name}: ${issue.path.join(".")} ${issue.message}`);
     });
 

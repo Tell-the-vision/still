@@ -1,13 +1,12 @@
 import { contentBlocks } from "../../../../shared/src/console-content";
 import { exhibitionDraft, type ExhibitionDraft } from "../../../../shared/src/console-draft";
-import type { StoredDocument } from "../../../../shared/src/document";
-import { stillDoc } from "../../../../shared/src/still-doc";
+import { stillDoc, type StillDocument } from "../../../../shared/src/still-doc";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client";
 import { contents, exhibitions, images, venues } from "../../db/schema";
 import { publicImageUrl } from "../../media/public-url";
-import { compileDraft, sentenceIdOf, type Compiled, type CompileContent } from "./compile";
+import { compileDraft, type Compiled, type CompileContent } from "./compile";
 import { exhibitionRows } from "./exhibition-rows";
 
 // console.preview.get (SPEC §9.4 미리보기와 발행 점검): the compiled draft in the visitor
@@ -19,13 +18,6 @@ type ImageRow = typeof images.$inferSelect;
 // but publication may go on. `ok` therefore means "does not block".
 export type PublicationCheck = { id: string; title: string; ok: boolean; warning: boolean; detail: string };
 
-// Like ExpandedBlock (shared/src/document.ts) except that an image without a public copy has
-// no URL yet. Never invented: publication is what copies the image to public storage.
-type PreviewBlock =
-  | { type: "heading" | "paragraph"; text: string }
-  | { type: "image"; imageId: string; url: string | null; altText: string | null; width: number; height: number }
-  | { type: "sentence"; sentenceId: string; text: string };
-
 const previewImage = (image: ImageRow) => ({
   url: image.objectKey === null ? null : publicImageUrl(image.objectKey),
   altText: image.altText,
@@ -33,21 +25,10 @@ const previewImage = (image: ImageRow) => ({
   height: image.height,
 });
 
-function expandForPreview(doc: StoredDocument | null, imageRows: ImageRow[], sentenceText: Map<string, string>): { version: 1; blocks: PreviewBlock[] } | null {
-  if (!doc) return null;
-  const blocks: PreviewBlock[] = [];
-  for (const block of doc.blocks) {
-    if (block.type === "image") {
-      const image = imageRows.find((i) => i.id === block.imageId);
-      if (image) blocks.push({ type: "image", imageId: image.id, ...previewImage(image) });
-    } else if (block.type === "sentence") {
-      const text = sentenceText.get(block.sentenceId);
-      if (text !== undefined) blocks.push({ type: "sentence", sentenceId: block.sentenceId, text });
-    } else {
-      blocks.push(block);
-    }
-  }
-  return { version: 1, blocks };
+// The images a document's stillImage blocks point at; an image without a public copy has no URL yet.
+function previewImages(docs: (StillDocument | null)[], imageRows: ImageRow[]) {
+  const used = new Set(docs.flatMap((d) => d?.content ?? []).flatMap((b) => (b.type === "stillImage" ? [b.attrs.imageId] : [])));
+  return Object.fromEntries(imageRows.filter((i) => used.has(i.id)).map((i) => [i.id, previewImage(i)]));
 }
 
 const hasValue = (field: unknown) => {
@@ -154,7 +135,6 @@ export async function previewExhibition(institutionId: string, code: string) {
   const loaded = await loadDraft(db, row.id);
   const { draft, venue, imageRows, compiled } = loaded;
 
-  const sentenceText = new Map(compiled.sentences.map((s) => [sentenceIdOf(s), s.text]));
   const cover = imageRows.find((i) => i.id === draft.coverImageId);
   return {
     // Mirrors exhibition.get (SPEC §3.3), built from the draft.
@@ -162,7 +142,7 @@ export async function previewExhibition(institutionId: string, code: string) {
       code: row.code,
       title: draft.title,
       subtitle: draft.subtitle,
-      description: expandForPreview(compiled.description, imageRows, sentenceText),
+      description: compiled.description,
       venue,
       startDate: draft.startDate,
       endDate: draft.endDate,
@@ -170,7 +150,8 @@ export async function previewExhibition(institutionId: string, code: string) {
       audio: { playlist: draft.playlist, ambienceEnabled: draft.ambienceEnabled },
     },
     // Mirrors guide.get's document.
-    guide: expandForPreview(compiled.guide, imageRows, sentenceText),
+    guide: compiled.guide,
+    images: previewImages([compiled.description, compiled.guide], imageRows),
     checks: publicationChecks(row.code, loaded),
     losses: compiled.losses,
   };
