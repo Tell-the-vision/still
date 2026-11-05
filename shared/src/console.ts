@@ -69,7 +69,13 @@ export const consoleDocumentUpdateInput = z.object({
   uploaded: z.literal(true).optional(),
   category: z.enum(DOCUMENT_CATEGORIES).nullable().optional(),
   failed: z.enum(DOCUMENT_FAILURES).optional(),
-  manifestKey: z.string().min(1).optional(), // the browser extraction module, not built yet
+  manifestKey: z.string().min(1).max(600).optional(), // {institutionId}/{exhibitionId}/{documentId}/manifest.v{n}.json
+});
+// SPEC §9.5 console.documentUpload.create: each name is relative to the document's prefix (the server rejects
+// anything but the extraction outputs); size and sha256 describe the file the browser is about to PUT.
+export const consoleDocumentUploadCreateInput = z.object({
+  documentId: z.uuid(),
+  files: z.array(z.object({ name: z.string().min(1).max(300), size: z.number().int().positive(), sha256: z.string().regex(/^[0-9a-f]{64}$/) })).min(1).max(500),
 });
 export const consoleDocumentListInput = exhibitionCode;
 export const consoleDocumentGetInput = z.object({ id: z.uuid() });

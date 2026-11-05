@@ -5,11 +5,10 @@ import { seedExhibition, seedContent, type SeededExhibition } from "./support/co
 import { consoleCall, e2eSql, seedInstitutionAccount, signInConsole, type InstitutionAccount } from "./support/staff";
 
 // SPEC §9.1-1 원본 불변, §9.4 업로드, §9.5 console.document.get / delete: an original can be downloaded, and
-// removed only while nothing reviewed refers to it. R2_DRY_RUN=1 makes presigned URLs point at r2.dry-run.invalid.
+// removed only while nothing reviewed refers to it. R2_DRY_RUN=1 makes presigned URLs point at this app's /api/r2-dry-run.
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-const DRY_RUN = "https://r2.dry-run.invalid/**";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const data = (res: { json: { result: { data: unknown } } }) => res.json.result.data as Record<string, any>;
 
@@ -85,13 +84,12 @@ test("Download opens the presigned URL of the original", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   const id = await seedDocument(account, exhibition, "press-kit.pdf");
-  await page.context().route(DRY_RUN, (route) => route.fulfill({ status: 200, body: "" }));
   await openMaterials(page, account, exhibition.title);
 
   const popup = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Download press-kit.pdf" }).click();
   const url = new URL((await popup).url());
-  expect(url.origin).toBe("https://r2.dry-run.invalid");
+  expect(url.pathname).toMatch(/^\/api\/r2-dry-run\//);
   expect(url.pathname).toContain(`/${account.institutionId}/${exhibition.id}/${id}/original.pdf`);
 });
 

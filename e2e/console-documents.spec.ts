@@ -6,11 +6,11 @@ import { consoleCall, e2eSql, seedInstitutionAccount, signInConsole, type Instit
 
 // SPEC §9.4 업로드, §10.6, §11.2: the browser PUTs the file straight to the private R2 bucket with a
 // presigned URL; the server checks the declared type and size, never the bytes. R2_DRY_RUN=1 makes the
-// presigned URL point at r2.dry-run.invalid, which these tests intercept.
+// presigned URL point at this app's /api/r2-dry-run, which stores the bytes; these tests only observe the PUT.
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-const DRY_RUN_PUT = "https://r2.dry-run.invalid/**";
+const DRY_RUN_PUT = "**/api/r2-dry-run/**";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const data = (res: { json: { result: { data: unknown } } }) => res.json.result.data as Record<string, any>;
 const pdfBytes = (tag: string) => Buffer.from(`%PDF-1.4\n% e2e ${tag}\n%%EOF\n`);
@@ -36,7 +36,7 @@ test("staff upload a PDF straight to R2; it stays uploaded after reload, and the
   await page.route(DRY_RUN_PUT, (route) => {
     const req = route.request();
     puts.push({ url: req.url(), method: req.method(), body: req.postDataBuffer() });
-    return route.fulfill({ status: 200, body: "" });
+    return route.fallback();
   });
   await openMaterials(page, account, exhibition.title);
 
@@ -68,7 +68,7 @@ test("an unsupported file is refused before any upload and writes no row", async
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   let puts = 0;
-  await page.route(DRY_RUN_PUT, (route) => { puts += 1; return route.fulfill({ status: 200, body: "" }); });
+  await page.route(DRY_RUN_PUT, (route) => { puts += 1; return route.fallback(); });
   await openMaterials(page, account, exhibition.title);
 
   await choose(page, { name: "notes.csv", mimeType: "text/csv", buffer: Buffer.from("a,b\n1,2\n") });

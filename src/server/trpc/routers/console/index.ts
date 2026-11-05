@@ -2,6 +2,7 @@ import { router } from "../../init";
 import { consoleAnalysisRouter } from "./analysis";
 import { consoleContentRouter } from "./content";
 import { consoleDocumentRouter } from "./document";
+import { consoleDocumentUploadRouter } from "./documentUpload";
 import { consoleDraftRouter } from "./draft";
 import { consoleExhibitionRouter } from "./exhibition";
 import { consoleImageRouter } from "./image";
@@ -16,6 +17,7 @@ export const consoleRouter = router({
   analysis: consoleAnalysisRouter,
   content: consoleContentRouter,
   document: consoleDocumentRouter,
+  documentUpload: consoleDocumentUploadRouter,
   draft: consoleDraftRouter,
   exhibition: consoleExhibitionRouter,
   image: consoleImageRouter,

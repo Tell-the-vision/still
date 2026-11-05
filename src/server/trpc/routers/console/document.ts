@@ -15,6 +15,7 @@ import { db } from "../../../db/client";
 import { contents, documents, exhibitions, images } from "../../../db/schema";
 import { deletePrivateObject, presignPrivateGet, presignPrivatePut, privateObjectSize, putPrivateObject } from "../../../media/r2";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
+import { documentPrefix, manifestVersionOf, validateManifest } from "../../../services/console/manifests";
 import { AppError, consoleProcedure, router } from "../../init";
 
 const originalOf = alias(documents, "original");
@@ -110,17 +111,20 @@ export const consoleDocumentRouter = router({
   }),
 
   update: consoleProcedure.input(consoleDocumentUpdateInput).mutation(async ({ ctx, input }) => {
-    // The browser extraction module that writes manifests is not built yet (SPEC §9.4 업로드 처리 구조).
-    if (input.manifestKey !== undefined) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "manifestKey is not supported until the extraction module exists." });
+    if ([input.uploaded, input.failed, input.manifestKey].filter((v) => v !== undefined).length > 1) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "A document is uploaded, failed or extracted, one at a time." });
     }
-    if (input.uploaded && input.failed) throw new TRPCError({ code: "BAD_REQUEST", message: "A document is either uploaded or failed." });
     const current = await documentView(ctx.institutionId, input.id);
     if (!current) throw new TRPCError({ code: "NOT_FOUND" });
     const [{ objectKey, exhibitionId, sha256 }] = await db.select().from(documents).where(eq(documents.id, input.id));
 
     if (input.category !== undefined) {
       await db.update(documents).set({ category: input.category }).where(eq(documents.id, input.id));
+    }
+
+    if (input.manifestKey !== undefined) {
+      await recordManifest(ctx.institutionId, input.id, input.manifestKey);
+      return documentView(ctx.institutionId, input.id);
     }
 
     if (input.failed) {
@@ -197,16 +201,7 @@ export const consoleDocumentRouter = router({
 
       const analysis = exhibition.analysis as { result?: unknown } | null;
       if (analysis && analysis.result == null) throw new TRPCError({ code: "CONFLICT", cause: new AppError("ANALYSIS_IN_PROGRESS") });
-
-      const doomedImages = await tx.select({ id: images.id }).from(images).where(inArray(images.documentId, doomed.map((d) => d.id)));
-      const imageIds = new Set(doomedImages.map((i) => i.id));
-      const draftCover = (exhibition.draft as { coverImageId?: string | null }).coverImageId;
-      const coverIsTheirs = [exhibition.coverImageId, draftCover].some((cover) => cover && imageIds.has(cover));
-      const items = await tx.select({ blocks: contents.blocks, fields: contents.fields }).from(contents).where(eq(contents.exhibitionId, exhibitionId));
-      const refersToThem = (value: string) => imageIds.has(value) || doomed.some((d) => value.startsWith(`${d.id}:`));
-      if (coverIsTheirs || items.some((item) => stringsIn(item).some(refersToThem))) {
-        throw new TRPCError({ code: "CONFLICT", cause: new AppError("DOCUMENT_IN_USE") });
-      }
+      await assertUnreferenced(tx, exhibitionId, exhibition, doomed.map((d) => d.id));
 
       await tx.delete(documents).where(eq(documents.id, input.id));
       return doomed.flatMap((d) => [d.objectKey, d.manifestObjectKey]).filter((key): key is string => key !== null);
@@ -218,6 +213,74 @@ export const consoleDocumentRouter = router({
     return { id: input.id };
   }),
 });
+
+// SPEC §10.6 상태 전이 STORED → EXTRACTED (and EXTRACTED → EXTRACTED for a new manifest version): the
+// manifest is validated, then the document and its image rows change together. An invalid manifest is not an
+// error: the document becomes FAILED / MANIFEST_INVALID and the caller reads that from the returned row.
+// The `document.verify` job (pg-boss) will later move images off UNVERIFIED; here they are only recorded.
+async function recordManifest(institutionId: string, id: string, manifestKey: string) {
+  const [doc] = await db.select().from(documents).where(eq(documents.id, id));
+  if (doc.status !== "STORED" && doc.status !== "EXTRACTED") throw new TRPCError({ code: "BAD_REQUEST", message: "Only a stored document can be extracted." });
+  const prefix = documentPrefix(institutionId, doc.exhibitionId, id);
+  const version = manifestVersionOf(prefix, manifestKey);
+  if (version === null) throw new TRPCError({ code: "BAD_REQUEST", message: "manifestKey must be this document's manifest.v{n}.json." });
+  const current = doc.manifestObjectKey ? manifestVersionOf(prefix, doc.manifestObjectKey) : null;
+  if (current !== null && version <= current) throw new TRPCError({ code: "BAD_REQUEST", message: "A re-extraction needs a newer manifest version." });
+
+  const checked = await validateManifest({ id, sha256: doc.sha256, prefix }, manifestKey);
+
+  await db.transaction(async (tx) => {
+    const [exhibition] = await tx
+      .select({ draft: exhibitions.draft, coverImageId: exhibitions.coverImageId })
+      .from(exhibitions)
+      .where(eq(exhibitions.id, doc.exhibitionId))
+      .for("update");
+    // Only the state read above may be replaced: a concurrent update wins and this one is refused.
+    const [locked] = await tx.select({ status: documents.status, manifestObjectKey: documents.manifestObjectKey }).from(documents).where(eq(documents.id, id)).for("update");
+    if (locked.status !== doc.status || locked.manifestObjectKey !== doc.manifestObjectKey) throw new TRPCError({ code: "CONFLICT", message: "The document changed meanwhile." });
+
+    if (!checked) {
+      await tx.update(documents).set({ status: "FAILED", errorCode: "MANIFEST_INVALID", manifestObjectKey: null }).where(eq(documents.id, id));
+      return;
+    }
+    if (doc.status === "EXTRACTED") await assertUnreferenced(tx, doc.exhibitionId, exhibition, [id]);
+    await tx.delete(images).where(eq(images.documentId, id));
+    if (checked.assets.length) {
+      await tx.insert(images).values(
+        checked.assets.map((asset) => ({
+          exhibitionId: doc.exhibitionId,
+          objectKey: null,
+          width: asset.pixels[0],
+          height: asset.pixels[1],
+          documentId: id,
+          manifestAssetId: asset.id,
+          rights: "UNCONFIRMED",
+          verification: asset.sourceRange ? "UNVERIFIED" : "NOT_APPLICABLE",
+        })),
+      );
+    }
+    await tx.update(documents).set({ status: "EXTRACTED", errorCode: null, manifestObjectKey: manifestKey, analyzedAt: null }).where(eq(documents.id, id));
+  });
+}
+
+// SPEC §9.1-1: documents (and the images extracted from them) stay while the draft cover, or any content, refers
+// to them: by image id, or by a source ref "{documentId}:…". Call with the exhibition row locked.
+async function assertUnreferenced(
+  tx: Pick<typeof db, "select">,
+  exhibitionId: string,
+  exhibition: { draft: unknown; coverImageId: string | null },
+  documentIds: string[],
+) {
+  const theirImages = await tx.select({ id: images.id }).from(images).where(inArray(images.documentId, documentIds));
+  const imageIds = new Set(theirImages.map((i) => i.id));
+  const draftCover = (exhibition.draft as { coverImageId?: string | null }).coverImageId;
+  const coverIsTheirs = [exhibition.coverImageId, draftCover].some((cover) => cover && imageIds.has(cover));
+  const items = await tx.select({ blocks: contents.blocks, fields: contents.fields }).from(contents).where(eq(contents.exhibitionId, exhibitionId));
+  const refersToThem = (value: string) => imageIds.has(value) || documentIds.some((id) => value.startsWith(`${id}:`));
+  if (coverIsTheirs || items.some((item) => stringsIn(item).some(refersToThem))) {
+    throw new TRPCError({ code: "CONFLICT", cause: new AppError("DOCUMENT_IN_USE") });
+  }
+}
 
 // The document with its ZIP children and duplicates, transitively: every row the delete cascades to.
 async function documentsGoingWith(tx: Pick<typeof db, "execute">, exhibitionId: string, id: string) {
