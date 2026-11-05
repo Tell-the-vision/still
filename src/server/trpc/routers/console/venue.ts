@@ -28,7 +28,7 @@ export const consoleVenueRouter = router({
       .select()
       .from(venues)
       .where(pattern ? or(ilike(venues.name, pattern), ilike(venues.city, pattern)) : undefined)
-      .orderBy(asc(venues.name), asc(venues.id));
+      .orderBy(asc(venues.name), asc(venues.createdAt), asc(venues.id)); // same names: oldest first
     return rows.map((row) => toVenue(row, ctx.institutionId));
   }),
 
