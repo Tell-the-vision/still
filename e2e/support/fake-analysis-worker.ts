@@ -11,8 +11,16 @@ createServer(async (req, res) => {
   const headers = new Headers(req.headers as Record<string, string>);
   const reply = (status: number, value: unknown) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(value)); };
   const isVerify = req.url === "/verify";
-  if (req.url !== "/structure/text" && !isVerify || req.method !== "POST") return reply(404, {});
+  const isSuggest = req.url === "/suggest";
+  if (req.url !== "/structure/text" && !isVerify && !isSuggest || req.method !== "POST") return reply(404, {});
   if (!(await verifyWorkerRequest("e2e-analysis-worker-secret", body, headers, Math.floor(Date.now() / 1000)))) return reply(401, {});
+  if (isSuggest) {
+    const { items } = JSON.parse(body) as { items: { contentId: string; blocks: { id: string }[] }[] };
+    return reply(200, {
+      suggestions: [{ contentId: items[0].contentId, kind: "PUNCTUATION_CONSISTENCY", target: { node: items[0].blocks[0].id }, proposal: { from: "--", to: "—" }, rationale: "Use one dash style." }],
+      usage: { model: "fake", inputTokens: 1, outputTokens: 1 },
+    });
+  }
   if (isVerify) {
     const { url, ranges } = JSON.parse(body) as { url: string; ranges: { assetId: string; offset: number; length: number; sha256: string }[] };
     const file = Buffer.from(await (await fetch(url)).arrayBuffer());

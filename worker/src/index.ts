@@ -1,5 +1,6 @@
 import { structureRequest, structureResponse, type StructureRequest } from "../../shared/src/analysis-worker";
 import { structureInput, structureOutput, type StructureInput } from "../../shared/src/analysis-structure";
+import { SUGGEST_KINDS, suggestInput, suggestOutput, type SuggestInput } from "../../shared/src/analysis-suggest";
 import { verifyWorkerRequest } from "../../shared/src/analysis-worker-signature";
 import { CONTENT_KINDS } from "../../shared/src/console-content";
 import { SECTION_KINDS } from "../../shared/src/console-draft";
@@ -237,6 +238,54 @@ async function structureText(input: StructureInput, env: Env, fetcher: Fetcher):
   return parsed.success ? json(parsed.data, 200) : failure("INVALID_OUTPUT");
 }
 
+// SPEC §9.4 제안: Gemini proposes edits to the text blocks. The proposal is a free map on the wire, so it
+// travels as a JSON string.
+const suggestSchema = {
+  type: "OBJECT",
+  required: ["suggestions"],
+  properties: {
+    suggestions: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        required: ["contentId", "kind", "node", "proposal", "rationale"],
+        properties: {
+          contentId: { type: "STRING", nullable: true },
+          kind: { type: "STRING", enum: [...SUGGEST_KINDS] },
+          node: { type: "STRING" },
+          proposal: { type: "STRING", description: "JSON object" },
+          rationale: { type: "STRING" },
+        },
+      },
+    },
+  },
+};
+
+function suggestPrompt(input: SuggestInput): string {
+  return [
+    "You review the text blocks of a museum or gallery guide and propose small editing suggestions.",
+    "Each suggestion has a kind and a `node` (a block id below) and a `proposal` JSON object with exactly these shapes:",
+    "TEXT_EXTRACTION_FIX {text}; PUNCTUATION_CONSISTENCY {from, to}; STRUCTURE_LEVEL {level: 2|3};",
+    "MISSING_HEADING {text, level}; SPLIT_FOR_MOBILE {offsets: character offsets}; GUIDE_SENTENCE_CANDIDATE {sentence}.",
+    "Set contentId to the item's id. Suggest only when clearly useful; an empty list is fine.",
+    "",
+    ...input.items.flatMap((i) => [`Item ${i.contentId} (${i.kind})`, ...i.blocks.map((b) => `  ${b.id} [${b.type}] ${b.text}`)]),
+  ].join("\n");
+}
+
+async function suggest(input: SuggestInput, env: Env, fetcher: Fetcher): Promise<Response> {
+  const result = await generate(suggestPrompt(input), suggestSchema, env, fetcher);
+  if (result instanceof Response) return result;
+  const wire = result.output as { suggestions?: { node: string; proposal: string }[] } | null;
+  try {
+    const suggestions = (wire?.suggestions ?? []).map(({ node, proposal, ...rest }) => ({ ...rest, target: { node }, proposal: JSON.parse(proposal) }));
+    const parsed = suggestOutput.safeParse({ suggestions, usage: result.usage });
+    return parsed.success ? json(parsed.data, 200) : failure("INVALID_OUTPUT");
+  } catch {
+    return failure("INVALID_OUTPUT");
+  }
+}
+
 // SPEC §10.7 검증: each asset's bytes are read from the original by range and hashed. The presigned `url`
 // is a credential, so it is never logged.
 const verifyInput = z.object({
@@ -267,7 +316,8 @@ export function createWorker(fetcher: Fetcher = (url, init) => fetch(url, init))
       const url = new URL(request.url);
       const isText = url.pathname === "/structure/text";
       const isVerify = url.pathname === "/verify";
-      if (url.pathname !== "/structure" && !isText && !isVerify) return json({ error: "NOT_FOUND" }, 404);
+      const isSuggest = url.pathname === "/suggest";
+      if (url.pathname !== "/structure" && !isText && !isVerify && !isSuggest) return json({ error: "NOT_FOUND" }, 404);
       if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
 
       const body = await request.text();
@@ -282,6 +332,10 @@ export function createWorker(fetcher: Fetcher = (url, init) => fetch(url, init))
         raw = JSON.parse(body);
       } catch {
         return json({ error: "BAD_REQUEST" }, 400);
+      }
+      if (isSuggest) {
+        const input = suggestInput.safeParse(raw);
+        return input.success ? suggest(input.data, env, fetcher) : json({ error: "BAD_REQUEST" }, 400);
       }
       if (isVerify) {
         const input = verifyInput.safeParse(raw);

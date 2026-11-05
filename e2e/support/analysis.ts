@@ -1,0 +1,39 @@
+import { createHash, randomUUID } from "node:crypto";
+import { expect, type Page } from "next/experimental/testmode/playwright";
+import { seedExhibition } from "./console";
+import { consoleCall, seedInstitutionAccount, signInConsole } from "./staff";
+
+const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const data = (res: { json: any }) => res.json.result.data;
+
+// Leaves one EXTRACTED document (via the API and the dry-run R2 store) in a new exhibition.
+export async function extractedExhibition(page: Page, text: string) {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account);
+  await signInConsole(page, account);
+  const put = async (url: string, body: Buffer) => expect((await page.request.put(url, { data: body })).status()).toBe(200);
+  const original = Buffer.from(`%PDF-1.4 ${randomUUID()}`);
+  const created = data(await consoleCall(page, "console.document.create", {
+    code: exhibition.code, name: "statement.pdf", mediaType: "application/pdf", byteSize: original.length, sha256: sha(original),
+  }));
+  await put(created.upload.url, original);
+  await consoleCall(page, "console.document.update", { id: created.document.id, uploaded: true });
+  const manifest = Buffer.from(JSON.stringify({
+    version: 1,
+    document: { documentId: created.document.id, sha256: sha(original), mediaType: "application/pdf", pages: 1 },
+    extractor: { name: "test", version: "1" },
+    pages: [{ page: 1, size: [100, 100] }],
+    segments: [{ id: "s001", page: 1, bbox: null, text, sentences: [text] }],
+    assets: [], modelInputs: [], warnings: [],
+  }));
+  const upload = await consoleCall(page, "console.documentUpload.create", {
+    documentId: created.document.id, files: [{ name: "manifest.v1.json", size: manifest.length, sha256: sha(manifest) }],
+  });
+  await put(data(upload).uploads[0].url, manifest);
+  const key = `${account.institutionId}/${exhibition.id}/${created.document.id}/manifest.v1.json`;
+  const done = await consoleCall(page, "console.document.update", { id: created.document.id, manifestKey: key });
+  expect(data(done).status).toBe("EXTRACTED");
+  return { exhibition };
+}
+

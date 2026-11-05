@@ -1,3 +1,4 @@
+import { suggestInput, suggestOutput } from "@still/shared/analysis-suggest";
 import { structureInput, structureOutput } from "@still/shared/analysis-structure";
 import { signWorkerRequest } from "@still/shared/analysis-worker-signature";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -5,6 +6,7 @@ import { PgBoss } from "pg-boss";
 import { db } from "../../db/client";
 import { contents, documents, exhibitions, images } from "../../db/schema";
 import { databaseUrl } from "../../db/url";
+import type { StillBlock, StillDoc } from "@still/shared/still-doc";
 import { alignStructure, type AlignedContent } from "./align";
 import { presignPrivateGet } from "../../media/r2";
 import { readManifest } from "./manifests";
@@ -116,14 +118,54 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
     coverage.refs.push(...result.coverage.refs);
   }
 
+  const created: { id: string; kind: string; doc: StillDoc }[] = [];
   await db.transaction(async (tx) => {
     const [row] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
     if (!isRunning(row.analysis as Analysis, analysisId)) return; // cancelled meanwhile
     for (const { documentId, contents: items } of aligned) {
-      for (const c of items) await tx.insert(contents).values({ exhibitionId, kind: c.kind, status: c.status, doc: c.doc, sources: c.sources, fields: c.fields, suggestions: c.suggestions });
+      for (const c of items) {
+        const [{ id }] = await tx.insert(contents).values({ exhibitionId, kind: c.kind, status: c.status, doc: c.doc, sources: c.sources, fields: c.fields, suggestions: c.suggestions }).returning({ id: contents.id });
+        created.push({ id, kind: c.kind, doc: c.doc });
+      }
       await tx.update(documents).set({ analyzedAt: new Date() }).where(eq(documents.id, documentId));
     }
     await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, result: "SUCCEEDED" } }).where(eq(exhibitions.id, exhibitionId));
     await notify(tx, analysisId, "completed");
+  });
+  await suggestEdits(exhibitionId, analysisId, created).catch((e) => console.error("analysis.suggest", e));
+}
+
+const textOf = (block: StillBlock) => ((block as { content?: { text?: string }[] }).content ?? []).map((n) => n.text ?? "").join("");
+
+// SPEC §9.4 제안, §10.10 analysis.suggest: runs after the analysis has committed. Suggestions are optional,
+// so any failure leaves the finished analysis as it is. APPROVED items only gain the suggestion.
+async function suggestEdits(exhibitionId: string, analysisId: string, created: { id: string; kind: string; doc: StillDoc }[]) {
+  if (!created.length) return;
+  const items = created.map((c) => ({
+    contentId: c.id,
+    kind: c.kind,
+    blocks: c.doc.content.filter((b) => b.type === "paragraph" || b.type === "heading").map((b) => ({ id: b.attrs.id, type: b.type, text: textOf(b) })),
+  }));
+  const body = JSON.stringify(suggestInput.parse({ analysisId, items }));
+  const headers = await signWorkerRequest(process.env.ANALYSIS_WORKER_SECRET ?? "", body, Math.floor(Date.now() / 1000));
+  const res = await fetch(`${process.env.ANALYSIS_WORKER_URL}/suggest`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
+  if (!res.ok) throw new Error(`Worker answered HTTP ${res.status}`);
+  const { suggestions } = suggestOutput.parse(await res.json());
+
+  await db.transaction(async (tx) => {
+    // Ids are unique within a list: "w" + position among the new ones (aligned suggestions use "g").
+    const stored = (list: typeof suggestions, taken: number) =>
+      list.map(({ kind, target, proposal, rationale }, i) => ({ id: `w${taken + i + 1}`, kind, target, proposal, rationale, status: "OPEN", decidedBy: null, decidedAt: null }));
+    for (const id of created.map((c) => c.id)) {
+      const mine = suggestions.filter((s) => s.contentId === id);
+      if (!mine.length) continue;
+      const [row] = await tx.select({ suggestions: contents.suggestions }).from(contents).where(eq(contents.id, id)).for("update");
+      await tx.update(contents).set({ suggestions: [...(row.suggestions as unknown[]), ...stored(mine, 0)] }).where(eq(contents.id, id));
+    }
+    const wide = suggestions.filter((s) => s.contentId === null);
+    if (!wide.length) return;
+    const [ex] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
+    const analysis = ex.analysis as Analysis & { suggestions?: unknown[] };
+    await tx.update(exhibitions).set({ analysis: { ...analysis, suggestions: [...(analysis.suggestions ?? []), ...stored(wide, analysis.suggestions?.length ?? 0)] } }).where(eq(exhibitions.id, exhibitionId));
   });
 }
