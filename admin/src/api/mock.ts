@@ -120,11 +120,13 @@ export function createMockApi(): PlatformApi {
         throw new AccountNotIssuedError(e instanceof Error ? e.message : String(e), structuredClone(created), "LOGIN_ID_TAKEN");
       }
     },
-    async issueWorkspaceAdmin(institution, { adminEmail }) {
-      const email = adminEmail.trim();
-      if (db.some((x) => x.adminEmail.toLowerCase() === email.toLowerCase())) throw new ApiError("This email already signs in to another account.", "CONFLICT", "LOGIN_ID_TAKEN");
+    async issueWorkspaceAdmin(institution, { adminName, adminEmail }) {
+      const email = adminEmail.trim().toLowerCase();
+      const taken = accounts.some((x) => x.email.toLowerCase() === email) || db.some((x) => x.adminEmail.toLowerCase() === email);
+      if (taken) throw new ApiError("This email already signs in to another account.", "CONFLICT", "LOGIN_ID_TAKEN");
       const inst = find(institution.id);
       inst.adminEmail = email;
+      accounts.push({ id: `acc-${Date.now()}`, role: "INSTITUTION", institution: inst.name, email, name: adminName.trim() || null, status: "ACTIVE", lastSignInAt: null });
       return wait({ institution: inst, temporaryPassword: "mock-Temp-Pass-42" }, 400);
     },
     async setInstitutionStatus(id, status) {
@@ -135,7 +137,10 @@ export function createMockApi(): PlatformApi {
     },
     async resetWorkspaceAdminPassword(id) {
       const groups = Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 6).padEnd(4, "x"));
-      return wait({ email: find(id).adminEmail, temporaryPassword: groups.join("-") }, 300);
+      const inst = find(id);
+      // Like the server: no account yet (adminEmail "—", as toInstitution shows it) means nothing to reset.
+      if (inst.adminEmail === "—") throw new ApiError("This institution has no account yet.", "NOT_FOUND");
+      return wait({ email: inst.adminEmail, temporaryPassword: groups.join("-") }, 300);
     },
   };
 

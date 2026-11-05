@@ -60,7 +60,7 @@ export default function Institutions() {
   const replace = (inst: Institution) => setList((l) => (l ?? []).map((x) => (x.id === inst.id ? inst : x)));
   const act = async (fn: () => Promise<unknown>, done: string) => {
     setError(null);
-    try { await fn(); setIssued(null); setNotice(done); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    try { await fn(); setNotice(done); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
   return (

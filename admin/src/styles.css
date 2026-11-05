@@ -191,7 +191,9 @@ button { cursor: pointer; }
 @media (max-width: 900px) {
   .pa-top { padding: 0 16px; }
   .pa-top__menu { display: block; margin-right: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--white); font-size: 11px; font-weight: 500; text-transform: uppercase; }
-  .pa-top__label, .pa-top__workspace, .pa-top__who { display: none; }
+  .pa-top__label, .pa-top__workspace, .pa-top__id { display: none; }
+  .pa-top__who { width: auto; } /* Sign out stays reachable; only the role and email are hidden */
+  .pa-top__signout { margin-left: 0; }
   .pa-side { position: fixed; top: var(--header-h); left: 0; bottom: 0; z-index: 15; height: auto; transform: translateX(-100%); transition: transform 0.2s; }
   .pa-side.is-open { transform: none; }
   .pa-scrim { position: fixed; inset: var(--header-h) 0 0 0; z-index: 14; background: rgba(14, 14, 14, 0.2); }

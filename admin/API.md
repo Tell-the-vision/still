@@ -1,32 +1,37 @@
 # Platform admin ↔ backend contract
 
-The screens only talk to `PlatformApi` (`src/api/types.ts`). To connect the real server, add a `platform` router (`src/server/trpc/root.ts` → `platform: platformRouter`) with the procedures below. Transport is the same as the institutions app: tRPC over HTTP at `/api/trpc/platform.<name>`, plain JSON, cookies included.
+The screens only talk to `PlatformApi` (`src/api/types.ts`). `src/api/trpc.ts` implements it over the still server's tRPC router (`src/server/trpc/routers/admin/*`, shared inputs in `shared/src/admin.ts`); `src/api/mock.ts` is an in-memory stand-in for `npm run dev`.
+
+Transport: tRPC over HTTP at `/api/trpc/<procedure>`, plain JSON (no transformer), cookies included. Every call is a POST (queries too) so the browser sends `Origin`, which cookie requests must match to `STILL_ORIGIN` (SPEC §2.3). Every call sends `x-client: admin`, so the shared procedures use the STILL Admin session cookie, not a visitor or console one.
+
+## Procedures
+
+All `admin.*` procedures except `admin.session.create` need a STILL Admin session whose user has role `ADMIN`; otherwise `UNAUTHORIZED` (no session) or `FORBIDDEN` (wrong role). A temporary password must be changed (`password.update`) before any of them answer.
 
 | Procedure | Kind | Input | Returns |
 |---|---|---|---|
-| `getMe` | query | — | `PlatformAdmin` (`{ email, role: "SUPER_ADMIN" }`); `UNAUTHORIZED` without a STILL staff session |
-| `signOut` | mutation | — | ends the STILL staff session |
-| `listInstitutions` | query | — | `Institution[]` |
-| `createInstitution` | mutation | `{ name, code, adminName, adminEmail }` | `{ institution (PENDING), temporaryPassword }` |
-| `setInstitutionStatus` | mutation | `{ id, status: "ACTIVE" \| "SUSPENDED" }` | `Institution` |
-| `resendInvite` | mutation | `{ id }` | `void` |
+| `admin.session.create` | mutation | `{ email, password }` | staff `me` (below); sets the Admin session cookie. Wrong credentials: `UNAUTHORIZED` "Email or password is incorrect." |
+| `me.get` | query | — | `{ id, displayName, email, provider, createdAt, role: "ADMIN", institution: null, mustChangePassword }` |
+| `session.delete` | mutation | — | ends this session and clears the Admin cookie (sign out) |
+| `password.update` | mutation | `{ currentPassword, newPassword }` | `void`. Too short: `BAD_REQUEST` `PASSWORD_TOO_WEAK`; wrong current password: `BAD_REQUEST` "The current password is incorrect." |
+| `admin.institution.list` | query | `{ q?, status?: "ACTIVE" \| "PENDING_SETUP" \| "SUSPENDED", cursor?, limit? (1–50, default 20) }` | `{ items: InstitutionRow[], nextCursor: string \| null, counts: { total, active, pendingSetup, suspended } }`, newest first |
+| `admin.institution.get` | query | `{ id }` | `InstitutionRow`; `NOT_FOUND` |
+| `admin.institution.create` | mutation | `{ code, name, status?, analysisDailyTokenLimit? }` | `InstitutionRow`. Bad code: `BAD_REQUEST` `CODE_INVALID`; taken: `CONFLICT` `CODE_TAKEN` |
+| `admin.institution.update` | mutation | `{ id, name?, status?: "ACTIVE" \| "SUSPENDED", analysisDailyTokenLimit? }` | `InstitutionRow`; suspending deletes every session of the institution's users |
+| `admin.account.list` | query | `{ role?: "INSTITUTION" \| "ADMIN", institutionId? }` | `AccountRow[]`, oldest first |
+| `admin.account.create` | mutation | `{ role: "INSTITUTION", institutionId, email, displayName }` or `{ role: "ADMIN", email, displayName }` | `{ account: AccountRow, temporaryPassword }`. Email in use: `CONFLICT` `LOGIN_ID_TAKEN` |
+| `admin.account.update` | mutation | `{ id, status?, displayName?, resetPassword?: true }` | `{ account: AccountRow, temporaryPassword: string \| null }`; suspending or resetting ends that account's sessions. Last active operator: `CONFLICT` `LAST_ADMIN` |
+| `admin.account.delete` | mutation | `{ id }` | `void`. Last active operator: `CONFLICT` `LAST_ADMIN` |
 
-## Sign-in (temporary)
+`InstitutionRow` (`src/server/services/admin/institution-rows.ts`): `{ id, code, name, status, displayStatus, accountCount, workspaceAdmin: { accountId, email } | null, lastActiveAt, analysisDailyTokenLimit, createdAt }`.
+`AccountRow` (`src/server/services/admin/account-rows.ts`): `{ id, role, institution: { id, code, name } | null, email, displayName, status, mustChangePassword, lockedUntil, lastLoginAt, createdAt }`.
 
-`/admin/sign-in` is a **temporary** screen (not designed yet): one "Continue with Google" button that goes to `GET /api/auth/staff/google?returnTo=/admin/`. That route does not exist yet. It should reuse the existing Google sign-in code (`src/server/auth/google.ts`) but issue a separate STILL staff session (not a visitor session), and only for accounts that pass the checks below. Every `platform.*` call without that session answers `UNAUTHORIZED`, and the app shows the sign-in screen.
+A temporary password appears only in the response that issued it; the app shows it once.
 
-## Rules the server must enforce
+## How the app uses them
 
-- **Who can call `platform.*`**: STILL staff only, checked on every call. These are our own people, so a STILL Google Workspace sign-in (verified email in the STILL domain, plus an allow-list with role `SUPER_ADMIN`) is fine here, unlike museum staff (see `console/API.md`, Staff sign-in). Every change goes to the audit log (who, what, when).
-- **Institution ID**: `STL-<CODE>-<NNNN>`. `CODE` is 2–6 letters chosen on create; `NNNN` is a platform-wide sequence, so an ID is unique and never reused, even after suspension. Staff type it when signing in (case-insensitive).
-- **Create**: makes the institution `PENDING` and emails `adminEmail` a one-time link (single use, expires, e.g. 72 h) to set a password as its first `INSTITUTION_ADMIN`. It becomes `ACTIVE` when that link is used.
-- **Suspend**: nobody from that institution can sign in, and their open sessions are deleted. Nothing is deleted; reactivating restores access (back to `PENDING` if the invite was never accepted).
-- **Resend invite**: only for `PENDING`; the previous link stops working.
-
-## Mapping to the existing DB
-
-| App field | still DB |
-|---|---|
-| `Institution.name` | `institutions.name` |
-| `Institution.publicId` | new unique column on `institutions` (e.g. `public_id`), shared with `Workspace.institutionId` in the institutions app |
-| `status`, `adminEmail`, `lastActiveAt` | new: institution status, first admin (from members/invitations), last staff activity |
+- **Sign in**: `/admin/sign-in` (temporary screen) posts email and password to `admin.session.create`. An `UNAUTHORIZED` from any call sends the app back there.
+- **Institution ID**: `STL-<CODE>-<NNNN>`. The app takes a 2–6 letter short code (A–Z) and picks the next platform-wide number; if that ID is taken (`CODE_TAKEN`) it tries the next number, up to 3 times. The server itself accepts any `INSTITUTION_CODE` shape (`shared/src/admin.ts`).
+- **Add institution** is two calls: `admin.institution.create`, then `admin.account.create` (role `INSTITUTION`) for its workspace admin. If the second fails, the institution exists without an account and the dialog offers to issue it again.
+- **Reset workspace admin password**: the institution's first account from `admin.account.list({ institutionId })`, then `admin.account.update({ id, resetPassword: true })`.
+- **Errors**: `src/api/trpc.ts` turns `appCode`s and Zod input errors into plain English before a screen shows them.

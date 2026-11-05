@@ -14,6 +14,7 @@ const NAV = [
 export default function Layout() {
   const { status, me, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const { pathname } = useLocation();
 
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -35,8 +36,11 @@ export default function Layout() {
         <span className="pa-top__workspace">Global workspace</span>
         {me && (
           <span className="pa-top__who">
-            <span className="pa-top__role">Super admin</span>&nbsp;&nbsp;·&nbsp;&nbsp;{me.email}
-            <button type="button" className="pa-link pa-top__signout" onClick={() => { signOut().catch(() => {}); }}>Sign out</button>
+            <span className="pa-top__id"><span className="pa-top__role">Super admin</span>&nbsp;&nbsp;·&nbsp;&nbsp;{me.email}</span>
+            <button type="button" className="pa-link pa-top__signout" onClick={() => {
+              setSignOutError(null);
+              signOut().catch((e) => setSignOutError(`Could not sign out (${e instanceof Error ? e.message : String(e)}). Try again.`));
+            }}>Sign out</button>
           </span>
         )}
       </header>
@@ -52,7 +56,10 @@ export default function Layout() {
           <p className="pa-side__foot">STILL internal</p>
         </aside>
         {menuOpen && <div className="pa-scrim" onClick={() => setMenuOpen(false)} />}
-        <main className="pa-main">{status === "loading" ? <p className="pa-loading">Loading…</p> : <Outlet />}</main>
+        <main className="pa-main">
+          {signOutError && <p className="pa-alert pa-alert--error" role="alert">{signOutError} <button type="button" className="pa-link" onClick={() => setSignOutError(null)}>Dismiss</button></p>}
+          {status === "loading" ? <p className="pa-loading">Loading…</p> : <Outlet />}
+        </main>
       </div>
     </div>
   );

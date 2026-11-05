@@ -1,9 +1,28 @@
 // PlatformApi over the still server (tRPC at /api/trpc, no transformer = plain JSON).
-// Procedure names follow the SPEC (admin.*, me.get, session.delete); see ../../API.md for what is still missing.
+// Procedure names follow the SPEC (admin.*, me.get, session.delete, password.update); the full list is in admin/API.md.
 import { AccountNotIssuedError, ApiError } from "./errors";
 import type { Account, Institution, NewInstitution, PlatformAdmin, PlatformApi } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+
+// Plain-English text for the server's AppError codes (SPEC §11.2), so screens never show a raw code.
+const APP_CODE_MESSAGES: Record<string, string> = {
+  LOGIN_ID_TAKEN: "This email already signs in to another account.",
+  CODE_TAKEN: "This institution ID is already taken.",
+  CODE_INVALID: "The institution ID is not valid. Use letters, numbers and hyphens.",
+  LAST_ADMIN: "STILL must keep at least one active operator, so this account cannot be suspended or deleted.",
+  PASSWORD_TOO_WEAK: "The new password is too short.",
+};
+
+type TrpcErrorBody = { message?: string; data?: { code?: string; appCode?: string; zodError?: unknown } };
+function messageOf(err: TrpcErrorBody | undefined, status: number) {
+  const appCode = err?.data?.appCode;
+  // PASSWORD_TOO_WEAK carries a full sentence with the minimum length; keep it.
+  if (appCode === "PASSWORD_TOO_WEAK" && err?.message && err.message !== appCode) return err.message;
+  if (appCode && APP_CODE_MESSAGES[appCode]) return APP_CODE_MESSAGES[appCode];
+  if (err?.data?.code === "BAD_REQUEST" && err.data.zodError) return "Check the form fields.";
+  return err?.message ?? `HTTP ${status}`;
+}
 
 // Every call is a POST, queries included (the server allows method override): cookie requests must carry
 // Origin (SPEC §2.3), which browsers leave out of same-origin GETs. `x-client: admin` makes shared
@@ -17,8 +36,8 @@ async function call<T>(path: string, input?: unknown): Promise<T> {
   });
   const body = await res.json().catch(() => null);
   if (!res.ok || body?.error) {
-    const err = body?.error;
-    throw new ApiError(err?.message ?? `HTTP ${res.status}`, err?.data?.code, err?.data?.appCode);
+    const err = body?.error as TrpcErrorBody | undefined;
+    throw new ApiError(messageOf(err, res.status), err?.data?.code, err?.data?.appCode);
   }
   return body.result.data as T;
 }
@@ -75,6 +94,8 @@ async function issueAccount(institution: Institution, { adminName, adminEmail }:
 async function createInstitution(input: NewInstitution, existing: Institution[]) {
   const first = Math.max(0, ...existing.map((i) => numberOf(i.publicId))) + 1;
   const short = input.code.trim().toUpperCase();
+  // The server accepts any STL-...-NNNN shape; the 2–6 letter short code is this app's rule (same as the mock).
+  if (!/^[A-Z]{2,6}$/.test(short)) throw new ApiError("Short code: 2–6 letters (A–Z).", "BAD_REQUEST");
   let row: InstitutionRow | undefined;
   for (let attempt = 0; !row; attempt++) {
     const code = `STL-${short}-${String(first + attempt).padStart(4, "0")}`;

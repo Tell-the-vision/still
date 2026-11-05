@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, type Account } from "../api";
+import { useAuth } from "../auth";
 
 // TEMPORARY (임시) Users & access screen: STILL staff accounts (SPEC §9.2, admin.account.*). Not designed in Figma yet.
 
@@ -10,6 +11,7 @@ const messageOf = (e: unknown) => {
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-CA") : "—");
 
 export default function Users() {
+  const { me } = useAuth();
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -112,7 +114,10 @@ export default function Users() {
               ) : (
                 <>
                   <button type="button" className="pa-link" aria-label={`${a.status === "ACTIVE" ? "Suspend" : "Reactivate"} ${a.email}`} onClick={() => setStatus(a)}>{a.status === "ACTIVE" ? "Suspend" : "Reactivate"}</button>
-                  <button type="button" className="pa-link" aria-label={`Reset password for ${a.email}`} onClick={() => reset(a)}>Reset password</button>
+                  {/* Resetting your own password would end your own sessions; use Change password instead. */}
+                  {me?.email.toLowerCase() === a.email.toLowerCase()
+                    ? <button type="button" className="pa-link" disabled title="Change your own password from your account">Reset password</button>
+                    : <button type="button" className="pa-link" aria-label={`Reset password for ${a.email}`} onClick={() => reset(a)}>Reset password</button>}
                   <button type="button" className="pa-link pa-link--danger" aria-label={`Delete ${a.email}`} onClick={() => setDeleting(a.id)}>Delete</button>
                 </>
               )}
