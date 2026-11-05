@@ -96,9 +96,9 @@ export function createMockApi(): PlatformApi {
       inst.status = status === "ACTIVE" && inst.lastActiveAt === null ? "PENDING" : status;
       return wait(inst, 300);
     },
-    async resendInvite(id) {
-      if (find(id).status !== "PENDING") throw new ApiError("Only pending institutions have an open invitation.", "BAD_REQUEST");
-      return wait(undefined, 300);
+    async resetWorkspaceAdminPassword(id) {
+      const groups = Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 6).padEnd(4, "x"));
+      return wait({ email: find(id).adminEmail, temporaryPassword: groups.join("-") }, 300);
     },
   };
 

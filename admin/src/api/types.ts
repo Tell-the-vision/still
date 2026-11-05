@@ -59,6 +59,9 @@ export interface PlatformApi {
   issueWorkspaceAdmin(institution: Institution, admin: Pick<NewInstitution, "adminName" | "adminEmail">): Promise<Issued>;
   /** Suspend or reactivate. Suspending ends every staff session of that institution; nothing is deleted. */
   setInstitutionStatus(id: string, status: "ACTIVE" | "SUSPENDED"): Promise<Institution>;
-  /** New invite link for a PENDING institution's admin (the old link stops working). */
-  resendInvite(id: string): Promise<void>;
+  /**
+   * Sets a new temporary password for the institution's workspace admin (its first account) and ends that account's
+   * sessions (SPEC §9.2 재설정). The password is returned once; the operator passes it on.
+   */
+  resetWorkspaceAdminPassword(institutionId: string): Promise<{ email: string; temporaryPassword: string }>;
 }

@@ -31,6 +31,7 @@ export default function Institutions() {
   const [sort, setSort] = useState<Sort>("recent");
   const [page, setPage] = useState(0);
   const [adding, setAdding] = useState(false);
+  const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
 
   useEffect(() => { api.listInstitutions().then(setList).catch((e) => setError(e instanceof Error ? e.message : String(e))); }, []);
   useEffect(() => { setPage(0); }, [query, status, sort]);
@@ -59,7 +60,7 @@ export default function Institutions() {
   const replace = (inst: Institution) => setList((l) => (l ?? []).map((x) => (x.id === inst.id ? inst : x)));
   const act = async (fn: () => Promise<unknown>, done: string) => {
     setError(null);
-    try { await fn(); setNotice(done); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    try { await fn(); setIssued(null); setNotice(done); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
   return (
@@ -102,6 +103,7 @@ export default function Institutions() {
       </div>
 
       {error && <p className="pa-alert pa-alert--error" role="alert">{error} <button type="button" className="pa-link" onClick={() => setError(null)}>Dismiss</button></p>}
+      {issued && <TemporaryPassword {...issued} onDismiss={() => setIssued(null)} />}
       {notice && <p className="pa-alert" role="status">{notice} <button type="button" className="pa-link" onClick={() => setNotice(null)}>Dismiss</button></p>}
 
       <div className="pa-table" role="table" aria-label="Institutions">
@@ -121,7 +123,14 @@ export default function Institutions() {
             <RowMenu
               inst={i}
               onCopy={() => act(() => navigator.clipboard.writeText(i.publicId), `Copied ${i.publicId}.`)}
-              onResend={() => act(() => api.resendInvite(i.id), `Sent a new invitation to ${i.adminEmail}.`)}
+              onResetPassword={async () => {
+                setError(null);
+                try {
+                  const { email, temporaryPassword } = await api.resetWorkspaceAdminPassword(i.id);
+                  setNotice(null);
+                  setIssued({ email, password: temporaryPassword });
+                } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+              }}
               onSetStatus={(s) => act(async () => replace(await api.setInstitutionStatus(i.id, s)),
                 s === "SUSPENDED" ? `${i.name} is suspended. Its staff can no longer sign in.` : `${i.name} is reactivated.`)}
             />
@@ -155,21 +164,39 @@ export default function Institutions() {
   );
 }
 
-function RowMenu({ inst, onCopy, onResend, onSetStatus }: {
-  inst: Institution; onCopy: () => void; onResend: () => void; onSetStatus: (s: "ACTIVE" | "SUSPENDED") => void;
+// Shown once: the server keeps only a hash, so closing this loses the password.
+function TemporaryPassword({ email, password, onDismiss }: { email: string; password: string; onDismiss: () => void }) {
+  const [copied, setCopied] = useState<"yes" | "failed" | null>(null);
+  // Without clipboard access the password is still selectable: one click on it selects all.
+  const copy = () => navigator.clipboard.writeText(password).then(() => setCopied("yes"), () => setCopied("failed"));
+  return (
+    <div className="pa-alert pa-secret" role="status">
+      <p>Temporary password for {email}. They are signed out and must change it at their next sign-in.</p>
+      <p className="pa-secret__row">
+        <code className="pa-secret__code">{password}</code>
+        <button type="button" className="pa-btn pa-btn--secondary" onClick={copy}>{copied === "yes" ? "Copied" : copied === "failed" ? "Select and copy" : "Copy"}</button>
+        <button type="button" className="pa-link" onClick={onDismiss}>Dismiss</button>
+      </p>
+      <p>This password is shown only once. Pass it on now.</p>
+    </div>
+  );
+}
+
+function RowMenu({ inst, onCopy, onResetPassword, onSetStatus }: {
+  inst: Institution; onCopy: () => void; onResetPassword: () => void; onSetStatus: (s: "ACTIVE" | "SUSPENDED") => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<"suspend" | "reset" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) { setOpen(false); setConfirm(false); } };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); setConfirm(false); } };
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) { setOpen(false); setConfirm(null); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); setConfirm(null); } };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
-  const pick = (fn: () => void) => () => { setOpen(false); setConfirm(false); fn(); };
+  const pick = (fn: () => void) => () => { setOpen(false); setConfirm(null); fn(); };
 
   return (
     <div className="pa-rowmenu" ref={ref}>
@@ -177,17 +204,25 @@ function RowMenu({ inst, onCopy, onResend, onSetStatus }: {
       {open && (
         <div className="pa-rowmenu__panel" role="menu">
           <button type="button" role="menuitem" onClick={pick(onCopy)}>Copy institution ID</button>
-          {inst.status === "PENDING" && <button type="button" role="menuitem" onClick={pick(onResend)}>Resend invitation</button>}
+          {confirm === "reset" ? (
+            <div className="pa-rowmenu__confirm">
+              <span>Reset the workspace admin's password? They are signed out.</span>
+              <button type="button" className="pa-link pa-link--danger" onClick={pick(onResetPassword)}>Reset password</button>
+              <button type="button" className="pa-link" onClick={() => setConfirm(null)}>Cancel</button>
+            </div>
+          ) : (
+            <button type="button" role="menuitem" onClick={() => setConfirm("reset")}>Reset password…</button>
+          )}
           {inst.status === "SUSPENDED" ? (
             <button type="button" role="menuitem" onClick={pick(() => onSetStatus("ACTIVE"))}>Reactivate access</button>
-          ) : confirm ? (
+          ) : confirm === "suspend" ? (
             <div className="pa-rowmenu__confirm">
               <span>Suspend? Staff are signed out; data is kept.</span>
               <button type="button" className="pa-link pa-link--danger" onClick={pick(() => onSetStatus("SUSPENDED"))}>Suspend</button>
-              <button type="button" className="pa-link" onClick={() => setConfirm(false)}>Cancel</button>
+              <button type="button" className="pa-link" onClick={() => setConfirm(null)}>Cancel</button>
             </div>
           ) : (
-            <button type="button" role="menuitem" className="pa-danger" onClick={() => setConfirm(true)}>Suspend access…</button>
+            <button type="button" role="menuitem" className="pa-danger" onClick={() => setConfirm("suspend")}>Suspend access…</button>
           )}
         </div>
       )}

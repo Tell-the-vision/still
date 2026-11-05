@@ -117,6 +117,9 @@ button { cursor: pointer; }
 
 .pa-alert { margin-top: 16px; padding: 10px 14px; border-radius: 4px; background: var(--panel); font-size: 12px; line-height: 18px; color: var(--ink-2); }
 .pa-alert--error { background: var(--red-bg); color: var(--red); }
+.pa-secret p + p { margin-top: 8px; }
+.pa-secret__row { display: flex; align-items: center; gap: 12px; }
+.pa-secret__code { padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--white); font-size: 14px; letter-spacing: 0.04em; color: var(--ink); user-select: all; }
 .pa-link { padding: 0; border: 0; background: none; font-size: 12px; font-weight: 500; color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
 .pa-link:disabled { color: var(--faint); text-decoration: none; cursor: default; }
 .pa-link--danger { color: var(--red); }

@@ -37,6 +37,9 @@ export type InstitutionRow = {
   createdAt: string;
 };
 
+// admin.account.* return this row (src/server/services/admin/account-rows.ts); only the fields the screens use.
+type AccountRow = { id: string; email: string };
+
 export const toInstitution = (row: InstitutionRow): Institution => ({
   id: row.id,
   publicId: row.code,
@@ -101,6 +104,15 @@ export function createTrpcApi(): PlatformApi {
     createInstitution,
     issueWorkspaceAdmin: issueAccount,
     setInstitutionStatus: async (id, status) => toInstitution(await call("admin.institution.update", { id, status })),
-    resendInvite: (id) => call("platform.resendInvite", { id }),
+    // The workspace admin is the institution's first account (admin.account.list is oldest first).
+    resetWorkspaceAdminPassword: async (institutionId) => {
+      const [workspaceAdmin] = await call<AccountRow[]>("admin.account.list", { institutionId });
+      if (!workspaceAdmin) throw new ApiError("This institution has no account yet.", "NOT_FOUND");
+      const { account, temporaryPassword } = await call<{ account: AccountRow; temporaryPassword: string }>("admin.account.update", {
+        id: workspaceAdmin.id,
+        resetPassword: true,
+      });
+      return { email: account.email, temporaryPassword };
+    },
   };
 }
