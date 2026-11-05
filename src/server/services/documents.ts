@@ -1,29 +1,23 @@
-import type { ExpandedBlock, ExpandedDocument, StoredDocument } from "../../../shared/src/document";
+import type { ExpandedBlock, ExpandedDocument } from "../../../shared/src/document";
+import type { StillDocument } from "../../../shared/src/still-doc";
 import { publicImageUrl } from "../media/public-url";
 
-type SentenceRow = { id: string; content: string };
-type ImageRow = { id: string; objectKey: string; altText: string | null; width: number; height: number };
+type ImageRow = { id: string; objectKey: string | null; altText: string | null; width: number; height: number };
 
-// Resolves stored references into the served form (SPEC §11.8).
-// Blocks whose reference is missing are dropped.
-export function expandDocument(
-  doc: StoredDocument | null,
-  { images, sentences = [] }: { images: ImageRow[]; sentences?: SentenceRow[] },
-): ExpandedDocument | null {
+// Resolves stored image references into the served form (SPEC §11.8).
+// Images without a public copy yet are dropped; scrap marks already carry their sentence ids.
+export function expandDocument(doc: StillDocument | null, { images }: { images: ImageRow[] }): ExpandedDocument | null {
   if (!doc) return null;
-  const blocks: ExpandedBlock[] = [];
-  for (const block of doc.blocks) {
-    if (block.type === "image") {
-      const image = images.find((i) => i.id === block.imageId);
-      if (!image) continue;
-      const { altText, width, height } = image;
-      blocks.push({ type: "image", imageId: image.id, url: publicImageUrl(image.objectKey), altText, width, height });
-    } else if (block.type === "sentence") {
-      const sentence = sentences.find((s) => s.id === block.sentenceId);
-      if (sentence) blocks.push({ type: "sentence", sentenceId: sentence.id, text: sentence.content });
-    } else {
-      blocks.push(block);
+  const content: ExpandedBlock[] = [];
+  for (const block of doc.content) {
+    if (block.type !== "stillImage") {
+      content.push(block);
+      continue;
     }
+    const image = images.find((i) => i.id === block.attrs.imageId);
+    if (!image || image.objectKey === null) continue;
+    const { altText, width, height } = image;
+    content.push({ ...block, attrs: { ...block.attrs, url: publicImageUrl(image.objectKey), altText, width, height } });
   }
-  return { version: 1, blocks };
+  return { version: 1, type: "doc", content };
 }

@@ -8,6 +8,7 @@ import { issueTicket } from "../media/keepsake-ticket";
 import { publicImageUrl } from "../media/public-url";
 import { AppError } from "../trpc/init";
 import { ensureArchive, findExhibition } from "./archives";
+import { completeExhibition, hasPublicCopy } from "./visible";
 
 const pick = ({ altText, width, height }: { altText: string | null; width: number; height: number }) => ({ altText, width, height });
 
@@ -26,14 +27,15 @@ export async function getKeepsake(userId: string, code: string) {
     with: { keepsake: true, exhibition: { with: { venue: true, coverImage: true } } },
   });
   if (!archive?.keepsake) return null;
-  const { keepsake, exhibition: live } = archive;
+  const { keepsake } = archive;
+  const live = completeExhibition(archive.exhibition);
   const { sentences, journalExcerpt } = keepsake.contentData as KeepsakeContent;
   const { ticket, expiresAt } = issueTicket({ userId, archiveId: archive.id, updatedAt: keepsake.updatedAt.toISOString() });
   return {
     templateId: keepsake.templateId,
     card: {
       exhibition: { title: live.title, venue: { name: live.venue.name, city: live.venue.city }, startDate: live.startDate, endDate: live.endDate },
-      image: live.coverImage && { url: publicImageUrl(live.coverImage.objectKey), ...pick(live.coverImage) },
+      image: hasPublicCopy(live.coverImage) ? { url: publicImageUrl(live.coverImage.objectKey), ...pick(live.coverImage) } : null,
       sentences,
       journalExcerpt,
     },

@@ -79,14 +79,21 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
     },
 
     listExhibitions: () => wait(db.exhibitions),
-    async createExhibition() {
+    async createExhibition({ title, code }) {
+      if (db.exhibitions.some((x) => x.code === code)) throw new ApiError("Exhibition code is already taken", "CONFLICT", "CODE_TAKEN");
       const e: Exhibition = {
-        id: uid(), code: `untitled-${db.exhibitions.length + 1}`, title: "Untitled Exhibition", subtitle: null,
-        venueName: db.workspace.institutionName, startDate: null, endDate: null, status: "DRAFT", updatedAt: now(),
+        id: uid(), code, title, subtitle: null,
+        venueName: db.workspace.institutionName, venueId: null, startDate: null, endDate: null, status: "DRAFT", updatedAt: now(),
       };
       db.exhibitions.unshift(e);
       db.guides[e.id] = { sections: [], hasUnpublishedChanges: false };
       return wait(e);
+    },
+    async deleteExhibition(id) {
+      if (exhibition(id).status === "PUBLISHED") throw new ApiError("A published exhibition cannot be deleted", "CONFLICT", "EXHIBITION_PUBLISHED");
+      db.exhibitions = db.exhibitions.filter((x) => x.id !== id);
+      delete db.guides[id];
+      return wait(undefined);
     },
     async updateExhibition(id, patch) {
       Object.assign(exhibition(id), patch, { updatedAt: now() });
@@ -129,6 +136,10 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
       db.files[id] = (db.files[id] ?? []).filter((f) => f.id !== fileId);
       return wait(undefined);
     },
+    async getFileDownloadUrl(fileId) {
+      const file = Object.values(db.files).flat().find((f) => f.id === fileId);
+      return wait(URL.createObjectURL(new Blob([`Mock original of ${file?.name ?? fileId}`], { type: "text/plain" })));
+    },
     async startAnalysis(id) {
       for (const f of db.files[id] ?? []) if (f.status === "UPLOADED") f.status = "PROCESSING";
       (db.events[id] ??= []).push({ id: uid(), at: now(), title: "Analysis requested", detail: `${db.files[id]?.length ?? 0} files`, status: "IN_PROGRESS" });
@@ -137,12 +148,21 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
     listProcessingEvents: (id) => wait(db.events[id] ?? []),
 
     listContentItems: (id) => wait([...(db.items[id] ?? [])].sort((a, b) => a.order - b.order)),
+    listImages: () => wait([]),
+    getContentDoc: (itemId) => ({
+      type: "doc",
+      content: findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
+    }),
+    async saveContentDoc() {
+    },
     async updateContentItem(itemId, patch) {
       const item = findItem(itemId);
       if (item.reviewStatus === "REJECTED") throw new Error("Rejected items cannot be edited.");
       // SPEC §10.8: editing an approved item sends it back to review.
       return edited(Object.assign(item, patch, item.reviewStatus === "APPROVED" ? { reviewStatus: "IN_REVIEW" } : {}));
     },
+    listBlockSources: async () => [],
+    revertBlockToSource: async () => { throw new Error("Not available in the sample data."); },
     async approveContentItem(itemId) {
       const blocker = approvalBlocker(findItem(itemId), siblings(itemId));
       if (blocker) throw new Error(blocker);
@@ -160,6 +180,8 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
     async dismissDuplicate(itemId) {
       return edited(Object.assign(findItem(itemId), { duplicateOf: null }));
     },
+    listSuggestions: () => wait([]),
+    decideSuggestion: () => wait(undefined),
     async updateMediaAsset(itemId, assetId, patch) {
       const a = findItem(itemId).assets.find((x) => x.id === assetId);
       if (!a) throw new Error("Image not found");

@@ -1,7 +1,8 @@
 // ConsoleApi over the still server: tRPC at /api/trpc, plain JSON, the console.* procedures of SPEC §9.5.
 // Rows are mapped to the screens' shapes here, so the screens never see server field names.
 import { ApiError } from "./errors";
-import type { ContentItem, Exhibition, Guide, GuideSection, ConsoleApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
+import { extractManifest } from "../extract";
+import type { ContentItem, EditSuggestion, Exhibition, ExhibitionImage, Guide, GuideSection, ConsoleApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -33,8 +34,9 @@ type StaffMe = {
   displayName: string | null;
   email: string;
   institution: { id: string; code: string; name: string };
+  mustChangePassword: boolean;
 };
-const toMe = (me: StaffMe): Me => ({ id: me.id, name: me.displayName ?? me.email, email: me.email });
+const toMe = (me: StaffMe): Me => ({ id: me.id, name: me.displayName ?? me.email, email: me.email, mustChangePassword: me.mustChangePassword });
 const toWorkspace = (me: StaffMe): Workspace => ({ institutionName: me.institution.name, institutionId: me.institution.code });
 
 // ── Exhibitions (console.exhibition.*) ───────────────────
@@ -60,6 +62,7 @@ const toExhibition = (row: ConsoleExhibitionRow): Exhibition => ({
   title: row.title,
   subtitle: row.subtitle,
   venueName: row.venue?.name ?? "",
+  venueId: row.venue?.id ?? null,
   startDate: row.startDate,
   endDate: row.endDate,
   status: row.state === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
@@ -68,10 +71,12 @@ const toExhibition = (row: ConsoleExhibitionRow): Exhibition => ({
 
 // ── Content (console.content.*, SPEC §10.8) ──────────────
 type ContentKind = "INTRODUCTION" | "ARTIST" | "CURATOR_STATEMENT" | "THEME" | "ARTWORK" | "GALLERY_SECTION" | "AUDIO_NARRATION" | "PRESS_EXCERPT" | "CLOSING" | "OTHER";
-type DocText = { type: "text"; text: string; marks?: unknown[] };
+type DocText = { type: "text"; text: string; marks?: { type: "scrap"; attrs: { sentenceId: string | null } }[] };
+type DocParagraph = { type: "paragraph"; attrs?: { id: string }; content?: DocText[] };
 type DocBlock =
   | { type: "paragraph" | "heading"; attrs: { id: string; level?: number }; content?: DocText[] }
-  | { type: "blockquote" | "bulletList" | "orderedList"; attrs: { id: string }; content: unknown[] }
+  | { type: "blockquote"; attrs: { id: string }; content: DocParagraph[] }
+  | { type: "bulletList" | "orderedList"; attrs: { id: string }; content: { type: "listItem"; content: DocParagraph[] }[] }
   | { type: "stillImage"; attrs: { id: string; imageId: string; display: string; caption: string | null } };
 type ContentDoc = { type: "doc"; content: DocBlock[] };
 type ConsoleImage = { id: string; altText: string | null; credit: string | null; rights: MediaAsset["rights"] };
@@ -88,6 +93,8 @@ type ConsoleContentRow = {
 };
 type ConsoleFile = { id: string; name: string };
 // console.suggestion.list rows; "Keep both" dismisses an open DUPLICATE_CONTENT suggestion (issue #62).
+// console.content.get adds the source text of each entry (null when its manifest cannot be read).
+type ConsoleSources = Record<string, { refs: string[]; start: number; end: number; text?: string | null }>;
 type ConsoleSuggestion = { id: string; contentId: string | null; kind: string; status: "OPEN" | "ACCEPTED" | "DISMISSED"; target?: { contentId?: string }; revision?: string | null };
 
 const KIND_LABELS: Record<ContentKind, string> = {
@@ -143,6 +150,9 @@ function toContentItem(row: ConsoleContentRow, order: number, documents: Console
     updatedAt: row.updatedAt,
     duplicateOf,
     assets,
+    doc: row.doc,
+    revision: row.revision,
+    needsReview: row.status === "NEEDS_REVIEW",
   };
 }
 
@@ -300,7 +310,31 @@ async function uploadDocument(code: string, file: File, options?: UploadOptions)
     await removeDocument(document.id).catch(() => {});
     throw e;
   }
-  return toSourceFile(await m<ConsoleDocument>("console.document.update", { id: document.id, uploaded: true }));
+  const stored = toSourceFile(await m<ConsoleDocument>("console.document.update", { id: document.id, uploaded: true }));
+  // A byte-for-byte duplicate comes back as DUPLICATE: there is nothing to extract.
+  return stored.status === "UPLOADED" ? extractStored(stored, file, sha256, options) : stored;
+}
+
+const MANIFEST_NAME = "manifest.v1.json";
+
+// SPEC §9.4 추출: the stored file is read in the browser, and the manifest goes to the document's prefix in R2.
+// The server then validates it (SPEC §10.6) and answers with the document, EXTRACTED or FAILED. A file that
+// cannot be extracted stays stored (UPLOADED) with a note on its row; it never fails the upload.
+async function extractStored(stored: SourceFile, file: File, sha256: string, options?: UploadOptions): Promise<SourceFile> {
+  try {
+    options?.onExtracting?.();
+    const manifest = await extractManifest(file, { documentId: stored.id, sha256 });
+    if (!manifest) return { ...stored, note: `Text extraction for ${stored.format} is not available yet.` };
+    const body = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    const { uploads } = await m<{ uploads: { name: string; url: string; headers: Record<string, string> }[] }>(
+      "console.documentUpload.create", { documentId: stored.id, files: [{ name: MANIFEST_NAME, size: body.size, sha256: await sha256Hex(body) }] });
+    const upload = uploads.find((u) => u.name === MANIFEST_NAME);
+    if (!upload) throw new ApiError("The server did not accept the manifest.");
+    await putFile(upload, body);
+    return toSourceFile(await m<ConsoleDocument>("console.document.update", { id: stored.id, manifestKey: MANIFEST_NAME }));
+  } catch (e) {
+    return { ...stored, error: `Text extraction failed: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
 
 // ── Guide draft (console.draft.*, SPEC §10.9) ────────────
@@ -376,21 +410,14 @@ export function createTrpcApi(): ConsoleApi {
       } while (cursor);
       return rows.map(toExhibition);
     },
-    // A new draft needs a code and a title (SPEC §9.5); both can be changed on the publish page before it goes live.
-    createExhibition: async () =>
-      toExhibition(await m<ConsoleExhibitionRow>("console.exhibition.create", { code: `untitled-${Date.now().toString(36)}`, title: "Untitled Exhibition" })),
+    // A new draft takes the code and title confirmed in the New exhibition dialog (SPEC §9.5); the code never changes (§10.3).
+    createExhibition: async (input) => toExhibition(await m<ConsoleExhibitionRow>("console.exhibition.create", input)),
+    deleteExhibition: (id) => m("console.exhibition.delete", { code: id }),
     // Publication details are draft fields (SPEC §9.4 전시 초안); the venue is stored by id.
     updateExhibition: async (id, patch) => {
       if (patch.code !== undefined && patch.code !== id) throw new ApiError("The visitor URL cannot be changed after the exhibition is created.");
-      const { code: _code, venueName, ...details } = patch;
-      let venueId: string | undefined;
-      if (venueName !== undefined) {
-        const venues = await q<{ id: string; name: string }[]>("console.venue.list", {});
-        const venue = venues.find((v) => v.name === venueName);
-        if (!venue) throw new ApiError(`Add "${venueName}" under Venues first.`);
-        venueId = venue.id;
-      }
-      await writeDraft(id, (draft) => ({ ...draft, ...details, ...(venueId !== undefined && { venueId }) }));
+      const { code: _code, ...details } = patch;
+      await writeDraft(id, (draft) => ({ ...draft, ...details }));
       return toExhibition(await getRow(id));
     },
     publishExhibition: async (id) => {
@@ -410,6 +437,7 @@ export function createTrpcApi(): ConsoleApi {
     listFiles: async (exhibitionId) => (await q<ConsoleDocument[]>("console.document.list", { code: exhibitionId })).map(toSourceFile),
     uploadFile: (exhibitionId, file, options) => uploadDocument(exhibitionId, file, options),
     deleteFile: (_exhibitionId, fileId) => removeDocument(fileId),
+    getFileDownloadUrl: async (fileId) => (await q<{ download: { url: string } }>("console.document.get", { id: fileId })).download.url,
     startAnalysis: async (exhibitionId) => {
       try {
         await m("console.analysis.create", { code: exhibitionId });
@@ -444,6 +472,26 @@ export function createTrpcApi(): ConsoleApi {
       }
       return Object.keys(change).length ? updateRow(itemId, change) : item;
     },
+    listImages: (exhibitionId) => q<ExhibitionImage[]>("console.image.list", { code: exhibitionId }),
+    getContentDoc: (itemId) => knownItem(itemId).row.doc,
+    saveContentDoc: async (itemId, doc) => {
+      await updateRow(itemId, { doc });
+    },
+    listBlockSources: async (itemId) => {
+      const row = await q<Omit<ConsoleContentRow, "sources"> & { sources: ConsoleSources }>("console.content.get", { id: itemId });
+      return row.doc.content.filter((b) => b.type === "paragraph" || b.type === "heading")
+        .map((b) => ({ nodeId: b.attrs.id, text: plainText(b), sourceText: row.sources[b.attrs.id]?.text ?? null }));
+    },
+    // Reads the item fresh so the revision and the source text are current; the block becomes one plain text node.
+    revertBlockToSource: async (itemId, nodeId) => {
+      const { order } = knownItem(itemId).item;
+      const row = await q<Omit<ConsoleContentRow, "sources"> & { sources: ConsoleSources }>("console.content.get", { id: itemId });
+      const source = row.sources[nodeId]?.text;
+      if (source == null) throw new ApiError("This block has no source to return to.");
+      const doc = { ...row.doc, content: row.doc.content.map((b) => (b.attrs.id === nodeId && (b.type === "paragraph" || b.type === "heading") ? { ...b, content: [{ type: "text" as const, text: source }] } : b)) };
+      remember(row as ConsoleContentRow, order);
+      return updateRow(itemId, { doc });
+    },
     approveContentItem: (itemId) => updateRow(itemId, { status: "APPROVED" }),
     // REJECTED is final; the server also takes the item out of the guide draft (SPEC §10.8).
     rejectContentItem: (itemId) => updateRow(itemId, { status: "REJECTED" }),
@@ -466,6 +514,19 @@ export function createTrpcApi(): ConsoleApi {
       if (!item.assets.some((a) => a.id === assetId)) throw new ApiError("This image is not part of the item.");
       await m("console.image.update", { id: assetId, ...patch });
       return remember(await q<ConsoleContentRow>("console.content.get", { id: itemId }), item.order);
+    },
+
+    listSuggestions: async (exhibitionId) => {
+      const rows = await q<(Omit<EditSuggestion, "proposalText" | "rationale"> & { proposal?: { text?: string }; rationale?: string })[]>("console.suggestion.list", { code: exhibitionId });
+      return rows.map(({ proposal, rationale, ...s }) => ({ ...s, proposalText: proposal?.text ?? null, rationale: rationale ?? null }));
+    },
+    decideSuggestion: async ({ contentId, id, revision }, status, exhibitionId) => {
+      try {
+        await m("console.suggestion.update", { ...(contentId ? { contentId } : { code: exhibitionId }), id, revision, status });
+      } catch (e) {
+        if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") throw new ApiError(CHANGED_ELSEWHERE, e.code, e.appCode);
+        throw e;
+      }
     },
 
     listPublicationChecks: async (exhibitionId) => toPublicationChecks((await q<{ checks: ConsoleCheck[] }>("console.preview.get", { code: exhibitionId })).checks),

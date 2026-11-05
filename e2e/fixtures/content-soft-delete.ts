@@ -11,14 +11,14 @@ export const softDeleteExhibition = (sentences: { id: string; content: string }[
   guide: { version: 1, blocks: sentences.map((s) => ({ type: "sentence" as const, sentenceId: s.id })) },
   startDate: "2026-01-01",
   endDate: "2030-12-31",
-  status: "PUBLISHED",
+  state: "PUBLISHED",
   ambienceEnabled: false,
   playlist: null,
   sentences,
 });
 
 const pkg: ContentPackage = {
-  institution: { code: "still-museum", name: "Still Museum" },
+  institution: { code: "STILL-MUSEUM", name: "Still Museum" },
   venues: [{ code: "seoul-hall", name: "Seoul Hall", city: "Seoul" }],
   exhibitions: [softDeleteExhibition([removedSentence, keptSentence])],
 };

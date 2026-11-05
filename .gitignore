@@ -47,3 +47,6 @@ next-env.d.ts
 
 # claude code worktrees
 /.claude/worktrees/
+
+# cloudflare worker
+.wrangler/

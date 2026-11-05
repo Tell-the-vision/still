@@ -7,7 +7,9 @@ async function reconcile() {
   if (process.env.R2_DRY_RUN === "1") {
     throw new Error("Refusing to reconcile with R2_DRY_RUN=1: the bucket would not be listed for real");
   }
-  const referenced = new Set((await db.select({ key: images.objectKey }).from(images)).map((row) => row.key));
+  const referenced = new Set(
+    (await db.select({ key: images.objectKey }).from(images)).flatMap((row) => (row.key === null ? [] : [row.key])),
+  );
   const orphans = (await listObjects("exhibitions/")).filter((key) => !referenced.has(key));
 
   if (process.argv.includes("--dry-run")) {

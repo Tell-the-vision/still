@@ -1,6 +1,6 @@
-import QRCode from "qrcode";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { qrUrl } from "../api/qr";
 import { visitorUrl } from "../format";
 import { useWorkspace } from "../store";
 import { Arrow, Badge, EmptyState, NoExhibition, Stepper } from "../ui";
@@ -9,17 +9,8 @@ import { Arrow, Badge, EmptyState, NoExhibition, Stepper } from "../ui";
 export default function Published() {
   const { exhibition, createExhibition } = useWorkspace();
   const [copied, setCopied] = useState(false);
-  const [qr, setQr] = useState<string | null>(null);
   const navigate = useNavigate();
   const liveUrl = exhibition ? `https://${visitorUrl(exhibition.code)}` : "";
-
-  // Handoff 4.7: QR generated from the live visitor URL. High error correction so a printed code survives wear.
-  useEffect(() => {
-    if (!liveUrl) return;
-    QRCode.toDataURL(liveUrl, { errorCorrectionLevel: "H", margin: 2, width: 720, color: { dark: "#000000", light: "#ffffff" } })
-      .then(setQr)
-      .catch(() => setQr(null));
-  }, [liveUrl]);
 
   if (!exhibition) return <NoExhibition title="Publication" onCreate={createExhibition} />;
   if (exhibition.status !== "PUBLISHED") {
@@ -36,10 +27,9 @@ export default function Published() {
   }
 
   const url = visitorUrl(exhibition.code);
-  const downloadQr = () => {
-    if (!qr) return;
-    Object.assign(document.createElement("a"), { href: qr, download: `still-${exhibition.code}-qr.png` }).click();
-  };
+  // Handoff 4.7: the server draws the QR (SPEC §9.5), so the printed code always encodes its URL.
+  const qr = qrUrl(exhibition.code, "png");
+  const qrFilename = `${exhibition.code}-qr.png`;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(liveUrl);
@@ -66,8 +56,8 @@ export default function Published() {
           <button type="button" className="btn btn--secondary btn--wide" onClick={copy}>{copied ? "Copied" : "Copy link"}</button>
         </div>
         <div className="qr-block" id="qr">
-          {qr ? <img className="qr qr--img" src={qr} alt={`QR code for ${url}`} /> : <div className="qr" aria-label="QR code is being generated">QR CODE</div>}
-          <button type="button" className="btn btn--secondary" aria-disabled={!qr} onClick={downloadQr}>Download QR (PNG)</button>
+          <img className="qr qr--img" src={qr} width={180} height={180} alt={`QR code for ${url}`} />
+          <a className="btn btn--secondary" href={qr} download={qrFilename}>Download QR (PNG)</a>
         </div>
       </div>
 
@@ -77,7 +67,7 @@ export default function Published() {
           <li>
             <span className="strong">Download QR code</span>
             <span className="caption-sm">Print and place the QR code at the exhibition entrance.</span>
-            <button type="button" className="open-link link-btn" onClick={downloadQr}>Download <Arrow /></button>
+            <a className="open-link" href={qr} download={qrFilename}>Download <Arrow /></a>
           </li>
           <li>
             <span className="strong">View live guide</span>

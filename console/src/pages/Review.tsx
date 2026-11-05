@@ -1,9 +1,16 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, ReviewStatus } from "../api";
+import type { ContentItem, ContentItemPatch, MediaAsset, MediaAssetPatch, ReviewStatus, StillDoc } from "../api";
+import type { JSONContent } from "@tiptap/react";
+import { api } from "../api";
+import { Editor as RichEditor } from "../editor/Editor";
 import { CONTENT_TYPE_OPTIONS, THEME_OPTIONS } from "../constants";
 import { formatAdded } from "../format";
 import { approvalBlocker, bulkApprovable, duplicateOriginal, isLowConfidence, RIGHTS_LABEL, rightsIssue } from "../rules";
+import { VisitorPreview, VISITOR_PREVIEW_NOTICE } from "../editor/VisitorPreview";
+import { SourceMarks } from "../editor/SourceMarks";
+import { Suggestions } from "../editor/Suggestions";
+import { WideSuggestions } from "../editor/WideSuggestions";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead, type Tone } from "../ui";
 
@@ -21,6 +28,8 @@ export default function Review() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // SPEC §9.4 미리보기 모드: the preview follows the editor before autosave lands.
+  const [liveDoc, setLiveDoc] = useState<{ itemId: string; doc: JSONContent } | null>(null);
   const [sort, setSort] = useState<"source" | "attention">("source");
   const [flash, setFlash] = useState<string | null>(null);
   // Handoff 4.2: bulk actions only on a clear selection, with a confirmation step on the page.
@@ -67,7 +76,7 @@ export default function Review() {
     setBulkBusy(false);
     setConfirming(null);
     setPicked(new Set());
-    showFlash(`${done} groups ${kind === "approve" ? "approved" : "rejected"}${skipped ? ` · ${skipped} skipped (duplicate to resolve first)` : ""}`);
+    showFlash(`${done} ${done === 1 ? "group" : "groups"} ${kind === "approve" ? "approved" : "rejected"}${skipped ? ` · ${skipped} skipped (needs a closer look or could not be saved)` : ""}`);
   };
 
   const filters: [Filter, string][] = [
@@ -87,7 +96,7 @@ export default function Review() {
       <div className="toolbar">
         <div className="toolbar__summary">
           {hasItems ? <Badge tone="green" className="badge--wide">Analysis complete</Badge> : <Badge className="badge--wide">No analysis yet</Badge>}
-          <span className="muted">{counts.total} items found · {counts.approved} approved · {counts.needReview} need attention</span>
+          <span className="muted">{counts.total} {counts.total === 1 ? "item" : "items"} found · {counts.approved} approved · {counts.needReview} {counts.needReview === 1 ? "needs" : "need"} attention</span>
         </div>
         <div className="toolbar__actions">
           <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Preview digital guide</button>
@@ -119,12 +128,13 @@ export default function Review() {
             </button>
           </div>
           {flash && <p className="flash" role="status">{flash}</p>}
+          <WideSuggestions editable flash={showFlash} />
           {pickedItems.length > 0 && (
             <div className="bulkbar" role="region" aria-label="Selected items">
               {confirming ? (
                 <>
                   <p>
-                    <strong>{confirming === "approve" ? "Approve" : "Reject"} {pickedItems.length} groups ({pickedItems.reduce((n, i) => n + i.itemCount, 0)} entries)?</strong>{" "}
+                    <strong>{confirming === "approve" ? "Approve" : "Reject"} {pickedItems.length} {pickedItems.length === 1 ? "group" : "groups"} ({pickedItems.reduce((n, i) => n + i.itemCount, 0)} entries)?</strong>{" "}
                     {pickedItems.map((i) => `${no(i)} ${i.title}`).join(", ")}
                     {confirming === "reject" && " Rejected items cannot be brought back."}
                   </p>
@@ -150,19 +160,22 @@ export default function Review() {
             <section className="panel">
               <div className="panel__head">
                 <span className="eyebrow">Extracted content</span>
-                <span className="eyebrow">{visible.length} groups</span>
+                <span className="eyebrow">{visible.length} {visible.length === 1 ? "group" : "groups"}</span>
               </div>
               <ul className="item-list">
                 {visible.map((i) => (
                   <li key={i.id} className="pick-row">
-                    <input
-                      type="checkbox"
-                      className="pick-row__box"
-                      aria-label={`Select ${i.title}`}
-                      disabled={i.reviewStatus !== "IN_REVIEW"}
-                      checked={picked.has(i.id)}
-                      onChange={() => togglePick(i.id)}
-                    />
+                    {/* The label is the 24×24 target around the 15px box (WCAG 2.5.8). */}
+                    <label className="pick-row__hit">
+                      <input
+                        type="checkbox"
+                        className="pick-row__box"
+                        aria-label={`Select ${i.title}`}
+                        disabled={i.reviewStatus !== "IN_REVIEW"}
+                        checked={picked.has(i.id)}
+                        onChange={() => togglePick(i.id)}
+                      />
+                    </label>
                     <button type="button" className={`item${i.id === selected?.id ? " is-selected" : ""}`} onClick={() => setSelectedId(i.id)}>
                       <span className="item__no">{no(i)}</span>
                       <span className="item__body">
@@ -183,7 +196,15 @@ export default function Review() {
                 item={selected}
                 flash={showFlash}
                 onOpen={(id) => { setFilter("all"); setSelectedId(id); }}
+                onDoc={(doc) => setLiveDoc({ itemId: selected.id, doc })}
               />
+            )}
+
+            {selected?.doc && (
+              <aside className="visitor-preview-pane">
+                <p className="visitor-preview-pane__notice">{VISITOR_PREVIEW_NOTICE}</p>
+                <VisitorPreview doc={liveDoc?.itemId === selected.id ? (liveDoc.doc as StillDoc) : selected.doc} />
+              </aside>
             )}
           </div>
         </>
@@ -209,10 +230,13 @@ interface EditorProps {
   item: ContentItem;
   flash: (msg: string) => void;
   onOpen: (itemId: string) => void;
+  onDoc: (doc: JSONContent) => void;
 }
 
-function Editor({ item, flash, onOpen }: EditorProps) {
-  const { items, updateItem, approveItem, rejectItem, reopenItem, dismissDuplicate } = useWorkspace();
+function Editor({ item, flash, onOpen, onDoc }: EditorProps) {
+  const { exhibition, items, updateItem, approveItem, rejectItem, reopenItem, dismissDuplicate } = useWorkspace();
+  // Everyone in an institution has the same permissions (SPEC §9.2); a rejected item is final (§10.8).
+  const editable = item.reviewStatus !== "REJECTED";
   const themeSuggestions = [...new Set([...THEME_OPTIONS, ...items.map((i) => i.theme)])].filter(Boolean);
   const initial = { text: item.text, theme: item.theme, contentType: item.contentType, note: item.note };
   const [draft, setDraft] = useState(initial);
@@ -266,6 +290,8 @@ function Editor({ item, flash, onOpen }: EditorProps) {
         <Badge tone={STATUS[item.reviewStatus].tone}>{STATUS[item.reviewStatus].label}</Badge>
       </div>
 
+      <Suggestions itemId={item.id} editable={editable} flash={flash} />
+
       {item.origin === "AI_SUGGESTION" && (
         <div className="notice notice--amber" role="note">
           <p><strong>AI suggestion.</strong> STILL wrote this from your materials. It is not a curator statement or an artist quotation, and visitors must never see it attributed to either. Approve only if you want to use it as guide copy.</p>
@@ -287,42 +313,46 @@ function Editor({ item, flash, onOpen }: EditorProps) {
         </div>
       )}
 
-      <label className="field field--first">
-        <span className="field__label">{item.fieldLabel}</span>
-        <textarea className="input input--lg" rows={3} value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} />
-        <span className="field__foot">
-          <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
-        </span>
-      </label>
-      {draft.text !== item.originalText && (
-        <details className="original">
-          <summary className="caption-sm">Original extracted text</summary>
-          <p>{item.originalText}</p>
-          <button type="button" className="link-btn" onClick={() => setDraft({ ...draft, text: item.originalText })}>Use original</button>
-        </details>
-      )}
+      <fieldset className="plain-fieldset" disabled={!editable}>
+        <div className="field field--first" role="group" aria-labelledby="editor-label">
+          <span className="field__label" id="editor-label">{item.fieldLabel}</span>
+          <RichEditor key={`${item.id}:${item.revision ?? ""}`} itemId={item.id} exhibitionId={exhibition?.id ?? ""} doc={api.getContentDoc(item.id) as JSONContent} editable={editable} onChange={onDoc} />
+          <span className="field__foot">
+            <span className="caption-sm">Source: {item.sourceLocation}{item.confidence !== null && ` · confidence ${Math.round(item.confidence * 100)}%`}</span>
+          </span>
+        </div>
+        {draft.text !== item.originalText && (
+          <details className="original">
+            <summary className="caption-sm">Original extracted text</summary>
+            <p>{item.originalText}</p>
+            <button type="button" className="link-btn" onClick={() => setDraft({ ...draft, text: item.originalText })}>Use original</button>
+          </details>
+        )}
 
-      <div className="field-row">
-        <label className="field">
-          <span className="field__label">Theme</span>
-          {/* Free text with suggestions: pick a theme already in use or type a new one. */}
-          <input className="input" list="theme-suggestions" value={draft.theme} placeholder="Type or choose a theme" onChange={(e) => setDraft({ ...draft, theme: e.target.value })} />
-          <datalist id="theme-suggestions">
-            {themeSuggestions.map((o) => <option key={o} value={o} />)}
-          </datalist>
-        </label>
-        <label className="field">
-          <span className="field__label">Content type</span>
-          <select className="input" value={draft.contentType} onChange={(e) => setDraft({ ...draft, contentType: e.target.value })}>
-            {[...new Set([draft.contentType, ...CONTENT_TYPE_OPTIONS])].filter(Boolean).map((o) => <option key={o}>{o}</option>)}
-          </select>
-        </label>
-      </div>
+        <div className="field-row">
+          <label className="field">
+            <span className="field__label">Theme</span>
+            {/* Free text with suggestions: pick a theme already in use or type a new one. */}
+            <input className="input" list="theme-suggestions" value={draft.theme} placeholder="Type or choose a theme" onChange={(e) => setDraft({ ...draft, theme: e.target.value })} />
+            <datalist id="theme-suggestions">
+              {themeSuggestions.map((o) => <option key={o} value={o} />)}
+            </datalist>
+          </label>
+          <label className="field">
+            <span className="field__label">Content type</span>
+            <select className="input" value={draft.contentType} onChange={(e) => setDraft({ ...draft, contentType: e.target.value })}>
+              {[...new Set([draft.contentType, ...CONTENT_TYPE_OPTIONS])].filter(Boolean).map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </label>
+        </div>
 
-      <label className="field">
-        <span className="field__label">Editorial note (optional)</span>
-        <textarea className="input input--note" rows={2} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
-      </label>
+        <label className="field">
+          <span className="field__label">Editorial note (optional)</span>
+          <textarea className="input input--note" rows={2} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
+        </label>
+      </fieldset>
+
+      <SourceMarks item={item} />
 
       {item.assets.length > 0 && <Assets item={item} flash={flash} />}
 

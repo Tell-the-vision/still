@@ -4,7 +4,7 @@ import { exhibitionFromBoard } from "./exhibition";
 // Demo board "Yoo Youngkuk" from the Figma page "04 — Demo Assets".
 // Import by hand, never on deploy: `npm run db:seed src/server/db/seed/figma-demo`.
 const pkg: ContentPackage = {
-  institution: { code: "sema", name: "Seoul Museum of Art" },
+  institution: { code: "SEMA", name: "Seoul Museum of Art" },
   venues: [{ code: "sema-seosomun", name: "Seoul Museum of Art", city: "Seoul" }],
   exhibitions: [
     exhibitionFromBoard({

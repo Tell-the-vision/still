@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { api, type Venue } from "../api";
+import { RIGHTS_STATEMENT } from "../constants";
 import { VISITOR_HOST } from "../format";
 import { blockingAssets } from "../rules";
 import { useWorkspace } from "../store";
@@ -11,7 +13,7 @@ export default function Publish() {
   const [form, setForm] = useState(() => ({
     title: exhibition?.title ?? "",
     subtitle: exhibition?.subtitle ?? "",
-    venueName: exhibition?.venueName ?? "",
+    venueId: exhibition?.venueId ?? "",
     startDate: exhibition?.startDate ?? "",
     endDate: exhibition?.endDate ?? "",
     code: exhibition?.code ?? "",
@@ -19,11 +21,20 @@ export default function Publish() {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [newVenue, setNewVenue] = useState<{ name: string; city: string } | null>(null);
+
+  useEffect(() => {
+    api.listVenues().then(setVenues).catch(reportError);
+    // Load once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!exhibition) return <NoExhibition title="Prepare publication" onCreate={createExhibition} />;
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
-  const missing = !form.title.trim() || !form.venueName.trim() || !form.startDate || !form.endDate || !form.code.trim();
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setSaved(false); setForm({ ...form, [k]: e.target.value }); };
+  const missing = !form.title.trim() || !form.venueId || !form.startDate || !form.endDate || !form.code.trim();
   const badDates = !!form.startDate && !!form.endDate && form.endDate < form.startDate;
   // Handoff 4.6 / 12: publish is blocked until metadata, approval and rights checks are complete.
   const noApproved = counts.approved === 0;
@@ -31,19 +42,46 @@ export default function Publish() {
   const blocked = noApproved || rightsBlocked.length > 0 || !rightsConfirmed || missing || badDates;
   const ready = !noApproved && rightsBlocked.length === 0;
 
+  const details = () => ({
+    title: form.title.trim(),
+    subtitle: form.subtitle.trim() || null,
+    venueId: form.venueId || null,
+    startDate: form.startDate || null,
+    endDate: form.endDate || null,
+    code: form.code.trim(),
+  });
+
+  // Saves the details into the draft; the live guide is unchanged until Publish.
+  const saveDetails = async () => {
+    if (busy || !form.title.trim() || badDates) return;
+    setBusy(true);
+    try {
+      await updateExhibition(details());
+      setSaved(true);
+    } catch { /* error banner */ } finally {
+      setBusy(false);
+    }
+  };
+
+  const addVenue = async () => {
+    if (!newVenue?.name.trim() || !newVenue.city.trim()) return;
+    try {
+      const name = newVenue.name.trim();
+      // The server picks the code from the name (SPEC §10.1).
+      const venue = await api.createVenue({ name, city: newVenue.city.trim() });
+      setVenues((list) => [...list, venue]);
+      setForm({ ...form, venueId: venue.id });
+      setSaved(false);
+      setNewVenue(null);
+    } catch (e) { reportError(e); }
+  };
+
   const publish = async () => {
     setAttempted(true);
     if (blocked || busy) return;
     setBusy(true);
     try {
-      await updateExhibition({
-        title: form.title.trim(),
-        subtitle: form.subtitle.trim() || null,
-        venueName: form.venueName.trim(),
-        startDate: form.startDate,
-        endDate: form.endDate,
-        code: form.code.trim(),
-      });
+      await updateExhibition(details());
       await publishExhibition();
       navigate("/materials/published");
     } catch { /* error banner */ } finally {
@@ -70,7 +108,23 @@ export default function Publish() {
           <h2 className="h2 section__title">Publication details</h2>
           <label className="field field--stack"><span className="field__label">Publication title</span><input className="input input--tall" value={form.title} onChange={set("title")} /></label>
           <label className="field field--stack"><span className="field__label">Subtitle (optional)</span><input className="input input--tall" value={form.subtitle} onChange={set("subtitle")} /></label>
-          <label className="field field--stack"><span className="field__label">Museum / venue</span><input className="input input--tall" value={form.venueName} onChange={set("venueName")} /></label>
+          <div className="field field--stack">
+            <label className="field__label" htmlFor="venue-select">Museum / venue</label>
+            <select id="venue-select" className="input input--tall" value={form.venueId} onChange={set("venueId")}>
+              <option value="">Choose a venue…</option>
+              {venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}</option>)}
+            </select>
+            {newVenue ? (
+              <form className="inline-pick inline-pick--venue" onSubmit={(e) => { e.preventDefault(); addVenue(); }}>
+                <input className="input" aria-label="New venue name" autoFocus placeholder="Venue name" value={newVenue.name} onChange={(e) => setNewVenue({ ...newVenue, name: e.target.value })} />
+                <input className="input" aria-label="New venue city" placeholder="City" value={newVenue.city} onChange={(e) => setNewVenue({ ...newVenue, city: e.target.value })} />
+                <button type="submit" className="btn btn--secondary" aria-disabled={!newVenue.name.trim() || !newVenue.city.trim()}>Add venue</button>
+                <button type="button" className="link-btn" onClick={() => setNewVenue(null)}>Cancel</button>
+              </form>
+            ) : (
+              <button type="button" className="link-btn link-btn--venue" onClick={() => setNewVenue({ name: "", city: "" })}>+ Add venue</button>
+            )}
+          </div>
           <div className="field field--stack">
             <span className="field__label">Exhibition period</span>
             <div className="date-range">
@@ -105,7 +159,7 @@ export default function Publish() {
         <h2 className="h3">Content rights confirmation</h2>
         <label className={`checkbox${attempted && !rightsConfirmed ? " has-error" : ""}`}>
           <input type="checkbox" checked={rightsConfirmed} onChange={(e) => setRightsConfirmed(e.target.checked)} />
-          <span>I confirm that the museum has permission to publish the submitted text and media for this exhibition.</span>
+          <span>{RIGHTS_STATEMENT}</span>
         </label>
         <ul className="blockers">
           {noApproved && <li className="field-error">No content is approved yet. Only approved items are published.</li>}
@@ -115,7 +169,7 @@ export default function Publish() {
             </li>
           ))}
           {counts.needReview + counts.rejected > 0 && (
-            <li className="caption-sm">{counts.needReview} items in review and {counts.rejected} rejected items will not be included.</li>
+            <li className="caption-sm">{counts.needReview} {counts.needReview === 1 ? "item" : "items"} in review and {counts.rejected} rejected items will not be included.</li>
           )}
         </ul>
         {attempted && !rightsConfirmed && <p className="field-error" role="alert">Confirm content rights before publishing.</p>}
@@ -125,6 +179,8 @@ export default function Publish() {
 
       <div className="bottom-actions">
         <button type="button" className="btn btn--secondary btn--wide" onClick={() => navigate("/materials/preview")}>Back to preview</button>
+        <button type="button" className="btn btn--secondary btn--wide" aria-disabled={busy} onClick={saveDetails}>Save details</button>
+        {saved && <span className="caption-sm" role="status">Details saved</span>}
         <button type="button" className="btn btn--primary btn--xwide" aria-disabled={blocked || busy} onClick={publish}>
           {busy ? "Publishing…" : "Publish exhibition"}
         </button>

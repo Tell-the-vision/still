@@ -22,7 +22,7 @@ export async function signInWithIdentity(identity: Identity): Promise<{ userId: 
   }
   try {
     return await db.transaction(async (tx) => {
-      const [user] = await tx.insert(users).values({}).returning();
+      const [user] = await tx.insert(users).values({ role: "VISITOR", status: "ACTIVE" }).returning();
       const [token] = await tx
         .insert(userTokens)
         .values({ userId: user.id, provider: identity.provider, subject: identity.subject, ...profile, ...ciphertext })

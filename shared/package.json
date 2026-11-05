@@ -5,5 +5,8 @@
   "type": "module",
   "exports": {
     "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/noto-sans-kr": "^5.3.1"
   }
 }

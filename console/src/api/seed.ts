@@ -21,7 +21,9 @@ export interface Seed {
 
 const workspace: Workspace = { institutionName: "MMCA Seoul", institutionId: "STL-MMCA-0002" };
 // Even an empty workspace has a signed-in account.
-const me: Me = { id: "me", name: "Curator Name", email: "curator@museum.example" };
+const me: Me = { id: "me", name: "Curator Name", email: "curator@museum.example",
+  // ?mustChange (mock only) opens the temporary-password screen after sign-in.
+  mustChangePassword: typeof window !== "undefined" && new URLSearchParams(window.location.search).has("mustChange") };
 const accounts = [me.email, "editor@museum.example"];
 
 export const emptySeed = (): Seed => ({
@@ -43,15 +45,15 @@ export function sampleSeed(): Seed {
     exhibitions: [
       {
         id: ex, code: "exhibition-title", title: "Exhibition Title", subtitle: "Exhibition subtitle",
-        venueName: "MMCA Seoul", startDate: "2026-11-20", endDate: "2027-03-28", status: "DRAFT", updatedAt: new Date().toISOString(),
+        venueName: "MMCA Seoul", venueId: "v1", startDate: "2026-11-20", endDate: "2027-03-28", status: "DRAFT", updatedAt: new Date().toISOString(),
       },
       {
         id: "sample-ex-2", code: "live-exhibition", title: "Live Exhibition", subtitle: "Exhibition subtitle",
-        venueName: "MMCA Seoul", startDate: "2026-08-27", endDate: "2027-02-09", status: "PUBLISHED", updatedAt: "2026-11-04T09:00:00Z",
+        venueName: "MMCA Seoul", venueId: "v1", startDate: "2026-08-27", endDate: "2027-02-09", status: "PUBLISHED", updatedAt: "2026-11-04T09:00:00Z",
       },
       {
         id: "sample-ex-3", code: "past-exhibition", title: "Past Exhibition", subtitle: "Exhibition subtitle",
-        venueName: "SeMA Seosomun", startDate: "2026-05-19", endDate: "2026-10-25", status: "PUBLISHED", updatedAt: "2026-10-28T09:00:00Z",
+        venueName: "SeMA Seosomun", venueId: "v2", startDate: "2026-05-19", endDate: "2026-10-25", status: "PUBLISHED", updatedAt: "2026-10-28T09:00:00Z",
       },
     ],
     files: {

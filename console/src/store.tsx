@@ -1,13 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type GuideSection, type MediaAssetPatch, type Me, type ProcessingEvent,
+  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type GuideSection, type MediaAssetPatch, type Me, type NewExhibition, type ProcessingEvent,
   type PublicationCheck, type PublicationDetails, type SignInRequest, type SourceFile, type Workspace,
 } from "./api";
 
 // All screens read and write through here; this file only talks to `api`, never to sample data.
 
 // "signed-out": no staff session (or it expired); the app shows /sign-in.
-type Status = "loading" | "ready" | "error" | "signed-out";
+// "password-change": signed in with a temporary password; only /change-password works (SPEC §10.5).
+type Status = "loading" | "ready" | "error" | "signed-out" | "password-change";
 
 interface ExhibitionData {
   files: SourceFile[];
@@ -44,9 +45,12 @@ function useWorkspaceState() {
   const loadWorkspace = useCallback(async () => {
     setStatus("loading");
     try {
-      const [w, list, user] = await Promise.all([api.getWorkspace(), api.listExhibitions(), api.getMe()]);
-      setWorkspace(w);
+      // With a temporary password every call but me.get answers PASSWORD_CHANGE_REQUIRED, so read me first.
+      const user = await api.getMe();
       setMe(user);
+      if (user.mustChangePassword) { setStatus("password-change"); return; }
+      const [w, list] = await Promise.all([api.getWorkspace(), api.listExhibitions()]);
+      setWorkspace(w);
       setExhibitions(list);
       setCurrentId((id) => id ?? list.find((e) => e.status === "DRAFT")?.id ?? list[0]?.id ?? null);
       setStatus("ready");
@@ -67,11 +71,21 @@ function useWorkspaceState() {
     setStatus("signed-out");
   };
 
+  // Each part loads on its own: one failing call reports an error without blanking the others.
   const loadExhibitionData = useCallback(async (id: string) => {
-    const [files, items, events, checks, guide] = await Promise.all([
+    const [files, items, events, checks, guide] = await Promise.allSettled([
       api.listFiles(id), api.listContentItems(id), api.listProcessingEvents(id), api.listPublicationChecks(id), api.getGuide(id),
     ]);
-    setData({ files, items, events, checks, guide });
+    const value = <T,>(part: PromiseSettledResult<T>, fallback: T) => (part.status === "fulfilled" ? part.value : fallback);
+    setData({
+      files: value(files, EMPTY.files),
+      items: value(items, EMPTY.items),
+      events: value(events, EMPTY.events),
+      checks: value(checks, EMPTY.checks),
+      guide: value(guide, EMPTY.guide),
+    });
+    const failed = [files, items, events, checks, guide].find((part) => part.status === "rejected");
+    if (failed) throw failed.reason;
   }, []);
 
   useEffect(() => {
@@ -81,6 +95,20 @@ function useWorkspaceState() {
       .then(() => setDataStatus("ready"))
       .catch((e) => { fail(e); setDataStatus("error"); });
   }, [currentId, loadExhibitionData]);
+
+  // While the analysis has no result, reload on each server event (console.analysis.watch over SSE, SPEC §11.1);
+  // if the stream errors, reload every 2 s instead so the review screen still fills in when it is done.
+  const analysing = data.events.some((ev) => ev.id === "classification" && ev.status === "IN_PROGRESS");
+  useEffect(() => {
+    if (!currentId || !analysing) return;
+    const reload = () => { loadExhibitionData(currentId).catch(fail); };
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const input = encodeURIComponent(JSON.stringify({ code: currentId }));
+    const source = new EventSource(`/api/trpc/console.analysis.watch?client=console&input=${input}`);
+    source.onmessage = reload;
+    source.onerror = () => { source.close(); timer ??= setInterval(reload, 2000); };
+    return () => { source.close(); clearInterval(timer); };
+  }, [currentId, analysing, loadExhibitionData]);
 
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;
   const replaceExhibition = (e: Exhibition) => setExhibitions((list) => list.map((x) => (x.id === e.id ? e : x)));
@@ -129,7 +157,7 @@ function useWorkspaceState() {
     inFlight.current.set(rowId, controller);
     patchRow(rowId, { status: "UPLOADING", progress: 0, error: null });
     try {
-      const saved = await api.uploadFile(exhibitionId, file, { signal: controller.signal, onProgress: (progress) => patchRow(rowId, { progress }) });
+      const saved = await api.uploadFile(exhibitionId, file, { signal: controller.signal, onProgress: (progress) => patchRow(rowId, { progress }), onExtracting: () => patchRow(rowId, { status: "PROCESSING" }) });
       retryable.current.delete(rowId);
       setLocalFiles((l) => l.filter((r) => r.id !== rowId));
       setData((d) => ({ ...d, files: [...d.files, saved] }));
@@ -158,21 +186,38 @@ function useWorkspaceState() {
     selectExhibition: setCurrentId,
     clearError: () => setError(null),
     reportError: fail,
+    /** Re-reads the items and checks after a change the server made to several parts (a decided suggestion). */
+    reloadExhibitionData: () => (currentId ? loadExhibitionData(currentId).catch(fail) : Promise.resolve()),
     reloadWorkspace: () => api.getWorkspace().then(setWorkspace).catch(fail),
     /** Errors stay on the form (not the app banner) and are rethrown for it. */
     signIn: async (request: SignInRequest) => {
       await api.signIn(request);
       await loadWorkspace();
     },
+    /** Errors stay on the form; afterwards the workspace loads as after a normal sign-in. */
+    // Reloads the account so the temporary-password screen (mustChangePassword) goes away.
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      await api.changePassword(currentPassword, newPassword);
+      await loadWorkspace();
+    },
     signOut: () => run(async () => { await api.signOut(); resetSession(); }),
-    /** Errors stay on the account form (not the app banner). */
-    changePassword: (currentPassword: string, newPassword: string) => api.changePassword(currentPassword, newPassword),
 
-    createExhibition: () => run(async () => {
-      const e = await api.createExhibition();
-      setExhibitions((list) => [e, ...list]);
-      setCurrentId(e.id);
-      return e;
+    /** Errors (code taken, invalid code) stay on the dialog and are rethrown for it. */
+    createExhibition: async (input: NewExhibition) => {
+      try {
+        const e = await api.createExhibition(input);
+        setExhibitions((list) => [e, ...list]);
+        setCurrentId(e.id);
+        return e;
+      } catch (e) {
+        if (isUnauthorized(e)) fail(e);
+        throw e;
+      }
+    },
+    deleteExhibition: (id: string) => run(async () => {
+      await api.deleteExhibition(id);
+      setExhibitions((list) => list.filter((e) => e.id !== id));
+      setCurrentId((current) => (current === id ? null : current));
     }),
     updateExhibition: (patch: Partial<PublicationDetails>) => run(async () => {
       if (!currentId) return;
@@ -201,6 +246,8 @@ function useWorkspaceState() {
       enqueue(rowId, file);
     },
     cancelUpload: (rowId: string) => {
+      // A row the server already has (an upload that never finished) is removed there.
+      if (!localFiles.some((r) => r.id === rowId)) { void actions.deleteFile(rowId).catch(() => {}); return; }
       const queued = queue.current.find((j) => j.rowId === rowId);
       if (queued) {
         queue.current = queue.current.filter((j) => j.rowId !== rowId);
@@ -211,6 +258,7 @@ function useWorkspaceState() {
       }
     },
     dismissLocalFile: (rowId: string) => {
+      if (!localFiles.some((r) => r.id === rowId)) { void actions.deleteFile(rowId).catch(() => {}); return; }
       retryable.current.delete(rowId);
       setLocalFiles((l) => l.filter((r) => r.id !== rowId));
     },
@@ -219,6 +267,7 @@ function useWorkspaceState() {
       await api.deleteFile(currentId, fileId);
       setData((d) => ({ ...d, files: d.files.filter((f) => f.id !== fileId) }));
     }),
+    downloadFile: (fileId: string) => run(async () => { window.open(await api.getFileDownloadUrl(fileId), "_blank", "noopener"); }),
     startAnalysis: () => run(async () => {
       if (!currentId) return;
       await api.startAnalysis(currentId);
@@ -226,6 +275,7 @@ function useWorkspaceState() {
     }),
 
     updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch))),
+    revertBlock: (itemId: string, nodeId: string) => run(() => applyItem(itemId, () => api.revertBlockToSource(itemId, nodeId))),
     approveItem: (itemId: string) => run(() => applyItem(itemId, () => api.approveContentItem(itemId))),
     // Rejecting also takes the item out of the guide draft on the server (SPEC §10.8), so re-read the guide.
     rejectItem: (itemId: string) => run(async () => {
