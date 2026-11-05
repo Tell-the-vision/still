@@ -107,6 +107,8 @@ export type UsagePermission = "UNKNOWN" | "GRANTED" | "DENIED";
 export interface MediaAsset {
   id: string;
   caption: string;
+  /** Describes the image for screen-reader users (SPEC §10.7 images.alt_text). */
+  altText: string;
   creator: string;
   copyrightHolder: string;
   imageSource: string;
@@ -117,7 +119,7 @@ export interface MediaAsset {
   reviewedBy: string | null;
   reviewedAt: ISODateTime | null;
 }
-export type MediaAssetPatch = Partial<Pick<MediaAsset, "creator" | "copyrightHolder" | "imageSource" | "usagePermission" | "usageScope" | "expiresOn" | "excluded">>;
+export type MediaAssetPatch = Partial<Pick<MediaAsset, "altText" | "creator" | "copyrightHolder" | "imageSource" | "usagePermission" | "usageScope" | "expiresOn" | "excluded">>;
 
 export type EventStatus = "COMPLETE" | "IN_PROGRESS" | "PENDING" | "FAILED";
 export interface ProcessingEvent {

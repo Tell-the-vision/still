@@ -182,7 +182,7 @@ function item(fields: Partial<ContentItem> & Pick<ContentItem, "id" | "order" | 
 }
 function asset(fields: Partial<MediaAsset> & Pick<MediaAsset, "id" | "caption">): MediaAsset {
   return {
-    creator: "", copyrightHolder: "", imageSource: "", usagePermission: "UNKNOWN", usageScope: "", expiresOn: null, excluded: false,
+    altText: "", creator: "", copyrightHolder: "", imageSource: "", usagePermission: "UNKNOWN", usageScope: "", expiresOn: null, excluded: false,
     reviewedBy: null, reviewedAt: null,
     ...fields,
   };
