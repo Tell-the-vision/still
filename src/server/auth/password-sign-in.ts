@@ -4,8 +4,11 @@ import { institutions, userTokens, users } from "../db/schema";
 import { verifyDecoy, verifyPassword } from "./password";
 import { createStaffSession } from "./sessions";
 
-const MAX_FAILURES = 10; // SPEC §9.2 implementation defaults
-const LOCK_MS = 15 * 60_000;
+// SPEC §9.2 implementation defaults, shared with password-change.ts: a wrong current password counts like
+// a wrong sign-in, so the lock cannot be probed around through password.update (#68).
+export const MAX_FAILURES = 10;
+export const LOCK_MS = 15 * 60_000;
+export const isLocked = (lockedUntil: Date | null) => lockedUntil !== null && lockedUntil > new Date();
 
 type Attempt =
   | { role: "ADMIN"; email: string; password: string }
@@ -52,7 +55,7 @@ export async function passwordSignIn(attempt: Attempt, { remember }: { remember:
       row.status === "ACTIVE" &&
       row.role === attempt.role &&
       rightInstitution &&
-      !(row.lockedUntil && row.lockedUntil > new Date());
+      !isLocked(row.lockedUntil);
     if (!mayTry) return verifyDecoy(attempt.password).then(() => null);
 
     if (!(await verifyPassword(attempt.password, row.passwordHash!))) {

@@ -23,6 +23,10 @@ export const passwordRouter = router({
       newPassword: input.newPassword,
     });
     // BAD_REQUEST, not UNAUTHORIZED: the session is valid and the apps treat UNAUTHORIZED as signed out.
-    if (!changed) throw new TRPCError({ code: "BAD_REQUEST", message: "The current password is incorrect." });
+    // A locked account (ten wrong passwords, SPEC §9.2) answers TOO_MANY_REQUESTS until the lock passes.
+    if (!changed.ok && changed.reason === "LOCKED") {
+      throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many wrong passwords. Try again in 15 minutes." });
+    }
+    if (!changed.ok) throw new TRPCError({ code: "BAD_REQUEST", message: "The current password is incorrect." });
   }),
 });

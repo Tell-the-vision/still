@@ -2,7 +2,7 @@ import { expect, test } from "next/experimental/testmode/playwright";
 import type { Page } from "@playwright/test";
 import { trpcCall } from "./support/api";
 import { newUser, signIn, stubGoogle, stubGoogleToken } from "./support/google";
-import { adminCall, consoleCall, e2eSql, seedInstitutionAccount, seedOperator, signInAdmin, STAFF_PASSWORD } from "./support/staff";
+import { adminCall, consoleCall, e2eSql, seedInstitutionAccount, seedOperator, signInAdmin, signInConsole, STAFF_PASSWORD } from "./support/staff";
 
 // SPEC §9.2 첫 로그인, §9.5 password.update, §10.5 계정 전이 "비밀번호 변경": an account issued with a
 // temporary password can do nothing but change it. Afterwards the other sessions of that user end.
@@ -98,6 +98,45 @@ test("password.update refuses weak and wrong passwords and ends the user's other
   const [row] = await e2eSql<{ password_hash: string }>("SELECT password_hash FROM user_tokens WHERE user_id = $1", [operator.userId]);
   expect(row.password_hash).toMatch(/^\$argon2id\$/);
   await other.close();
+});
+
+// #68: a wrong current password counts toward the sign-in lock (SPEC §9.2), so a stolen session cannot
+// guess the password through password.update either.
+test("ten wrong current passwords lock the account; the lock blocks the right one, then clears", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  await signInConsole(page, account);
+  const attempt = (currentPassword: string) => consoleCall(page, "password.update", { currentPassword, newPassword: NEW_PASSWORD });
+
+  for (let i = 0; i < 9; i++) expect((await attempt("not-the-password")).status).toBe(400);
+  const [counted] = await e2eSql<{ failed_login_count: number }>("SELECT failed_login_count FROM user_tokens WHERE subject = $1", [account.email]);
+  expect(Number(counted.failed_login_count)).toBe(9);
+
+  // The tenth failure locks the account for 15 minutes.
+  const tenth = await attempt("not-the-password");
+  expect(tenth.status).toBe(429);
+  const [row] = await e2eSql<{ minutes: number }>(
+    "SELECT round(extract(epoch FROM locked_until - now()) / 60) AS minutes FROM user_tokens WHERE subject = $1",
+    [account.email],
+  );
+  expect(Number(row.minutes)).toBe(15);
+
+  // Locked: the right password is refused too, the session itself stays valid, and sign-in is locked as well.
+  const locked = await attempt(account.password);
+  expect(locked.status).toBe(429);
+  expect(locked.json.error.message).toContain("Try again");
+  expect((await consoleCall(page, "me.get")).status).toBe(200);
+  const signIn = await consoleCall(page, "console.session.create", { institutionCode: account.institutionCode, email: account.email, password: account.password });
+  expect(signIn.status).toBe(401);
+
+  // Once the lock has passed, the right password works and clears the count.
+  await e2eSql("UPDATE user_tokens SET locked_until = now() - interval '1 second' WHERE subject = $1", [account.email]);
+  expect((await attempt(account.password)).status).toBe(200);
+  const [after] = await e2eSql<{ failed_login_count: number; locked_until: Date | null }>(
+    "SELECT failed_login_count, locked_until FROM user_tokens WHERE subject = $1",
+    [account.email],
+  );
+  expect(Number(after.failed_login_count)).toBe(0);
+  expect(after.locked_until).toBeNull();
 });
 
 test("a visitor session cannot use password.update", async ({ page, next }) => {
