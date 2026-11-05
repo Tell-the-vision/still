@@ -1,17 +1,8 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
 import type { NewExhibition } from "./api";
 import { NewExhibitionButton } from "./NewExhibition";
 
 export type Tone = "green" | "amber" | "gray" | "neutral";
-
-export function Badge({ tone = "gray", children, className = "" }: { tone?: Tone; children: ReactNode; className?: string }) {
-  return <span className={`badge badge--${tone} ${className}`}>{children}</span>;
-}
-
-export function StatusText({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return <span className={`status-text status-text--${tone}`}>{children}</span>;
-}
 
 export function PageHead({
   eyebrow, title, lede, actions, actionsBottom, children,
@@ -27,40 +18,6 @@ export function PageHead({
       {/* actionsBottom: buttons line up with the status badge under the title (Figma 03–06). */}
       {actions && <div className={`page-head__actions${actionsBottom ? " page-head__actions--bottom" : ""}`}>{actions}</div>}
     </header>
-  );
-}
-
-const STEPS = [
-  { n: 1, label: "Upload", to: "/materials" },
-  { n: 2, label: "Review", to: "/materials/review" },
-  { n: 3, label: "Preview", to: "/materials/preview" },
-  { n: 4, label: "Publish", to: "/materials/publish" },
-];
-
-export function Stepper({ current }: { current: 1 | 2 | 3 | 4 }) {
-  return (
-    <nav className="stepper" aria-label="Exhibition workflow">
-      <p className="eyebrow">Exhibition workflow</p>
-      <ol>
-        {STEPS.map((s, i) => (
-          <li key={s.n}>
-            {i > 0 && <span className="stepper__dash" aria-hidden>–</span>}
-            <NavLink to={s.to} end className={`stepper__step${s.n === current ? " is-current" : ""}`} aria-current={s.n === current ? "step" : undefined}>
-              {s.n} {s.label}
-            </NavLink>
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
-}
-
-export function StatCard({ value, label }: { value: ReactNode; label: string }) {
-  return (
-    <div className="stat">
-      <span className="stat__value">{value}</span>
-      <span className="stat__label">{label}</span>
-    </div>
   );
 }
 

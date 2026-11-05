@@ -14,7 +14,7 @@ export const archiveWith = {
   exhibition: { with: { venue: true, coverImage: true } },
   scraps: { columns: { guideSentenceId: true } },
   journal: { columns: { archiveId: true } },
-  keepsake: { columns: { archiveId: true } },
+  keepsakes: { columns: { page: true } },
 } as const;
 
 function findArchive(userId: string, exhibitionId: string, executor: Executor) {
@@ -45,7 +45,7 @@ export function toArchive(row: ArchiveRow) {
     },
     scrapCount: row.scraps.length,
     hasJournal: row.journal !== null,
-    hasKeepsake: row.keepsake !== null,
+    hasKeepsake: row.keepsakes.length > 0,
     lastVisitedAt: row.lastVisitedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
   };

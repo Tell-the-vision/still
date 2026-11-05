@@ -73,7 +73,7 @@ function legacyDoc(blocks: ContentBlock[]): StillDoc {
 function mapNodes(block: StillBlock, change: (node: TextNode) => TextNode, id: string): StillBlock {
   const copy = structuredClone(block);
   copy.attrs = { ...copy.attrs, id } as typeof copy.attrs;
-  const paragraphs = copy.type === "stillImage" ? [] : copy.type === "paragraph" || copy.type === "heading" ? [copy] : copy.type === "blockquote" ? copy.content : copy.content.flatMap((i) => i.content);
+  const paragraphs = copy.type === "stillImage" || copy.type === "playlist" ? [] : copy.type === "paragraph" || copy.type === "heading" ? [copy] : copy.type === "blockquote" ? copy.content : copy.content.flatMap((i) => i.content);
   for (const p of paragraphs) if (p.content) p.content = p.content.map(change);
   return copy;
 }

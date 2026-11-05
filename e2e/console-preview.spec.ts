@@ -137,7 +137,7 @@ test("a doc-based content compiles to heading, paragraph, sentence and image blo
   expect(blocks[2].content[1]).toMatchObject({ text: "Marked line.", marks: [{ type: "scrap" }] });
 });
 
-test("an image without a public copy has no url in the preview", async ({ page }) => {
+test("an image with no file at all has no url in the preview", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const { exhibition, artwork } = await seedScenario(account);
   const bare = await seedImage(exhibition.id, { objectKey: null });
@@ -179,7 +179,7 @@ test("each publication check passes and fails on its own condition", async ({ pa
   await setDraft(exhibition.id, { coverImageId: cover });
   expect(checkOf(await checks(), "image-rights").ok).toBe(false);
 
-  // Image files: an image without a public file cannot be published before the extraction module exists.
+  // Image files: an image with neither a public file nor a document display file to copy cannot be published.
   await e2eSql("UPDATE images SET object_key = NULL WHERE id = $1", [image]);
   expect(checkOf(await checks(), "image-files").ok).toBe(false);
   await e2eSql("UPDATE images SET object_key = $2 WHERE id = $1", [image, `e2e/${randomUUID()}.jpg`]);

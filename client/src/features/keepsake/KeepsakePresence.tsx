@@ -1,5 +1,5 @@
 import { track } from "../../lib/analytics";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { View } from "react-native";
 import { keptDate } from "../../lib/dates";
 import { Button } from "../../ui/Button";
@@ -10,30 +10,31 @@ import { TextAction } from "../../ui/TextAction";
 import { colors, spacing } from "../../ui/theme";
 import { useWide } from "../../ui/useWide";
 import { keepsakeStrings as strings } from "./strings";
-import { useGuideKeepsake } from "./useGuideKeepsake";
+import { useGuideKeepsake, type KeepsakePage } from "./useGuideKeepsake";
 
-type Props = { code: string; exhibition: Parameters<typeof useGuideKeepsake>[1]; hasGuide: boolean; where?: "guide" | "archive" };
+type Props = { code: string; exhibition: Parameters<typeof useGuideKeepsake>[1]; hasGuide: boolean; page: KeepsakePage };
 
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
-// The keepsake panel on the Guide and Archive Detail: the card as a thumbnail, where it stands, and the one next step.
-// On Archive Detail the status is plain text, since the collection is already in view.
-export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }: Props) {
+// The keepsake panel on an artwork's page: that page's card as a thumbnail, where it stands, and the one next step.
+export function KeepsakePresence({ code, exhibition, hasGuide, page }: Props) {
   const router = useRouter();
-  const k = useGuideKeepsake(code, exhibition);
+  // Signing in comes back to the page the panel is on.
+  const pathname = usePathname();
+  const k = useGuideKeepsake(code, exhibition, page);
   // Desktop: a larger card, and the panel hugs its content instead of stretching the column.
   const wide = useWide();
   const scale = wide ? 0.7 : THUMB_SCALE;
-  const creator = `/archive/${code}/keepsake?from=${where}` as const;
+  const creator = `/archive/${code}/keepsake?from=guide&page=${page.page}` as const;
   const open = () => {
-    track("keepsake_open", { exhibition_code: code, source: where === "guide" ? "guide_band" : "archive" });
+    track("keepsake_open", { exhibition_code: code, source: "guide_band" });
     router.push(creator);
   };
   const collection = `/archive/${code}` as const;
   const see = strings.seeCollection(exhibition.title);
 
   // A status that leads to the collection, or plain text when there is nothing to see yet.
-  const link = (label: string) => where === "archive" ? <Text variant="action">{label}</Text> : <TextAction label={label} accessibilityLabel={see} trailing="→" href={collection} />;
+  const link = (label: string) => <TextAction label={label} accessibilityLabel={see} trailing="→" href={collection} />;
   const journalOnly = k.lineCount === 0 && k.hasJournal;
   const recordsLabel = journalOnly ? strings.yourJournal : `${plural(k.lineCount, "line")} kept${k.hasJournal ? " · journal" : ""}`;
   const staleLabel =
@@ -44,7 +45,7 @@ export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }
   switch (k.state) {
     case "guest":
       status = <Text variant="action">{strings.guestStatus}</Text>;
-      action = <TextAction label={strings.signIn} trailing="→" href={{ pathname: "/login", params: { returnTo: `/e/${code}` } }} />;
+      action = <TextAction label={strings.signIn} trailing="→" href={{ pathname: "/login", params: { returnTo: pathname } }} />;
       break;
     case "error":
       status = <Notice error message={strings.guideLoadFailed} action={{ label: "Retry", onPress: k.retry }} />;
@@ -65,16 +66,6 @@ export function KeepsakePresence({ code, exhibition, hasGuide, where = "guide" }
       status = link(staleLabel);
       action = <Button label={strings.update} href={creator} />;
       break;
-  }
-
-  // On Archive Detail the card already leads the page (KeepsakeHero): the panel is the status and the next step only.
-  if (where === "archive") {
-    return (
-      <View style={{ alignItems: "center", gap: spacing.gap, alignSelf: "stretch" }}>
-        <View accessibilityLiveRegion="polite" style={{ alignItems: "center" }}>{status}</View>
-        {action}
-      </View>
-    );
   }
 
   // The panel always spans the full column, so its edges line up with the listen row and the rules.

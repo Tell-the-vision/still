@@ -3,9 +3,10 @@ import { api, type Venue } from "../api";
 import { useWorkspace } from "../store";
 import { EmptyState, PageHead } from "../ui";
 
-// Venues are shared by every institution (SPEC §9.5 console.venue.*). Workspace settings, notifications
-// and the team are not part of the console (issues #60, #61); accounts come from STILL Admin.
-export default function Settings() {
+// Venues (/venues): the places where exhibitions are held, shared by every institution (SPEC §9.5 console.venue.*).
+// Workspace settings, notifications and the team are not part of the console (issues #60, #61); accounts come from
+// STILL Admin.
+export default function Venues() {
   const { reportError } = useWorkspace();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,15 +34,15 @@ export default function Settings() {
 
   return (
     <>
-      <PageHead eyebrow={<>Account <span aria-hidden>/</span> Workspace</>} title="Workspace settings" lede="The galleries where your exhibitions take place. Venues are shared across STILL." />
+      <PageHead title="Venues" lede="The galleries where your exhibitions take place. Venues are shared across STILL." />
       {flash && <p className="flash" role="status">{flash}</p>}
       <hr className="rule" />
-      {loading ? <p className="loading">Loading…</p> : <Venues venues={venues} onAdd={add} />}
+      {loading ? <p className="loading">Loading…</p> : <VenueList venues={venues} onAdd={add} />}
     </>
   );
 }
 
-function Venues({ venues, onAdd }: { venues: Venue[]; onAdd: (v: Pick<Venue, "name" | "city">) => Promise<boolean> }) {
+function VenueList({ venues, onAdd }: { venues: Venue[]; onAdd: (v: Pick<Venue, "name" | "city">) => Promise<boolean> }) {
   const [draft, setDraft] = useState({ name: "", city: "" });
   const valid = !!draft.name.trim() && !!draft.city.trim();
 
@@ -53,10 +54,6 @@ function Venues({ venues, onAdd }: { venues: Venue[]; onAdd: (v: Pick<Venue, "na
 
   return (
     <section className="section">
-      <div className="section__head section__head--plain">
-        <h2 className="h2">Venues</h2>
-        <span className="caption">{venues.length} venues</span>
-      </div>
       {venues.length === 0 ? (
         <EmptyState title="No venues yet" body="Add the galleries where your exhibitions take place." />
       ) : (

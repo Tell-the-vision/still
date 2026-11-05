@@ -96,7 +96,7 @@ test("the review list's select box has a 24px target", async ({ page }) => {
 // workspace counted "1 exhibitions".
 test("console sign-in text and placeholders reach 4.5:1, and the workspace counts one exhibition", async ({ page }) => {
   await page.goto("/console/sign-in");
-  const note = page.getByText("Secure access for registered institution accounts.");
+  const note = page.getByText("Need access? Contact your institution administrator.");
   await expect(note).toBeVisible();
   expect(Number.parseFloat(await note.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12);
   const ratios = await page.evaluate(() => {
@@ -108,9 +108,9 @@ test("console sign-in text and placeholders reach 4.5:1, and the workspace count
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
     const ratio = (fg: string) => (1 + 0.05) / (lum(fg) + 0.05); // both sit on white
-    const secure = document.querySelector(".signin__secure")!;
+    const help = document.querySelector(".signin__help")!;
     const input = document.querySelector(".signin__input")!;
-    return { note: ratio(getComputedStyle(secure).color), placeholder: ratio(getComputedStyle(input, "::placeholder").color) };
+    return { note: ratio(getComputedStyle(help).color), placeholder: ratio(getComputedStyle(input, "::placeholder").color) };
   });
   expect(ratios.note).toBeGreaterThanOrEqual(4.5);
   expect(ratios.placeholder).toBeGreaterThanOrEqual(4.5);

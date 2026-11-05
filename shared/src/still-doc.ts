@@ -9,6 +9,10 @@ export const MAX_NODES = 500; // SPEC §10.8 implementation default
 
 const id = z.string().min(1).max(64);
 
+// A playlist link must be the provider's own: Spotify or Apple Music (the exhibition_playlists rule).
+export const PLAYLIST_URL = /^https:\/\/(open\.spotify\.com|music\.apple\.com)\/\S+$/;
+export const playlistProvider = (url: string) => (url.startsWith("https://open.spotify.com/") ? "SPOTIFY" : "APPLE_MUSIC");
+
 export const scrapMark = z.strictObject({ type: z.literal("scrap"), attrs: z.strictObject({ sentenceId: z.uuid().nullable() }) });
 export const textNode = z.strictObject({ type: z.literal("text"), text: z.string().min(1), marks: z.array(scrapMark).max(1).optional() });
 const inline = z.array(textNode);
@@ -29,6 +33,8 @@ export const stillBlock = z.discriminatedUnion("type", [
     type: z.literal("stillImage"),
     attrs: z.strictObject({ id, imageId: z.uuid(), display: z.enum(IMAGE_DISPLAYS), caption: z.string().nullable() }),
   }),
+  // A playlist to listen to with the page; visitors see a row that opens it. The title may be empty.
+  z.strictObject({ type: z.literal("playlist"), attrs: z.strictObject({ id, url: z.string().max(2000).regex(PLAYLIST_URL), title: z.string().max(200) }) }),
 ]);
 
 // contents.doc (SPEC §10.8).
@@ -55,7 +61,7 @@ export type ContentFields = z.infer<typeof contentFields>;
 
 // The inline text nodes of a block, in order (a quote's or a list's paragraphs one after another).
 export function inlineNodes(block: StillBlock): TextNode[] {
-  if (block.type === "stillImage") return [];
+  if (block.type === "stillImage" || block.type === "playlist") return [];
   if (block.type === "paragraph" || block.type === "heading") return block.content ?? [];
   if (block.type === "blockquote") return block.content.flatMap((p) => p.content ?? []);
   return block.content.flatMap((item) => item.content.flatMap((p) => p.content ?? []));
@@ -64,6 +70,7 @@ export function inlineNodes(block: StillBlock): TextNode[] {
 // Plain text of a block; paragraphs of a quote or list are joined with "\n".
 export function blockText(block: StillBlock): string {
   if (block.type === "stillImage") return block.attrs.caption ?? "";
+  if (block.type === "playlist") return block.attrs.title;
   if (block.type === "paragraph" || block.type === "heading") return (block.content ?? []).map((t) => t.text).join("");
   const paragraphs = block.type === "blockquote" ? block.content : block.content.flatMap((item) => item.content);
   return paragraphs.map((p) => (p.content ?? []).map((t) => t.text).join("")).join("\n");
@@ -77,7 +84,7 @@ export function countNodes(doc: { content: StillBlock[] }): number {
     if (block.type === "blockquote") n += block.content.reduce((sum, p) => sum + 1 + (p.content?.length ?? 0), 0);
     else if (block.type === "bulletList" || block.type === "orderedList")
       n += block.content.reduce((sum, item) => sum + 1 + item.content.reduce((s, p) => s + 1 + (p.content?.length ?? 0), 0), 0);
-    else if (block.type !== "stillImage") n += block.content?.length ?? 0;
+    else if (block.type !== "stillImage" && block.type !== "playlist") n += block.content?.length ?? 0;
   }
   return n;
 }

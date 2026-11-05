@@ -10,7 +10,7 @@ import { TextAction } from "../../ui/TextAction";
 import { archiveStrings } from "./strings";
 
 // Cache entries of this exhibition that die with the archive. Matched by path so later procedures need no edit here.
-const AFTER_DELETE = { "archive.get": null, "journal.get": null, "keepsake.get": null, "scrap.list": [] };
+const AFTER_DELETE = { "archive.get": null, "journal.get": null, "keepsake.get": null, "keepsake.list": [], "scrap.list": [] };
 
 export function DeleteArchive({ code, title }: { code: string; title: string }) {
   const trpc = useTRPC();

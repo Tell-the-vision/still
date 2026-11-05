@@ -65,7 +65,8 @@ export async function presignModelInputPut(key: string) {
   return { url, headers: {} as Record<string, string> };
 }
 
-// A presigned GET the browser opens to download one original. Valid 15 minutes, like the PUT.
+// A presigned GET the browser opens to read one private object: an original to download, or an image's display
+// file to show in the console. Valid 15 minutes, like the PUT.
 export async function presignPrivateGet(key: string) {
   const expiresAt = new Date(Date.now() + PRESIGN_SECONDS * 1000);
   return { url: dryRun() ? dryRunUrl(privateBucket(), key) : await presign(privateBucket(), key, "GET"), expiresAt };
@@ -119,8 +120,9 @@ export async function putObject(key: string, bytes: Buffer, contentType: string)
 }
 
 // Copies an image's display file from the private bucket to the public bucket under `publicKey`, inside R2
-// (SPEC §10.9 발행 쓰기 경로 step 2); nothing is downloaded. R2_DRY_RUN=1 skips the copy.
-// Unreachable until the extraction module (#65) writes manifests: no image has a private display file yet.
+// (SPEC §10.9 발행 쓰기 경로 step 2); nothing is downloaded. R2_DRY_RUN=1 skips the copy (there is no public
+// bucket stand-in), so in dev and e2e the visitor guide has no picture for such an image; the console shows its
+// private display file either way.
 export async function copyPrivateToPublic(privateKey: string, publicKey: string) {
   if (dryRun()) return;
   const res = await fetchObject(publicKey, {

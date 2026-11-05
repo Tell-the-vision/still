@@ -36,11 +36,16 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
   const siblings = (itemId: string) => Object.values(db.items).find((list) => list.some((i) => i.id === itemId)) ?? [];
   const touch = (id: string) => { exhibition(id).updatedAt = now(); };
   const edited = (item: ContentItem) => { item.updatedBy = db.me.name; item.updatedAt = now(); return wait(item); };
-  const setStatus = (itemId: string, status: ReviewStatus) => { findItem(itemId).reviewStatus = status; return edited(findItem(itemId)); };
+  const setStatus = (itemId: string, status: ReviewStatus) => {
+    Object.assign(findItem(itemId), { reviewStatus: status, approvedAt: status === "APPROVED" ? now() : null });
+    return edited(findItem(itemId));
+  };
   // Edited Tiptap docs per item (mock only; the server keeps them in contents.doc).
   const docs = new Map<string, unknown>();
   // Uploads whose name contains "fail" fail once, so the retry path can be tried in the mock.
   const failedOnce = new Set<string>();
+  // The picture of an uploaded image stays in this tab's memory, standing in for the server's display file.
+  const uploadedImages: Record<string, { id: string; altText: string | null; documentId: string; url: string }[]> = {};
 
   const derivedChecks = (id: string): PublicationCheck[] => {
     const items = (db.items[id] ?? []).filter((i) => i.reviewStatus !== "REJECTED");
@@ -92,7 +97,7 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
       if (db.exhibitions.some((x) => x.code === code)) throw new ApiError("Exhibition code is already taken", "CONFLICT", "CODE_TAKEN");
       const e: Exhibition = {
         id: uid(), code, title, subtitle: null,
-        venueName: db.workspace.institutionName, venueId: null, startDate: null, endDate: null, status: "DRAFT", updatedAt: now(),
+        venueName: db.workspace.institutionName, venueCity: "", venueId: null, startDate: null, endDate: null, status: "DRAFT", publishedAt: null, updatedAt: now(),
       };
       db.exhibitions.unshift(e);
       db.guides[e.id] = { sections: [], hasUnpublishedChanges: false };
@@ -116,7 +121,7 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
       const items = db.items[id] ?? [];
       if (!items.some((i) => i.reviewStatus === "APPROVED")) throw new Error("Approve at least one content item before publishing.");
       if (blockingAssets(items).length) throw new Error("Some images in approved content have no confirmed rights.");
-      Object.assign(exhibition(id), { status: "PUBLISHED", updatedAt: now() });
+      Object.assign(exhibition(id), { status: "PUBLISHED", publishedAt: now(), updatedAt: now() });
       return wait(exhibition(id), 400);
     },
 
@@ -138,8 +143,17 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
         sizeBytes: file.size, uploadedAt: now(), status: "UPLOADED" as const, error: null,
       };
       (db.files[id] ??= []).push(f);
+      // A picture is an image of the exhibition once stored, as after extraction on the server.
+      if (/\.(jpe?g|png|tiff?|webp)$/i.test(file.name)) (uploadedImages[id] ??= []).push({ id: uid(), altText: null, documentId: f.id, url: URL.createObjectURL(file) });
       touch(id);
       return wait(f, 100);
+    },
+    // As on the server: the picture is stored as a file of its own and becomes an image of the exhibition.
+    async uploadPicture(id, file) {
+      const stored = await impl.uploadFile(id, file);
+      const image = uploadedImages[id]?.find((i) => i.documentId === stored.id);
+      if (!image) throw new ApiError("This format is not supported.");
+      return wait(image);
     },
     async deleteFile(id, fileId) {
       db.files[id] = (db.files[id] ?? []).filter((f) => f.id !== fileId);
@@ -150,6 +164,8 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
       return wait(URL.createObjectURL(new Blob([`Mock original of ${file?.name ?? fileId}`], { type: "text/plain" })));
     },
     async startAnalysis(id) {
+      // Like console.analysis.create: only files not analysed yet.
+      if (!(db.files[id] ?? []).some((f) => f.status === "UPLOADED")) throw new ApiError("Nothing new to analyze.", "BAD_REQUEST");
       for (const f of db.files[id] ?? []) if (f.status === "UPLOADED") f.status = "PROCESSING";
       (db.events[id] ??= []).push({ id: uid(), at: now(), title: "Analysis requested", detail: `${db.files[id]?.length ?? 0} files`, status: "IN_PROGRESS" });
       return wait(undefined, 300);
@@ -157,27 +173,51 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
     listProcessingEvents: (id) => wait(db.events[id] ?? []),
 
     listContentItems: (id) => wait([...(db.items[id] ?? [])].sort((a, b) => a.order - b.order)),
-    // The exhibition's images are the images found in its items (#125: the editor's image picker has something to offer).
-    listImages: (id) => wait((db.items[id] ?? []).flatMap((i) => i.assets.map((a) => ({ id: a.id, altText: a.altText ?? a.name })))),
-    getContentDoc: (itemId) => docs.get(itemId) ?? {
+    peekContentItems: (id) => wait([...(db.items[id] ?? [])].sort((a, b) => a.order - b.order)),
+    // The exhibition's images: those found in its items (sample images, without files) and the pictures uploaded.
+    listImages: (id) => wait([
+      ...(db.items[id] ?? []).flatMap((i) => i.assets.map((a) => ({ id: a.id, altText: a.altText ?? a.name, url: null }))),
+      ...(uploadedImages[id] ?? []),
+    ]),
+    // Like a server document: the item's heading, then its paragraphs.
+    getContentDoc: (itemId) => docs.get(itemId) ?? findItem(itemId).doc ?? {
       type: "doc",
-      content: findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
+      content: [
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: findItem(itemId).heading }] },
+        ...findItem(itemId).text.split(/\n\s*\n/).map((t) => ({ type: "paragraph", content: t ? [{ type: "text", text: t }] : [] })),
+      ],
     },
     // Keeps the edited doc and its paragraph text, so reopening the item and the preview show the edit (#125).
     // As on the server, editing an approved item sends it back to review.
+    async createArtwork(id, doc) {
+      const list = (db.items[id] ??= []);
+      const created: ContentItem = {
+        id: uid(), order: list.length + 1, title: "", kind: "Artwork", summary: "", itemCount: 1, reviewStatus: "IN_REVIEW",
+        sourceFileName: "Added in the console", sourceLocation: "", heading: "", fieldLabel: "", text: "", originalText: "",
+        theme: "", contentType: "Artwork", note: "", confidence: null, origin: "SOURCE", updatedBy: db.me.name, updatedAt: now(), approvedAt: null,
+        duplicateOf: null, assets: [],
+      };
+      list.push(created);
+      docs.set(created.id, structuredClone(doc));
+      touch(id);
+      return wait(created);
+    },
     async saveContentDoc(itemId, doc) {
       docs.set(itemId, structuredClone(doc));
       const item = findItem(itemId);
       const text = paragraphText(doc);
       if (text !== null) item.text = text;
-      if (item.reviewStatus === "APPROVED") item.reviewStatus = "IN_REVIEW";
+      // As on the server, the item's name is its first heading.
+      const heading = (doc as { content?: { type: string; content?: { text?: string }[] }[] }).content?.find((b) => b.type === "heading");
+      if (heading) item.title = item.heading = (heading.content ?? []).map((t) => t.text ?? "").join("");
+      if (item.reviewStatus === "APPROVED") Object.assign(item, { reviewStatus: "IN_REVIEW", approvedAt: null });
       return edited(item);
     },
     async updateContentItem(itemId, patch) {
       const item = findItem(itemId);
       if (item.reviewStatus === "REJECTED") throw new Error("Rejected items cannot be edited.");
       // SPEC §10.8: editing an approved item sends it back to review.
-      return edited(Object.assign(item, patch, item.reviewStatus === "APPROVED" ? { reviewStatus: "IN_REVIEW" } : {}));
+      return edited(Object.assign(item, patch, item.reviewStatus === "APPROVED" ? { reviewStatus: "IN_REVIEW", approvedAt: null } : {}));
     },
     listBlockSources: async () => [],
     revertBlockToSource: async () => { throw new Error("Not available in the sample data."); },
@@ -208,7 +248,7 @@ export function createMockApi(kind: "sample" | "empty"): ConsoleApi {
     },
 
     // The sample images have no files, so the preview draws a placeholder for each.
-    getPreview: (id) => wait({ checks: derivedChecks(id), imageUrls: {} }),
+    getPreview: (id) => wait({ checks: derivedChecks(id), imageUrls: {}, visitor: null }),
 
     getGuide: (id) => wait<Guide>(db.guides[id] ?? { sections: [], hasUnpublishedChanges: false }),
     async saveGuide(id, sections) {

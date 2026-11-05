@@ -126,13 +126,14 @@ export async function createContent(exhibitionId: string, input: ContentEdit & {
 // One conditional UPDATE … WHERE id = $i AND revision = $r. A REJECTED item is terminal: CONFLICT.
 export async function updateContent(
   { institutionId, userId }: { institutionId: string; userId: string },
-  input: ContentEdit & { id: string; revision: string; status?: "APPROVED" | "REJECTED" },
+  input: ContentEdit & { id: string; revision: string; status?: "APPROVED" | "READY" | "REJECTED" },
 ) {
   return db.transaction(async (tx) => {
     const row = await lockOwnedContent(tx, institutionId, input.id);
     if (row.revision !== input.revision) throw new TRPCError({ code: "PRECONDITION_FAILED", cause: new AppError("REVISION_MISMATCH") });
     if (row.status === "REJECTED") throw new TRPCError({ code: "CONFLICT", message: "A rejected item cannot change; create a new one." });
     if (input.status === "APPROVED" && row.status === "APPROVED") throw new TRPCError({ code: "CONFLICT", message: "The item is already approved." });
+    if (input.status === "READY" && row.status !== "APPROVED") throw new TRPCError({ code: "CONFLICT", message: "Only an approved item goes back to review." });
 
     const edits: Partial<typeof contents.$inferInsert> = {};
     if (input.kind !== undefined) edits.kind = input.kind;

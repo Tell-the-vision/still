@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
-import { card as cardTheme, colors, coverHeight, spacing, type, wordmark } from "../../../client/src/ui/tokens";
+import { cardBlocks } from "@still/shared/keepsake";
+import { card as cardTheme, cardBand, cardText, colors, coverHeight, spacing, type, wordmark } from "../../../client/src/ui/tokens";
 
 type Card = {
   exhibition: { title: string; venue: { name: string; city: string }; startDate: string; endDate: string };
@@ -54,49 +55,52 @@ const faces = {
   bodyMedium: { fontFamily: "DM Sans, Noto Sans KR", fontWeight: 500 },
 } as const;
 
-// A Text variant (client/src/ui/Text.tsx) at PNG scale: same face, size, line height and default tone.
-// flexShrink 0 as in React Native (satori defaults to CSS's 1), so only the cover gives way.
-function text(variant: "title" | "secondary" | "caption") {
+// A Text variant (client/src/ui/Text.tsx) at PNG scale: same face, size and line height; gray only where the web card
+// is gray. flexShrink 0 as in React Native (satori defaults to CSS's 1), so only the picture gives way.
+function text(variant: keyof typeof type, gray = false) {
   const { face, size, line } = type[variant];
-  return {
-    flexShrink: 0,
-    ...faces[face],
-    fontSize: size * scale,
-    lineHeight: `${line * scale}px`,
-    color: variant === "title" ? colors.black : colors.gray,
-    ...(variant === "caption" && { textTransform: "uppercase" as const }),
-  };
+  return { flexShrink: 0, ...faces[face], fontSize: size * scale, lineHeight: `${line * scale}px`, color: gray ? colors.gray : colors.black };
 }
 
-// The web card's layout (client/src/ui/KeepsakeCard.tsx), scaled: wordmark, cover, title and personal record
-// at the top, the caption pinned to the bottom; the cover shrinks, never crops, when the text needs the room.
+// The web card's layout (client/src/ui/KeepsakeCard.tsx), scaled: the template's blocks (cardBlocks) on the sheet, the
+// band along the foot; the picture shrinks, never crops, when the text needs the room.
 export async function renderKeepsakePng(card: Card, templateId: string) {
   const { exhibition } = card;
-  const personal =
-    templateId === "sentence" ? card.sentences.map((s) => s.content)
-    : templateId === "reflection" ? [card.sentences[0]?.content, card.journalExcerpt].filter((t): t is string => !!t)
-    : [];
+  const blocks = cardBlocks({ title: exhibition.title, image: card.image, sentences: card.sentences, journalExcerpt: card.journalExcerpt }, templateId);
   const cover = card.image && (await fetchCover(card.image.url));
-  const innerWidth = cardTheme.width - 2 * (cardTheme.borderWidth + spacing.gap);
+  const sheet = cardTheme.width - 2 * cardTheme.borderWidth;
+  const pad = cardTheme.padding * scale;
   const mark = wordmark.card;
   return new ImageResponse(
     (
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "100%", height: "100%", padding: spacing.gap * scale, background: colors.white, color: colors.black, border: `${cardTheme.borderWidth * scale}px solid ${colors.black}` }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: spacing.inset * scale, flexShrink: 1, minHeight: 0, marginBottom: spacing.tight * scale }}>
-          <div style={{ flexShrink: 0, ...faces.display, fontSize: mark.size * scale, lineHeight: `${mark.line * scale}px`, letterSpacing: mark.tracking * scale }}>{mark.text}</div>
-          {card.image && cover && (
-            <div style={{ display: "flex", height: coverHeight(innerWidth, card.image) * scale, flexShrink: 1, minHeight: 0 }}>
-              {/* satori renders a plain img; next/image does not apply */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-            </div>
-          )}
-          <div style={text("title")}>{exhibition.title}</div>
-          {personal.map((line) => (
-            <div key={line} style={text("secondary")}>{line}</div>
-          ))}
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: colors.white, color: colors.black, border: `${cardTheme.borderWidth * scale}px solid ${colors.black}` }}>
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexShrink: 1, minHeight: 0, padding: pad, gap: (spacing.inset + 2) * scale, overflow: "hidden" }}>
+          {blocks.map((block, i) => {
+            if (block.kind === "picture") {
+              if (!card.image || !cover) return null;
+              const width = block.full ? sheet : sheet - 2 * cardTheme.padding;
+              return (
+                <div key={`picture-${i}`} style={{ display: "flex", height: coverHeight(width, card.image) * scale, flexShrink: 1, minHeight: 0, marginLeft: block.full ? -pad : 0, marginRight: block.full ? -pad : 0, marginTop: block.full && block.first ? -pad : 0, background: block.full ? colors.placeholder : "transparent" }}>
+                  {/* satori renders a plain img; next/image does not apply */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                </div>
+              );
+            }
+            const { variant, gray, rule } = cardText[block.role];
+            return (
+              <div key={block.id} style={{ display: "flex", flexShrink: 0, ...(rule && { borderTop: `${scale}px solid ${colors.black}`, paddingTop: spacing.tight * scale }) }}>
+                <div style={text(variant, gray)}>{block.text}</div>
+              </div>
+            );
+          })}
         </div>
-        <div style={text("caption")}>{`${exhibition.venue.city} / ${exhibition.startDate.slice(0, 4)}`}</div>
+        <div style={{ display: "flex", flexShrink: 0, height: cardTheme.band * scale, alignItems: "center", justifyContent: "space-between", padding: `0 ${pad}px`, background: colors.black, color: colors.white }}>
+          <div style={{ ...faces.display, fontSize: mark.size * scale, lineHeight: `${mark.line * scale}px`, letterSpacing: mark.tracking * scale }}>{mark.text}</div>
+          <div style={{ ...faces.bodyMedium, fontSize: cardBand.size * scale, lineHeight: `${cardBand.line * scale}px`, letterSpacing: cardBand.tracking * scale, textTransform: "uppercase" }}>
+            {`${exhibition.venue.city} · ${exhibition.startDate.slice(0, 4)}`}
+          </div>
+        </div>
       </div>
     ),
     { width: 1080, height: 1440, fonts },

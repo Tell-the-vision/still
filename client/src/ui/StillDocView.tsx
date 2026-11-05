@@ -10,6 +10,9 @@ type StillNode = { type: string; attrs?: Record<string, unknown>; content?: Stil
 export type StillDoc = { version: 1; type: "doc"; content: StillNode[] };
 export type KeepableSentence = { sentenceId: string; text: string };
 export type RenderSentence = (sentence: KeepableSentence, quote: ReactNode) => ReactNode;
+// A playlist block: its link and title (possibly empty). The screen decides how it is drawn.
+export type PagePlaylist = { url: string; title: string };
+export type RenderPlaylist = (playlist: PagePlaylist) => ReactNode;
 
 export const isStillDoc = (document: unknown): document is StillDoc =>
   typeof document === "object" && document !== null && (document as { type?: unknown }).type === "doc";
@@ -115,11 +118,14 @@ function Gallery({ nodes, renderSentence }: { nodes: StillNode[]; renderSentence
   );
 }
 
-export function StillDocView({ document, renderSentence }: { document: StillDoc; renderSentence?: RenderSentence }) {
+export function StillDocView({ document, renderSentence, renderPlaylist }: { document: StillDoc; renderSentence?: RenderSentence; renderPlaylist?: RenderPlaylist }) {
   return (
-    <View style={{ gap: spacing.gap, maxWidth: MEASURE }}>
+    // Text keeps the reading measure; an image is centred in the full column (still never past its own pixels).
+    <View style={{ gap: spacing.gap }}>
       {document.content.map((node, i) => {
-        if (!isGallery(node)) return <Block key={i} node={node} first={i === 0} renderSentence={renderSentence} />;
+        if (node.type === "playlist") return <View key={i}>{renderPlaylist?.({ url: String(node.attrs?.url ?? ""), title: String(node.attrs?.title ?? "") })}</View>;
+        if (node.type === "stillImage" && !isGallery(node)) return <Block key={i} node={node} first={i === 0} renderSentence={renderSentence} />;
+        if (!isGallery(node)) return <View key={i} style={{ maxWidth: MEASURE }}><Block node={node} first={i === 0} renderSentence={renderSentence} /></View>;
         if (i > 0 && isGallery(document.content[i - 1])) return null; // already in the row above
         const row = [node];
         for (let j = i + 1; j < document.content.length && isGallery(document.content[j]); j++) row.push(document.content[j]);

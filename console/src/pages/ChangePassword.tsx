@@ -15,7 +15,7 @@ export default function ChangePassword() {
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]); // a failed submit moves focus to the message
 
   if (status === "signed-out") return <Navigate to="/sign-in" replace />;
-  if (status === "ready" || status === "error") return <Navigate to="/overview" replace />;
+  if (status === "ready" || status === "error") return <Navigate to="/" replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,7 +38,7 @@ export default function ChangePassword() {
         <p className="signin__portal">Institution portal</p>
       </header>
 
-      <div className="signin__body signin__body--single">
+      <div className="signin__body">
         <form className="signin__form" onSubmit={submit} noValidate>
           <p className="signin__note signin__note--lead">Temporary screen (임시) · not designed yet</p>
           <p className="signin__eyebrow">First sign-in</p>

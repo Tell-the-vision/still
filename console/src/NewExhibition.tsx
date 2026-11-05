@@ -27,7 +27,7 @@ export function NewExhibitionButton({ onCreate }: { onCreate: (input: NewExhibit
   );
 }
 
-function NewExhibitionDialog({ onCreate, onClose }: { onCreate: (input: NewExhibition) => Promise<unknown>; onClose: () => void }) {
+export function NewExhibitionDialog({ onCreate, onClose }: { onCreate: (input: NewExhibition) => Promise<unknown>; onClose: () => void }) {
   const { workspace } = useWorkspace();
   const ref = useRef<HTMLDialogElement>(null);
   const ids = { title: useId(), code: useId(), codeError: useId(), heading: useId() };

@@ -15,7 +15,7 @@ export default function SignIn() {
   const [showReset, setShowReset] = useState(false);
 
   if (status === "password-change") return <Navigate to="/change-password" replace />;
-  if (status === "ready") return <Navigate to={from && from !== "/sign-in" ? from : "/overview"} replace />;
+  if (status === "ready") return <Navigate to={from && from !== "/sign-in" ? from : "/"} replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -42,18 +42,11 @@ export default function SignIn() {
         <p className="signin__portal">Institution portal</p>
       </header>
 
+      {/* Just the form: staff come here to sign in, not to be pitched to. */}
       <div className="signin__body">
-        <section className="signin__panel" aria-label="About the institution portal">
-          <p className="signin__eyebrow">For museums &amp; cultural institutions</p>
-          <h2 className="signin__headline">Your exhibition.<br />Your stories.<br />Still with visitors.</h2>
-          <p className="signin__pitch">Manage exhibition materials, review your digital guide, and publish a visitor experience through one workspace.</p>
-          <p className="signin__panel-foot">STILL&nbsp;&nbsp;·&nbsp;&nbsp;Art stays with you.</p>
-        </section>
-
         <form className="signin__form" onSubmit={submit} noValidate>
-          <p className="signin__eyebrow">Welcome back</p>
           <h1 className="signin__title">Sign in to your workspace</h1>
-          <p className="signin__desc">Use the credentials provided by your institution administrator.</p>
+          <p className="signin__desc">Use the institution ID and email your administrator gave you.</p>
 
           <label className="signin__field">
             <span className="signin__label">Institution ID</span>
@@ -97,7 +90,6 @@ export default function SignIn() {
           <button type="submit" className="signin__submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
 
           <p className="signin__help">Need access? Contact your institution administrator.</p>
-          <p className="signin__secure">Secure access for registered institution accounts.</p>
         </form>
       </div>
     </div>

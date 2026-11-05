@@ -142,7 +142,7 @@ test("publishing is refused for a stale revision, failing checks, and unconfirme
   expect(await liveSentences(exhibition.id)).toEqual([]);
 });
 
-test("an image without a public copy blocks publication until extraction exists", async ({ page }) => {
+test("an image with neither a public file nor a document to copy one from blocks publication", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const { exhibition, content } = await seedCompleteDraft(account);
   const [image] = await e2eSql<{ id: string }>(

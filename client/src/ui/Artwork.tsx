@@ -11,7 +11,8 @@ export function Artwork({ url, altText, width, height, caption, maxHeight }: Pro
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
-    <View style={{ gap: spacing.tight }}>
+    // At most its own pixel width (never upscaled, SPEC §0.3) and centred in the column; the caption follows it.
+    <View style={{ gap: spacing.tight, width: "100%", maxWidth: width, alignSelf: "center" }}>
       <Image
         source={{ uri: url }}
         alt={altText ?? undefined}

@@ -366,13 +366,20 @@ export const journals = pgTable(
   (t) => [check('journals_audio_type_check', sql`${t.audioType} IN ('EXTERNAL', 'AMBIENCE', 'NONE')`)],
 );
 
-export const digitalKeepsakes = pgTable('digital_keepsakes', {
-  archiveId: uuid().primaryKey().references(() => archives.id, { onDelete: 'cascade' }),
-  templateId: text().notNull(),
-  contentData: jsonb().notNull(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const digitalKeepsakes = pgTable(
+  'digital_keepsakes',
+  {
+    archiveId: uuid().notNull().references(() => archives.id, { onDelete: 'cascade' }),
+    // The guide page the card is about (each artwork has its own page): the first 8 characters of its content id.
+    // Empty for a card of the whole visit, made before pages had their own.
+    page: text().notNull().default(''),
+    templateId: text().notNull(),
+    contentData: jsonb().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.archiveId, t.page] })],
+);
 
 // Generated and edited guide text (SPEC §10.8).
 export const contents = pgTable(
@@ -462,7 +469,7 @@ export const archivesRelations = relations(archives, ({ one, many }) => ({
   exhibition: one(exhibitions, { fields: [archives.exhibitionId], references: [exhibitions.id] }),
   scraps: many(scraps),
   journal: one(journals),
-  keepsake: one(digitalKeepsakes),
+  keepsakes: many(digitalKeepsakes),
 }));
 export const scrapsRelations = relations(scraps, ({ one }) => ({
   archive: one(archives, { fields: [scraps.archiveId], references: [archives.id] }),

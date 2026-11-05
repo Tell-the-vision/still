@@ -1,7 +1,10 @@
 // ⚠ SAMPLE DATA — only so the screens can be looked at before the backend exists.
-// Not real museum data. Used by the mock adapter when VITE_MOCK_SEED is "sample" (the default).
+// The institution and exhibitions are placeholders; the artworks are real Open Access records from The Met
+// (openAccessArtworks.ts, CC0), shown with their published label facts only. Used by the mock adapter when
+// VITE_MOCK_SEED is "sample" (the default).
 // Open the app with ?seed=empty to see every screen with no data at all.
 
+import { OPEN_ACCESS_ARTWORKS, type OpenAccessArtwork } from "./openAccessArtworks";
 import type { ContentItem, Exhibition, Guide, MediaAsset, Me, ProcessingEvent, PublicationCheck, SourceFile, Venue, Workspace } from "./types";
 
 export interface Seed {
@@ -44,82 +47,32 @@ export function sampleSeed(): Seed {
     ],
     exhibitions: [
       {
-        id: ex, code: "exhibition-title", title: "Exhibition Title", subtitle: "Exhibition subtitle",
-        venueName: "MMCA Seoul", venueId: "v1", startDate: "2026-11-20", endDate: "2027-03-28", status: "DRAFT", updatedAt: new Date().toISOString(),
+        id: ex, code: "painting-modern-life", title: "Painting Modern Life, 1865–1892", subtitle: "Manet, Degas, Renoir and van Gogh",
+        venueName: "MMCA Seoul", venueCity: "Seoul", venueId: "v1", startDate: "2026-11-20", endDate: "2027-03-28", status: "DRAFT", publishedAt: null, updatedAt: new Date().toISOString(),
       },
       {
-        id: "sample-ex-2", code: "live-exhibition", title: "Live Exhibition", subtitle: "Exhibition subtitle",
-        venueName: "MMCA Seoul", venueId: "v1", startDate: "2026-08-27", endDate: "2027-02-09", status: "PUBLISHED", updatedAt: "2026-11-04T09:00:00Z",
+        id: "sample-ex-2", code: "turner-venice", title: "Turner's Venice", subtitle: "Light on water",
+        venueName: "MMCA Seoul", venueCity: "Seoul", venueId: "v1", startDate: "2026-08-27", endDate: "2027-02-09", status: "PUBLISHED", publishedAt: "2026-11-04T09:00:00Z", updatedAt: "2026-11-04T09:00:00Z",
       },
       {
-        id: "sample-ex-3", code: "past-exhibition", title: "Past Exhibition", subtitle: "Exhibition subtitle",
-        venueName: "SeMA Seosomun", venueId: "v2", startDate: "2026-05-19", endDate: "2026-10-25", status: "PUBLISHED", updatedAt: "2026-10-28T09:00:00Z",
+        id: "sample-ex-3", code: "bruegel-harvest", title: "Bruegel's Harvest", subtitle: "Seasons of labour",
+        venueName: "SeMA Seosomun", venueCity: "Seoul", venueId: "v2", startDate: "2026-05-19", endDate: "2026-10-25", status: "PUBLISHED", publishedAt: "2026-10-28T09:00:00Z", updatedAt: "2026-10-28T09:00:00Z",
       },
     ],
     files: {
       [ex]: [
-        { id: "sf1", name: "01_Exhibition_Introduction.pdf", format: "PDF", summary: "8 pages", sizeBytes: 6.4e6, uploadedAt: "2026-11-05T01:42:00Z", status: "PROCESSED", error: null },
-        { id: "sf2", name: "02_Artwork_Checklist.xlsx", format: "XLSX", summary: "54 rows", sizeBytes: 1.2e6, uploadedAt: "2026-11-05T01:43:00Z", status: "PROCESSED", error: null },
-        { id: "sf3", name: "03_Press_Release.pdf", format: "PDF", summary: "4 pages", sizeBytes: 2.1e6, uploadedAt: "2026-11-05T01:44:00Z", status: "PROCESSED", error: null },
+        { id: "sf1", name: "Painting_Modern_Life_checklist.xlsx", format: "XLSX", summary: `${OPEN_ACCESS_ARTWORKS.length} rows`, sizeBytes: 0.4e6, uploadedAt: "2026-11-05T01:42:00Z", status: "PROCESSED", error: null },
+        { id: "sf2", name: "Met_open_access_images.zip", format: "ZIP", summary: `${OPEN_ACCESS_ARTWORKS.length} images`, sizeBytes: 24.8e6, uploadedAt: "2026-11-05T01:43:00Z", status: "PROCESSED", error: null },
       ],
     },
     items: {
-      [ex]: [
-        item({
-          id: "ci1", order: 1, title: "Exhibition introduction", kind: "Exhibition text", summary: "Overview · 3 paragraphs", itemCount: 3,
-          reviewStatus: "APPROVED", confidence: 0.96, updatedBy: "Reviewer Name", updatedAt: "2026-11-05T02:10:00Z",
-          sourceFileName: "01_Exhibition_Introduction.pdf", sourceLocation: "Exhibition introduction · Page 1", heading: "Exhibition introduction",
-          fieldLabel: "Extracted paragraph 01", text: "Extracted introduction paragraph.", theme: "Overview", contentType: "Section text",
-        }),
-        item({
-          id: "ci2", order: 2, title: "Curator statement", kind: "Curator statement", summary: "Key statement · 5 sentences", itemCount: 5,
-          confidence: 0.88, sourceFileName: "01_Exhibition_Introduction.pdf", sourceLocation: "Curator statement · Page 2", heading: "Key statements",
-          fieldLabel: "Extracted sentence 01", text: "끝을 마주할 때, 우리는 삶의 모양을 더 선명하게 바라본다.",
-          theme: "Life & Death", contentType: "Guide sentence",
-        }),
-        item({
-          id: "ci3", order: 3, title: "Artwork descriptions", kind: "Artwork records", summary: "Artwork records · 54", itemCount: 54,
-          reviewStatus: "APPROVED", confidence: 0.99, updatedBy: "Reviewer Name", updatedAt: "2026-11-05T02:12:00Z",
-          sourceFileName: "02_Artwork_Checklist.xlsx", sourceLocation: "Artwork checklist · Row 2", heading: "Artwork descriptions",
-          fieldLabel: "Artwork 01 caption", text: "Artwork title, year. Medium.", theme: "Overview", contentType: "Artwork caption",
-          assets: [
-            asset({ id: "as3a", name: "02_Artwork_Checklist.xlsx · Artwork 01", rights: "CONFIRMED", credit: "Artist Name, Artwork 01, 2024. Courtesy of the artist.", altText: "A tall bronze figure in an empty white room." }),
-            asset({ id: "as3b", name: "02_Artwork_Checklist.xlsx · Artwork 02", credit: "Artist Name, Artwork 02, 2025." }),
-          ],
-        }),
-        item({
-          id: "ci4", order: 4, title: "Installation views", kind: "Exhibition images", summary: "Images · 2", itemCount: 2,
-          confidence: 0.81, sourceFileName: "01_Exhibition_Introduction.pdf", sourceLocation: "Installation views · Pages 6–7", heading: "Installation views",
-          fieldLabel: "Image caption 01", text: "Installation view, Gallery 1.", theme: "Overview", contentType: "Artwork caption",
-          assets: [
-            asset({ id: "as4a", name: "01_Exhibition_Introduction.pdf · Page 6" }),
-            asset({ id: "as4b", name: "01_Exhibition_Introduction.pdf · Page 7", rights: "RESTRICTED", credit: "Photo: Gallery archive" }),
-          ],
-        }),
-        item({
-          id: "ci5", order: 5, title: "Press release introduction", kind: "Exhibition text", summary: "Overview · 2 paragraphs", itemCount: 2,
-          confidence: 0.9, duplicateOf: "ci1", sourceFileName: "03_Press_Release.pdf", sourceLocation: "Press release · Page 1", heading: "Press release introduction",
-          fieldLabel: "Extracted paragraph 01", text: "Extracted introduction paragraph, as worded in the press release.",
-          theme: "Overview", contentType: "Editorial copy",
-        }),
-        item({
-          id: "ci6", order: 6, title: "Gallery 3 — section text", kind: "Gallery / section text", summary: "Section description · 2", itemCount: 2,
-          confidence: 0.52, sourceFileName: "01_Exhibition_Introduction.pdf", sourceLocation: "Gallery 3 · Pages 4–5 (split across pages)", heading: "Gallery 3",
-          fieldLabel: "Extracted paragraph 01", text: "Section text that was split across two pages and may be incomplete.",
-          theme: "Science & Medicine", contentType: "Section text",
-        }),
-        item({
-          id: "ci7", order: 7, title: "Candidate guide sentences", kind: "Guide statement", summary: "Suggested · 3 sentences", itemCount: 3,
-          origin: "AI_SUGGESTION", confidence: null, sourceFileName: "01_Exhibition_Introduction.pdf", sourceLocation: "Suggested from the curator statement · Page 2",
-          heading: "Candidate guide sentences", fieldLabel: "Suggested sentence 01", text: "삶과 죽음 사이의 모든 것을 바라보는 시간.",
-          theme: "Life & Death", contentType: "Guide sentence",
-        }),
-      ],
+      // One artwork per row of the checklist; a few already approved, one image whose rights are not confirmed yet.
+      [ex]: OPEN_ACCESS_ARTWORKS.map((work, n) => artworkItem(work, n, n < 3 ? "APPROVED" : "IN_REVIEW", n === 4 ? "UNCONFIRMED" : "CONFIRMED")),
     },
     events: {
       [ex]: [
-        { id: "pe1", at: "2026-11-05T01:47:00Z", title: "All source files uploaded", detail: "3 files", status: "COMPLETE" },
-        { id: "pe2", at: "2026-11-05T01:48:00Z", title: "Text extraction", detail: "PDF and XLSX parsed", status: "COMPLETE" },
+        { id: "pe1", at: "2026-11-05T01:47:00Z", title: "All source files uploaded", detail: "2 files", status: "COMPLETE" },
+        { id: "pe2", at: "2026-11-05T01:48:00Z", title: "Text extraction", detail: "XLSX and images read", status: "COMPLETE" },
         { id: "pe3", at: null, title: "Curator review", detail: "Items require your attention", status: "IN_PROGRESS" },
       ],
     },
@@ -134,12 +87,33 @@ export function sampleSeed(): Seed {
       [ex]: {
         hasUnpublishedChanges: true,
         sections: [
-          { id: "gs1", kind: "INTRODUCTION", title: "Exhibition introduction", visible: true, contentIds: ["ci1"] },
-          { id: "gs2", kind: "THEMES", title: "Themes & keywords", visible: true, contentIds: ["ci3"] },
+          { id: "gs1", kind: "ARTWORK_HIGHLIGHTS", title: "Artworks", visible: true, contentIds: OPEN_ACCESS_ARTWORKS.map((w) => w.id) },
         ],
       },
     },
   };
+}
+
+// An artwork as an item: its label facts in order, the image under the title, exactly as the museum publishes them.
+function artworkItem(work: OpenAccessArtwork, n: number, reviewStatus: ContentItem["reviewStatus"], rights: MediaAsset["rights"]): ContentItem {
+  const lines = [`${work.artist} (${work.bio})`, `${work.date} · ${work.medium} · ${work.dimensions}`, work.credit];
+  const paragraph = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+  return item({
+    id: work.id, order: n + 1, title: work.title, kind: "Artwork", summary: `${work.artist} · ${work.date}`,
+    reviewStatus, confidence: 0.97, sourceFileName: "Painting_Modern_Life_checklist.xlsx", sourceLocation: `Checklist · Row ${n + 2}`,
+    heading: work.title, fieldLabel: "Artwork label", text: lines.join("\n\n"), contentType: "Artwork",
+    updatedBy: reviewStatus === "APPROVED" ? "Curator Name" : null, updatedAt: reviewStatus === "APPROVED" ? "2026-11-05T02:10:00Z" : null,
+    approvedAt: reviewStatus === "APPROVED" ? "2026-11-05T02:10:00Z" : null,
+    assets: [asset({ id: `${work.id}-img`, name: `Met_open_access_images.zip · ${work.objectId}.jpg`, rights, credit: `${work.artist}, ${work.title}, ${work.date}. The Met, ${work.credit}.`, altText: work.title })],
+    doc: {
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: work.title }] },
+        { type: "image", attrs: { src: work.image, alt: work.title, width: "100%" } } as never,
+        ...lines.map(paragraph),
+      ],
+    } as ContentItem["doc"],
+  });
 }
 
 // Defaults for sample records: an in-review item from a source file, no edits, no media.
@@ -147,7 +121,7 @@ function item(fields: Partial<ContentItem> & Pick<ContentItem, "id" | "order" | 
   return {
     kind: "", summary: "", itemCount: 1, reviewStatus: "IN_REVIEW", sourceFileName: "", sourceLocation: "", heading: fields.title,
     fieldLabel: "", originalText: fields.text, theme: "", contentType: "", note: "", confidence: null, origin: "SOURCE",
-    updatedBy: null, updatedAt: null, duplicateOf: null, assets: [],
+    updatedBy: null, updatedAt: null, approvedAt: null, duplicateOf: null, assets: [],
     ...fields,
   };
 }

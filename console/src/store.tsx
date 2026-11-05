@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type GuideSection, type MediaAssetPatch, type Me, type NewExhibition, type ProcessingEvent,
-  type PublicationCheck, type PublicationDetails, type SignInRequest, type SourceFile, type Workspace,
+  api, ApiError, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type GuideSection, type MediaAssetPatch, type Me, type NewExhibition, type ProcessingEvent,
+  type PublicationCheck, type PublicationDetails, type SignInRequest, type SourceFile, type VisitorDraft, type Workspace,
 } from "./api";
 
 // All screens read and write through here; this file only talks to `api`, never to sample data.
@@ -10,16 +10,21 @@ import {
 // "password-change": signed in with a temporary password; only /change-password works (SPEC §10.5).
 type Status = "loading" | "ready" | "error" | "signed-out" | "password-change";
 
+// The exhibition last opened on this device, so a reload stays on it (for example right after publishing it).
+const LAST_EXHIBITION_KEY = "still.console.exhibition";
+
 interface ExhibitionData {
   files: SourceFile[];
   items: ContentItem[];
   events: ProcessingEvent[];
   checks: PublicationCheck[];
-  /** Public URLs of the images the compiled guide shows, by image id (console.preview.get). */
+  /** Where the console shows each image the documents place, published or not, by image id (console.preview.get). */
   imageUrls: Record<string, string>;
+  /** The draft as the visitor renderer takes it, for the phone preview (console.preview.get). */
+  visitor: VisitorDraft | null;
   guide: Guide;
 }
-const EMPTY: ExhibitionData = { files: [], items: [], events: [], checks: [], imageUrls: {}, guide: { sections: [], hasUnpublishedChanges: false } };
+const EMPTY: ExhibitionData = { files: [], items: [], events: [], checks: [], imageUrls: {}, visitor: null, guide: { sections: [], hasUnpublishedChanges: false } };
 
 function useWorkspaceState() {
   const [status, setStatus] = useState<Status>("loading");
@@ -57,7 +62,8 @@ function useWorkspaceState() {
       const [w, list] = await Promise.all([api.getWorkspace(), api.listExhibitions()]);
       setWorkspace(w);
       setExhibitions(list);
-      setCurrentId((id) => id ?? list.find((e) => e.status === "DRAFT")?.id ?? list[0]?.id ?? null);
+      const last = localStorage.getItem(LAST_EXHIBITION_KEY);
+      setCurrentId((id) => id ?? list.find((e) => e.id === last)?.id ?? list.find((e) => e.status === "DRAFT")?.id ?? list[0]?.id ?? null);
       setStatus("ready");
     } catch (e) {
       if (isUnauthorized(e)) setStatus("signed-out");
@@ -65,6 +71,7 @@ function useWorkspaceState() {
     }
   }, []);
   useEffect(() => { loadWorkspace(); }, [loadWorkspace]);
+  useEffect(() => { if (currentId) localStorage.setItem(LAST_EXHIBITION_KEY, currentId); }, [currentId]);
 
   // Drops everything the previous user loaded, so nothing leaks to the next sign-in on this device.
   const resetSession = () => {
@@ -72,6 +79,7 @@ function useWorkspaceState() {
     inFlight.current.forEach((c) => c.abort());
     inFlight.current.clear();
     retryable.current.clear();
+    localStorage.removeItem(LAST_EXHIBITION_KEY);
     setWorkspace(null); setMe(null); setExhibitions([]); setCurrentId(null); setData(EMPTY); setLocalFiles([]);
     setStatus("signed-out");
   };
@@ -86,7 +94,7 @@ function useWorkspaceState() {
       files: value(files, EMPTY.files),
       items: value(items, EMPTY.items),
       events: value(events, EMPTY.events),
-      ...value(preview, { checks: EMPTY.checks, imageUrls: EMPTY.imageUrls }),
+      ...value(preview, { checks: EMPTY.checks, imageUrls: EMPTY.imageUrls, visitor: EMPTY.visitor }),
       guide: value(guide, EMPTY.guide),
     });
     const failed = [files, items, events, preview, guide].find((part) => part.status === "rejected");
@@ -115,6 +123,25 @@ function useWorkspaceState() {
     return () => { source.close(); clearInterval(timer); };
   }, [currentId, analysing, loadExhibitionData]);
 
+  // The analysis starts by itself, with no button: after each upload, and again when a running analysis ends,
+  // so files read meanwhile are picked up. console.analysis.create only takes documents not analysed yet.
+  const autoAnalyse = useCallback(async (exhibitionId: string) => {
+    try {
+      await api.startAnalysis(exhibitionId);
+    } catch (e) {
+      // Nothing new to analyse, or one is running already: the rest is picked up when that one ends.
+      if (e instanceof ApiError && (e.code === "BAD_REQUEST" || e.appCode === "ANALYSIS_IN_PROGRESS")) return;
+      fail(e);
+      return;
+    }
+    await loadExhibitionData(exhibitionId).catch(fail);
+  }, [loadExhibitionData]);
+  const wasAnalysing = useRef(false);
+  useEffect(() => {
+    if (wasAnalysing.current && !analysing && currentId) void autoAnalyse(currentId);
+    wasAnalysing.current = analysing;
+  }, [analysing, currentId, autoAnalyse]);
+
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;
   const replaceExhibition = (e: Exhibition) => setExhibitions((list) => list.map((x) => (x.id === e.id ? e : x)));
   // Approved items in the current exhibition, for the guide's section picker.
@@ -135,8 +162,8 @@ function useWorkspaceState() {
   // Re-reads the publication checks and preview images (console.preview.get).
   const refreshPreview = async () => {
     if (!currentId) return;
-    const { checks, imageUrls } = await api.getPreview(currentId);
-    setData((d) => ({ ...d, checks, imageUrls }));
+    const { checks, imageUrls, visitor } = await api.getPreview(currentId);
+    setData((d) => ({ ...d, checks, imageUrls, visitor }));
   };
   // Runs an item mutation, swaps in the returned item, then refreshes the publication checks it can change.
   // `docChanged`: the mutation rewrote the document, so the editor reopens on it.
@@ -172,6 +199,7 @@ function useWorkspaceState() {
       retryable.current.delete(rowId);
       setLocalFiles((l) => l.filter((r) => r.id !== rowId));
       setData((d) => ({ ...d, files: [...d.files, saved] }));
+      void autoAnalyse(exhibitionId);
     } catch (e) {
       retryable.current.set(rowId, file);
       const canceled = e instanceof DOMException && e.name === "AbortError";
@@ -185,6 +213,17 @@ function useWorkspaceState() {
     if (!currentId) return;
     queue.current.push({ rowId, file, exhibitionId: currentId });
     pump();
+  };
+
+  // Saves the guide with these sections, then publishes it: what the sections list is exactly what goes live.
+  // Publishing confirms the rights statement (the API sends it).
+  const publishSections = async (sections: GuideSection[]) => {
+    if (!currentId) return;
+    if (JSON.stringify(sections) !== JSON.stringify(data.guide.sections)) {
+      const guide = await api.saveGuide(currentId, sections);
+      setData((d) => ({ ...d, guide }));
+    }
+    replaceExhibition(await api.publishExhibition(currentId));
   };
 
   // Wraps a mutation: clears the old error, reports a new one, rethrows so callers can stop.
@@ -204,6 +243,10 @@ function useWorkspaceState() {
     /** Editor autosave: swaps in the returned item (an approved one goes back to review). Errors are rethrown for the editor. */
     saveDoc: async (itemId: string, doc: unknown) => {
       replaceItem(itemId, await api.saveContentDoc(itemId, doc));
+      // A picture just placed is not in the preview yet: read it again, so the phone preview shows the picture too.
+      const placed = ((doc as { content?: { type: string; attrs?: { imageId?: unknown } }[] }).content ?? [])
+        .flatMap((block) => (block.type === "stillImage" && typeof block.attrs?.imageId === "string" ? [block.attrs.imageId] : []));
+      if (placed.some((imageId) => !(imageId in data.imageUrls))) void refreshPreview().catch(fail);
     },
     reloadWorkspace: () => api.getWorkspace().then(setWorkspace).catch(fail),
     /** Errors stay on the form (not the app banner) and are rethrown for it. */
@@ -245,6 +288,41 @@ function useWorkspaceState() {
       replaceExhibition(await api.publishExhibition(currentId));
     }),
     unpublishExhibition: (id: string) => run(async () => replaceExhibition(await api.unpublishExhibition(id))),
+    /**
+     * Publish All (SPEC §9.4 발행): the guide becomes every approved item and nothing else. Items under review leave it;
+     * approved artworks in no section yet join the artworks one. With nothing approved, nothing is left to show and a
+     * live guide goes offline instead.
+     */
+    publishAll: () => run(async () => {
+      if (!currentId) return;
+      const approved = new Set(data.items.filter((i) => i.reviewStatus === "APPROVED").map((i) => i.id));
+      if (approved.size === 0) { replaceExhibition(await api.unpublishExhibition(currentId)); return; }
+      let sections = data.guide.sections.map((section) => ({ ...section, contentIds: section.contentIds.filter((id) => approved.has(id)) }));
+      const listed = new Set(sections.flatMap((section) => section.contentIds));
+      const missing = data.items.filter((i) => i.kind === "Artwork" && approved.has(i.id) && !listed.has(i.id)).map((i) => i.id);
+      if (missing.length) {
+        const at = sections.findIndex((section) => section.kind === "ARTWORK_HIGHLIGHTS");
+        sections = at >= 0
+          ? sections.map((section, n) => (n === at ? { ...section, contentIds: [...section.contentIds, ...missing] } : section))
+          : [...sections, { id: `artworks-${Date.now()}`, kind: "ARTWORK_HIGHLIGHTS", title: "Artworks", visible: true, contentIds: missing }];
+      }
+      await publishSections(sections);
+    }),
+    /**
+     * Takes one live artwork out of the guide at once, to edit it: it goes back to review and the guide is published
+     * again with only what was live besides it (approved artworks waiting for Publish All keep waiting). With nothing
+     * left live, the guide goes offline.
+     */
+    unpublishArtwork: (itemId: string) => run(async () => {
+      if (!currentId) return;
+      const publishedAt = exhibitions.find((e) => e.id === currentId)?.publishedAt;
+      const live = (i: ContentItem) => i.reviewStatus === "APPROVED" && !!publishedAt && !!i.approvedAt && i.approvedAt <= publishedAt;
+      const staying = new Set(data.items.filter((i) => i.id !== itemId && live(i)).map((i) => i.id));
+      replaceItem(itemId, await api.reopenContentItem(itemId));
+      if (staying.size === 0) replaceExhibition(await api.unpublishExhibition(currentId));
+      else await publishSections(data.guide.sections.map((section) => ({ ...section, contentIds: section.contentIds.filter((id) => staying.has(id)) })));
+      await refreshPreview();
+    }),
 
     /** Queues each file on its own: one failure never discards the others (handoff 12). */
     uploadFiles: (files: File[]) => {
@@ -285,6 +363,8 @@ function useWorkspaceState() {
       setData((d) => ({ ...d, files: d.files.filter((f) => f.id !== fileId) }));
     }),
     downloadFile: (fileId: string) => run(async () => { window.open(await api.getFileDownloadUrl(fileId), "_blank", "noopener"); }),
+    /** Analyses files that were read but never analysed (e.g. the tab closed mid-upload). Quiet when there is nothing new. */
+    analysePending: () => (currentId ? autoAnalyse(currentId) : Promise.resolve()),
     startAnalysis: () => run(async () => {
       if (!currentId) return;
       await api.startAnalysis(currentId);
@@ -294,6 +374,22 @@ function useWorkspaceState() {
     // A text patch rewrites the document, so the editor reopens on it.
     updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch), patch.text !== undefined)),
     revertBlock: (itemId: string, nodeId: string) => run(() => applyItem(itemId, () => api.revertBlockToSource(itemId, nodeId), true)),
+    /** Creates a blank artwork and returns it, so the editor can open on it. */
+    createArtwork: (doc: unknown) => run(async () => {
+      if (!currentId) throw new Error("No exhibition is open.");
+      const created = await api.createArtwork(currentId, doc);
+      setData((d) => ({ ...d, items: [...d.items, created] }));
+      return created;
+    }),
+    /** An item's name is its document's first heading (SPEC §10.8), so renaming rewrites that heading; the editor reopens on it. */
+    renameItem: (itemId: string, name: string) => run(async () => {
+      const doc = structuredClone(api.getContentDoc(itemId)) as { type: "doc"; content: { type: string; attrs?: Record<string, unknown>; content?: unknown[] }[] };
+      const at = doc.content.findIndex((b) => b.type === "heading");
+      const heading = { type: "heading", attrs: { level: 2, ...(at >= 0 ? doc.content[at].attrs : {}) }, content: [{ type: "text", text: name }] };
+      if (at >= 0) doc.content[at] = heading;
+      else doc.content.unshift(heading);
+      await applyItem(itemId, () => api.saveContentDoc(itemId, doc), true);
+    }),
     approveItem: (itemId: string) => run(() => applyItem(itemId, () => api.approveContentItem(itemId))),
     // Rejecting also takes the item out of the guide draft on the server (SPEC §10.8), so re-read the guide.
     rejectItem: (itemId: string) => run(async () => {
@@ -319,7 +415,7 @@ function useWorkspaceState() {
   return {
     status, dataStatus, error, workspace, me, exhibitions, exhibition, counts,
     files: [...data.files, ...localFiles], items: data.items, approvedItems,
-    events: data.events, checks: data.checks, imageUrls: data.imageUrls, guide: data.guide, docVersion,
+    events: data.events, analysing, checks: data.checks, imageUrls: data.imageUrls, visitorDraft: data.visitor, guide: data.guide, docVersion,
     ...actions,
   };
 }

@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 
 import { colors } from "./tokens";
 
-export { card, colors, coverHeight, fontSize, spacing, type, wordmark } from "./tokens";
+export { card, cardBand, cardText, colors, coverHeight, fontSize, spacing, type, wordmark } from "./tokens";
 
 export const control = { height: 52, row: 42, tile: 56 };
 export const rule = 1;

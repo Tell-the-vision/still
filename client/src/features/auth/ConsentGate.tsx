@@ -5,14 +5,14 @@ import { useTRPC } from "../../lib/trpc";
 import { useMe } from "./use-me";
 
 // Sends a signed-in user without consent to /consent (SPEC §2.2 Consent). A CONSENT_REQUIRED error also
-// lands here, because it sets consent.get to null.
+// lands here, because it sets consent.get to null. The console's phone preview (/preview) is left alone.
 export function ConsentGate() {
   const trpc = useTRPC();
   const router = useRouter();
   const pathname = usePathname();
   const me = useMe();
   const consent = useQuery(trpc.consent.get.queryOptions(undefined, { enabled: !!me }));
-  const missing = !!me && consent.data === null && pathname !== "/consent";
+  const missing = !!me && consent.data === null && pathname !== "/consent" && pathname !== "/preview";
   useEffect(() => {
     if (missing) router.replace(`/consent?returnTo=${encodeURIComponent(pathname)}`);
   }, [missing, pathname, router]);

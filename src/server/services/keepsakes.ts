@@ -1,41 +1,42 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { KEEPSAKE_TEMPLATES, sentenceLimit, templateDefaults, type keepsakeUpsertInput } from "@still/shared/keepsake";
 import { db } from "../db/client";
 import { archives, digitalKeepsakes, journals, scraps } from "../db/schema";
 import { issueTicket } from "../media/keepsake-ticket";
-import { publicImageUrl } from "../media/public-url";
 import { AppError } from "../trpc/init";
 import { ensureArchive, findExhibition } from "./archives";
-import { completeExhibition, hasPublicCopy } from "./visible";
-
-const pick = ({ altText, width, height }: { altText: string | null; width: number; height: number }) => ({ altText, width, height });
+import { guidePage } from "./guide-pages";
+import { completeExhibition } from "./visible";
 
 type KeepsakeContent = { version: 1; sentences: { sentenceId: string; content: string }[]; journalExcerpt: string | null };
 
-// The SPEC §7.3 representation. The exhibition and cover are read live, never snapshotted.
+// The SPEC §7.3 representation, for one guide page: the card carries the page (its title and picture) with the
+// exhibition's venue and dates, read live, never snapshotted.
 function stillOrigin() {
   if (!process.env.STILL_ORIGIN) throw new Error("STILL_ORIGIN is not set");
   return process.env.STILL_ORIGIN;
 }
 
-export async function getKeepsake(userId: string, code: string) {
+export async function getKeepsake(userId: string, code: string, page: string) {
   const exhibition = await findExhibition(code);
   const archive = await db.query.archives.findFirst({
     where: and(eq(archives.userId, userId), eq(archives.exhibitionId, exhibition.id)),
-    with: { keepsake: true, exhibition: { with: { venue: true, coverImage: true } } },
+    with: { keepsakes: { where: eq(digitalKeepsakes.page, page) }, exhibition: { with: { venue: true } } },
   });
-  if (!archive?.keepsake) return null;
-  const { keepsake } = archive;
+  const keepsake = archive?.keepsakes[0];
+  if (!archive || !keepsake) return null;
   const live = completeExhibition(archive.exhibition);
+  const shown = await guidePage(live.guide, page);
   const { sentences, journalExcerpt } = keepsake.contentData as KeepsakeContent;
-  const { ticket, expiresAt } = issueTicket({ userId, archiveId: archive.id, updatedAt: keepsake.updatedAt.toISOString() });
+  const { ticket, expiresAt } = issueTicket({ userId, archiveId: archive.id, page, updatedAt: keepsake.updatedAt.toISOString() });
   return {
+    page,
     templateId: keepsake.templateId,
     card: {
-      exhibition: { title: live.title, venue: { name: live.venue.name, city: live.venue.city }, startDate: live.startDate, endDate: live.endDate },
-      image: hasPublicCopy(live.coverImage) ? { url: publicImageUrl(live.coverImage.objectKey), ...pick(live.coverImage) } : null,
+      exhibition: { title: shown.title || live.title, venue: { name: live.venue.name, city: live.venue.city }, startDate: live.startDate, endDate: live.endDate },
+      image: shown.image,
       sentences,
       journalExcerpt,
     },
@@ -45,17 +46,22 @@ export async function getKeepsake(userId: string, code: string) {
   };
 }
 
-export async function upsertKeepsake(userId: string, { code, templateId, sentenceIds, journalExcerpt }: z.infer<typeof keepsakeUpsertInput>) {
+export async function upsertKeepsake(userId: string, { code, page, templateId, sentenceIds, journalExcerpt }: z.infer<typeof keepsakeUpsertInput>) {
   if (!(KEEPSAKE_TEMPLATES as readonly string[]).includes(templateId)) {
     throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("UNKNOWN_TEMPLATE") });
   }
+  const shown = await guidePage((await findExhibition(code)).guide, page);
+  if (!shown.found) throw new TRPCError({ code: "NOT_FOUND" });
   const created = await db.transaction(async (tx) => {
     const archive = await ensureArchive(userId, code, tx);
-    const saved = await tx
-      .select({ sentenceId: scraps.guideSentenceId, content: scraps.sentenceContentSnapshot })
-      .from(scraps)
-      .where(eq(scraps.archiveId, archive.id))
-      .orderBy(asc(scraps.createdAt), asc(scraps.guideSentenceId));
+    // Only the lines kept on this page go on its card.
+    const saved = (
+      await tx
+        .select({ sentenceId: scraps.guideSentenceId, content: scraps.sentenceContentSnapshot })
+        .from(scraps)
+        .where(eq(scraps.archiveId, archive.id))
+        .orderBy(asc(scraps.createdAt), asc(scraps.guideSentenceId))
+    ).filter((s) => shown.sentenceIds.has(s.sentenceId));
     const journal = await tx.query.journals.findFirst({ where: eq(journals.archiveId, archive.id) });
     const defaults = templateDefaults(templateId, saved, journal?.content ?? null);
     // Picked sentences come from the saved snapshot, in the order the user picked,
@@ -76,21 +82,36 @@ export async function upsertKeepsake(userId: string, { code, templateId, sentenc
       sentences: picked ?? defaults.sentences,
       journalExcerpt: journalExcerpt?.normalize("NFC") ?? defaults.journalExcerpt,
     };
-    const inserted = await tx.insert(digitalKeepsakes).values({ archiveId: archive.id, templateId, contentData: content }).onConflictDoNothing().returning();
+    const inserted = await tx.insert(digitalKeepsakes).values({ archiveId: archive.id, page, templateId, contentData: content }).onConflictDoNothing().returning();
     if (inserted.length > 0) return true;
-    await tx.update(digitalKeepsakes).set({ templateId, contentData: content, updatedAt: sql`now()` }).where(eq(digitalKeepsakes.archiveId, archive.id));
+    await tx
+      .update(digitalKeepsakes)
+      .set({ templateId, contentData: content, updatedAt: sql`now()` })
+      .where(and(eq(digitalKeepsakes.archiveId, archive.id), eq(digitalKeepsakes.page, page)));
     return false;
   });
-  const keepsake = await getKeepsake(userId, code);
+  const keepsake = await getKeepsake(userId, code, page);
   if (!keepsake) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   return { keepsake, created };
 }
 
 // Idempotent: deleting a card that does not exist succeeds.
-export async function deleteKeepsake(userId: string, code: string) {
+export async function deleteKeepsake(userId: string, code: string, page: string) {
   const exhibition = await findExhibition(code);
   const archive = await db.query.archives.findFirst({
     where: and(eq(archives.userId, userId), eq(archives.exhibitionId, exhibition.id)),
   });
-  if (archive) await db.delete(digitalKeepsakes).where(eq(digitalKeepsakes.archiveId, archive.id));
+  if (archive) await db.delete(digitalKeepsakes).where(and(eq(digitalKeepsakes.archiveId, archive.id), eq(digitalKeepsakes.page, page)));
+}
+
+// Every card the visitor made in this exhibition, one per page, the latest first (Archive).
+export async function listKeepsakes(userId: string, code: string) {
+  const exhibition = await findExhibition(code);
+  const archive = await db.query.archives.findFirst({
+    where: and(eq(archives.userId, userId), eq(archives.exhibitionId, exhibition.id)),
+    with: { keepsakes: { columns: { page: true }, orderBy: desc(digitalKeepsakes.updatedAt) } },
+  });
+  const pages = (archive?.keepsakes ?? []).map((k) => k.page).filter((page) => page !== "");
+  const cards = await Promise.all(pages.map((page) => getKeepsake(userId, code, page)));
+  return cards.filter((card) => card !== null);
 }

@@ -3,8 +3,8 @@ import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "../../db/client";
 import { contents, images } from "../../db/schema";
 
-// One image an item references, as the console shows it. The object key is not part of it: an image
-// without a public copy has no URL the console may hand out (SPEC §9.4 이미지).
+// One image an item references, as the console shows it. The object key is not part of it (SPEC §10.3); the
+// picture itself is at consoleImageUrl (image-files.ts).
 export type ConsoleContentImage = {
   id: string;
   altText: string | null;

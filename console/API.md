@@ -9,6 +9,7 @@ The screens only talk to `ConsoleApi` (`src/api/types.ts`). `src/api/trpc.ts` im
 - Requests send cookies (`credentials: "include"`) and the header `x-client: console`, which makes the shared procedures (`me.get`, `session.delete`, `password.update`) use the institution console session (issue #59).
 - Every console procedure needs a console session and answers `UNAUTHORIZED` without one; the app then shows `/console/sign-in`.
 - In production the app is served from the same origin (`/console`), so no CORS. In dev, Vite proxies `/api` to `VITE_API_PROXY` (default `http://localhost:3000`).
+- `GET /api/console/images/{id}` (Route Handler, console session) answers an image of the session's institution with a `302` to a fresh presigned GET of its private display file (or to the public file of an image that came from no document), `private, max-age=300`. No session `401`; another institution's image or an unknown one `404`. The address never expires, so an editor left open keeps its pictures.
 
 ## Procedures
 
@@ -26,6 +27,8 @@ The screens only talk to `ConsoleApi` (`src/api/types.ts`). `src/api/trpc.ts` im
 | `unpublishExhibition` | `console.publication.delete` | |
 | `listFiles`, `deleteFile` | `console.document.list`, `console.document.delete` | |
 | `uploadFile` | `console.document.create` → `PUT` to the presigned URL → `console.document.update {uploaded: true}` | the file goes straight to R2; the server never receives it (SPEC §9.4) |
+| `uploadPicture` | `uploadFile`'s steps, then `console.documentUpload.create` + `PUT`s (`assets/a01.{ext}`, `assets/a01.display.webp`, `manifest.v1.json`) → `console.document.update {manifestKey}` → `console.image.list` | a picture placed in the editor is a document of its own with the picture as its one image; a `DUPLICATE` uses the earlier document's image and removes the copy |
+| `listImages` | `console.image.list` | `url` is where the console shows the picture: `GET /api/console/images/{id}` for an image from a document (published or not), else its public URL |
 | `startAnalysis`, `listProcessingEvents` | `console.analysis.create`, `console.analysis.get` | |
 | `listContentItems` | `console.content.list` + `console.document.list` + `console.suggestion.list` | |
 | `updateContentItem`, `approveContentItem`, `rejectContentItem` | `console.content.update` `{id, revision, …}` | `REJECTED` is final and leaves the guide draft (SPEC §10.8) |

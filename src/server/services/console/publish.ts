@@ -10,12 +10,12 @@ import { compileDraft, withScrapIds } from "./compile";
 import { getBoss } from "./analysis-jobs";
 import { enqueueStorageDeletes } from "./storage-jobs";
 import { exhibitionRows } from "./exhibition-rows";
+import { displayKeyOf } from "./image-files";
 import { loadDraft, publicationChecks, type LoadedDraft } from "./preview";
 
 // Publication and unpublishing (SPEC §10.9 발행 쓰기 경로, 발행 취소).
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type ImageRow = typeof images.$inferSelect;
 
 const preconditionFailed = (appCode: ConstructorParameters<typeof AppError>[0], message?: string) =>
   new TRPCError({ code: "PRECONDITION_FAILED", message, cause: new AppError(appCode) });
@@ -32,22 +32,19 @@ const usedImageIds = ({ draft, compiled }: LoadedDraft) => new Set([...compiled.
 
 // Step 2: an image without a public file gets its display file copied from the private bucket, outside
 // the transaction (a leftover object after a failed transaction is for the cleanup job). Returns the
-// object keys to store. The "Image files" check refuses such images until the extraction module (#65)
-// writes manifests, so this does nothing yet.
-async function copyDisplayFiles(loaded: LoadedDraft): Promise<Map<string, string>> {
+// object keys to store.
+async function copyDisplayFiles(institutionId: string, loaded: LoadedDraft): Promise<Map<string, string>> {
   const used = usedImageIds(loaded);
   const keys = new Map<string, string>();
   for (const image of loaded.imageRows.filter((i) => used.has(i.id) && i.objectKey === null)) {
+    // The "Image files" check lets through only images extracted from a document, which have a display file.
+    const displayKey = displayKeyOf(institutionId, image);
+    if (!displayKey) throw new Error(`Image ${image.id} has no display file to publish`);
     const publicKey = `${image.id}.webp`;
-    await copyPrivateToPublic(displayKeyOf(image), publicKey);
+    await copyPrivateToPublic(displayKey, publicKey);
     keys.set(image.id, publicKey);
   }
   return keys;
-}
-
-// The private-bucket key of an image's manifest `display` file. No manifest exists before #65.
-function displayKeyOf(image: ImageRow): string {
-  throw new Error(`Image ${image.id} has no manifest display file`);
 }
 
 // Gives every compiled sentence a guide_sentences row and writes the row's id into the content block
@@ -104,7 +101,7 @@ export async function publishExhibition(input: { institutionId: string; userId: 
   assertChecksPass(code, await loadDraft(db, row.id));
 
   // 2. Public copies of images that have none.
-  const copiedKeys = await copyDisplayFiles(await loadDraft(db, row.id));
+  const copiedKeys = await copyDisplayFiles(institutionId, await loadDraft(db, row.id));
 
   // 3. One transaction. The exhibition row lock holds off draft writes; the contents' locks hold off reviews.
   const boss = await getBoss();
@@ -131,8 +128,9 @@ export async function publishExhibition(input: { institutionId: string; userId: 
     await assertGuideMatchesSentences(tx, row.id, stored.guide);
 
     // A published image that neither document nor cover uses goes back to having no public file (its row stays).
+    // Only images with a private original (a document) lose it: for any other, the public file is the only copy.
     const used = usedImageIds({ ...loaded, compiled });
-    const unused = loaded.imageRows.filter((i) => i.objectKey !== null && !used.has(i.id));
+    const unused = loaded.imageRows.filter((i) => i.objectKey !== null && i.documentId !== null && !used.has(i.id));
     if (unused.length) await tx.update(images).set({ objectKey: null }).where(inArray(images.id, unused.map((i) => i.id)));
 
     await tx

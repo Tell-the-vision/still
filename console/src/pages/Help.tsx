@@ -33,9 +33,9 @@ const FAQ = [
 ];
 
 const GUIDES = [
-  { title: "Upload exhibition materials", detail: "Start a new exhibition and add your source files.", to: "/materials" },
-  { title: "Review extracted content", detail: "Check, edit and approve what STILL found in your files.", to: "/materials/review" },
-  { title: "Publish a visitor guide", detail: "Set the visitor address and confirm content rights.", to: "/materials/publish" },
+  { title: "Upload exhibition materials", detail: "Start a new exhibition and add your source files.", to: "/" },
+  { title: "Editor", detail: "Read, fix and approve what STILL structured from each file.", to: "/" },
+  { title: "Publish a visitor guide", detail: "Set the visitor address and confirm content rights.", to: "/publish" },
 ];
 
 export default function Help() {

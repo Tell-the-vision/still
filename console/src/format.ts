@@ -51,6 +51,13 @@ export function libraryStatus(e: Exhibition, today = new Date()): LibraryStatus 
   return "live";
 }
 
-export const VISITOR_HOST = "still.art/e/";
-export const visitorUrl = (code: string) => `${VISITOR_HOST}${code}`;
+// Where visitors open a guide: the origin the server also encodes in printed QR codes (set at build time,
+// see vite.config.ts). Links, the address shown to staff and QR codes all come from this one value.
+export const VISITOR_ORIGIN: string = import.meta.env.VITE_VISITOR_ORIGIN || "https://still.art";
+export const VISITOR_HOST = `${new URL(VISITOR_ORIGIN).host}/e/`;
+/** The guide's full address, as linked and as encoded in its QR. */
+// An exhibition's guide, or with `artwork` (the first 8 characters of its content id) the guide opened at that artwork:
+// the address in the QR posted beside the work (SPEC §1.2).
+export const guideUrl = (code: string, artwork?: string) => `${VISITOR_ORIGIN}/e/${encodeURIComponent(code)}${artwork ? `/${artwork}` : ""}`;
+export const visitorUrl = (code: string, artwork?: string) => `${VISITOR_HOST}${code}${artwork ? `/${artwork}` : ""}`;
 

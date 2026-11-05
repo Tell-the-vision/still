@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { StyleSheet, View, type HostInstance } from "react-native";
 import { Notice } from "../../ui/Notice";
@@ -18,6 +18,8 @@ type Props = { code: string; sentence: { sentenceId: string; text: string }; quo
 // The quote with a mark beside it (SPEC §4.1): "+" keeps the line, a check shows it is kept and removes it again. Guests sign in first.
 export function SentenceAction({ code, sentence, quote }: Props) {
   const router = useRouter();
+  // Signing in comes back to the page the line is on.
+  const pathname = usePathname();
   const me = useMe();
   const saved = useSavedSentences(code);
   const toggle = useKeepToggle(code, sentence.sentenceId, sentence.text);
@@ -29,17 +31,24 @@ export function SentenceAction({ code, sentence, quote }: Props) {
   }, [sentence.sentenceId]);
   const loginThenSave = async () => {
     await savePendingAction({ kind: "SCRAP_SAVE", exhibitionCode: code, sentenceId: sentence.sentenceId });
-    router.push({ pathname: "/login", params: { returnTo: `/e/${code}` } });
+    router.push({ pathname: "/login", params: { returnTo: pathname } });
   };
   const press = !me ? () => void loginThenSave() : kept ? toggle.unkeep : toggle.keep;
   return (
     <View ref={viewRef} style={{ gap: spacing.inset }}>
-      <View style={styles.row}>
-        <View style={[styles.quote, kept && styles.kept]}>{quote}</View>
-        <KeepMark kept={kept} pending={toggle.pending} hint={!me ? scrapStrings.signInHint : undefined} onPress={press} />
-      </View>
+      <SentenceRow quote={quote} kept={kept} pending={toggle.pending} hint={!me ? scrapStrings.signInHint : undefined} onPress={press} />
       {toggle.keepFailed && !kept && <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: toggle.keep }} />}
       {toggle.unkeepFailed && kept && <Notice message={scrapStrings.removeFailed} error action={{ label: scrapStrings.retry, onPress: toggle.unkeep }} />}
+    </View>
+  );
+}
+
+// The quote and its keep mark; a kept line carries a rule at its left edge.
+export function SentenceRow({ quote, kept, pending, hint, onPress }: { quote: ReactNode; kept: boolean; pending: boolean; hint?: string; onPress: () => void }) {
+  return (
+    <View style={styles.row}>
+      <View style={[styles.quote, kept && styles.kept]}>{quote}</View>
+      <KeepMark kept={kept} pending={pending} hint={hint} onPress={onPress} />
     </View>
   );
 }

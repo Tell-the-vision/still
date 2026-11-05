@@ -57,6 +57,13 @@
       "when": 1793873621536,
       "tag": "0007_still_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793904418005,
+      "tag": "0008_keepsake_pages",
+      "breakpoints": true
     }
   ]
 }

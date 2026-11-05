@@ -27,12 +27,30 @@ export const type = {
 export const wordmark = {
   header: { size: 20, line: 27, tracking: 5, text: "STILL." },
   hero: { size: 30, line: 40, tracking: 7.5, text: "STILL." },
-  card: { size: 10, line: 13, tracking: 0, text: "STILL" },
+  card: { size: 12, line: 16, tracking: 3, text: "STILL." },
 } as const;
 
-// Keepsake card: a 3:4 sheet, 360 wide by default.
-export const card = { width: 360, aspectRatio: 3 / 4, borderWidth: 1 };
+// Keepsake card: a 3:4 sheet, 360 wide by default, with a black band along its foot that carries the wordmark and
+// where and when, like a gallery label. `padding` is the sheet's margin around the words and a framed picture.
+export const card = { width: 360, aspectRatio: 3 / 4, borderWidth: 1, padding: 20, band: 44 };
 
 // The card's cover keeps its shape at full width, and shrinks (never crops) when the text needs the room,
 // so the web card and the PNG show the same words (SPEC §7.3). Both draw it from this height.
 export const coverHeight = (innerWidth: number, image: { width: number; height: number }) => (innerWidth * image.height) / image.width;
+
+// How each part of a keepsake card is set (shared/src/keepsake.ts cardBlocks names them), for the web card and the PNG
+// alike: a type variant above, gray for what stands aside, and a hairline above each kept line of a list.
+export const cardText = {
+  title: { variant: "title", gray: false, rule: false },
+  titleSmall: { variant: "label", gray: false, rule: false },
+  quote: { variant: "headline", gray: false, rule: false },
+  quoteLong: { variant: "title", gray: false, rule: false },
+  note: { variant: "title", gray: false, rule: false },
+  noteLong: { variant: "subhead", gray: false, rule: false },
+  noteAside: { variant: "row", gray: false, rule: false },
+  line: { variant: "subhead", gray: false, rule: true },
+  lineAside: { variant: "quote", gray: true, rule: false },
+  placeholder: { variant: "secondary", gray: true, rule: false },
+} as const;
+// The band's "CITY · YEAR": small capitals, spaced.
+export const cardBand = { size: 9, line: 12, tracking: 1.5 };

@@ -3,7 +3,7 @@ import { View } from "react-native";
 import type { ExpandedBlock, ExpandedDocument } from "@still/shared/document";
 import { Artwork } from "./Artwork";
 import { Text } from "./Text";
-import { StillDocView, isStillDoc, type KeepableSentence, type StillDoc } from "./StillDocView";
+import { StillDocView, isStillDoc, type KeepableSentence, type RenderPlaylist, type StillDoc } from "./StillDocView";
 import { spacing } from "./theme";
 
 type SentenceBlock = Extract<ExpandedBlock, { type: "sentence" }>;
@@ -14,11 +14,13 @@ const quoted = (text: string) => (/^["“]/.test(text) ? text : `“${text}”`)
 export function DocumentView({
   document,
   renderSentence,
+  renderPlaylist,
 }: {
   document: ExpandedDocument | StillDoc | null;
   renderSentence?: (sentence: KeepableSentence, quote: ReactNode) => ReactNode;
+  renderPlaylist?: RenderPlaylist;
 }) {
-  if (isStillDoc(document)) return <StillDocView document={document} renderSentence={renderSentence} />;
+  if (isStillDoc(document)) return <StillDocView document={document} renderSentence={renderSentence} renderPlaylist={renderPlaylist} />;
   return (
     <View style={{ gap: spacing.gap }}>
       {document?.blocks.map((block, i) => {

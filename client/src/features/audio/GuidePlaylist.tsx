@@ -14,19 +14,24 @@ import { focusVisible } from "../../ui/focusVisible";
 // The Guide's only audio: a link to the exhibition's playlist when it is EXTERNAL.
 // Ambience and No audio belong to the Journal (SPEC §6.3).
 export function GuidePlaylist({ code, audio }: { code: string; audio: Audio }) {
-  const [focused, setFocused] = useState(false);
   const trpc = useTRPC();
   const me = useMe();
   const settings = useQuery(trpc.settings.get.queryOptions(undefined, { enabled: me !== null, staleTime: STALE_TIME.personal }));
   const playlist = audio.playlist;
   if (!playlist || displayMode(settings.data?.audioMode ?? "AUTO", audio) !== "EXTERNAL") return null;
+  return <PlaylistRow code={code} playlist={playlist} />;
+}
+
+/** The listen row (SPEC §3): a bordered, full-width link to the playlist on its service, opened in a new tab. */
+export function PlaylistRow({ code, playlist }: { code: string; playlist: { provider: string; url: string; title: string } }) {
+  const [focused, setFocused] = useState(false);
   const provider = playlist.provider === "SPOTIFY" ? "Spotify" : "Apple Music";
   return (
     <Link href={playlist.url as Href} asChild>
       <Pressable
         {...{ hrefAttrs: { target: "_blank", rel: "noopener noreferrer" } }}
         accessibilityRole="link"
-        accessibilityLabel={`Listen to ${playlist.title} on ${provider}`}
+        accessibilityLabel={`Listen to ${playlist.title || "the playlist"} on ${provider}`}
         onPress={() => track("audio_external_click", { provider: playlist.provider, exhibition_code: code })}
         onFocus={() => setFocused(focusVisible())}
         onBlur={() => setFocused(false)}
@@ -34,7 +39,7 @@ export function GuidePlaylist({ code, audio }: { code: string; audio: Audio }) {
       >
         <View aria-hidden style={styles.play} />
         <View style={styles.text}>
-          <Text variant="label" numberOfLines={1}>{playlist.title}</Text>
+          {!!playlist.title && <Text variant="label" numberOfLines={1}>{playlist.title}</Text>}
           <Text variant="secondary">{playlist.provider === "SPOTIFY" ? audioStrings.playlist.SPOTIFY : audioStrings.playlist.APPLE_MUSIC}</Text>
         </View>
         <Text variant="action" aria-hidden>→</Text>

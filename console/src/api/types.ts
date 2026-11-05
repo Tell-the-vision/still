@@ -18,11 +18,15 @@ export interface Exhibition {
   title: string; // "Damien Hirst"
   subtitle: string | null; // "Life, Death & Everything in Between"
   venueName: string;
+  /** The venue's city, with the name where the exhibition is held ("Demo Hall, Seoul"); empty without a venue. */
+  venueCity: string;
   /** The venue row the name comes from (SPEC §10.9 draft.venueId); null while none is chosen. */
   venueId: string | null;
   startDate: ISODate | null;
   endDate: ISODate | null;
   status: PublicationStatus;
+  /** When the guide last went live; null until it is published. */
+  publishedAt: ISODateTime | null;
   updatedAt: ISODateTime;
 }
 
@@ -63,7 +67,14 @@ export type StillNode = {
 };
 
 /** An image of the exhibition (SPEC §10.3 images) the editor can place in a document. */
-export interface ExhibitionImage { id: string; altText: string | null }
+export interface ExhibitionImage {
+  id: string;
+  altText: string | null;
+  /** The uploaded file the image was found in (an uploaded picture is its own document). */
+  documentId?: string | null;
+  /** Where the console shows the picture, published or not; null when the image has no file. */
+  url: string | null;
+}
 
 export interface ContentItem {
   id: string;
@@ -89,6 +100,8 @@ export interface ContentItem {
   origin: ContentOrigin;
   updatedBy: string | null; // last editor
   updatedAt: ISODateTime | null;
+  /** When this version was approved; any content edit sends it back to review and clears it (SPEC §10.8). */
+  approvedAt: ISODateTime | null;
   /** From an open DUPLICATE_CONTENT suggestion: the item this one looks like a copy of. null = no match, or the suggestion was dismissed. */
   duplicateOf: string | null;
   /** Images and other media extracted with this item, each with its own rights record. */
@@ -132,11 +145,23 @@ export interface PublicationCheck {
   blocks: boolean;
 }
 
-/** console.preview.get: the publication checks and the public URL of each image the compiled guide shows. */
+/** console.preview.get: the publication checks and where the console shows each image the documents place. */
 export interface PreviewData {
   checks: PublicationCheck[];
-  /** By image id; an image without a public file yet has no entry. */
+  /** By image id, published or not (an image from a document is served by GET /api/console/images/{id}); an image with no file has no entry. */
   imageUrls: Record<string, string>;
+  /** The draft as the visitor renderer takes it; none in mock mode. */
+  visitor: VisitorDraft | null;
+}
+
+/**
+ * The draft in the visitor's shapes (console.preview.get): the exhibition as exhibition.get serves it, the guide
+ * document as guide.get does (approved items only), and the images both refer to, by id.
+ */
+export interface VisitorDraft {
+  exhibition: { description: StillDoc | null } & Record<string, unknown>;
+  guide: StillDoc | null;
+  images: Record<string, { url: string | null; altText: string | null; width: number; height: number }>;
 }
 
 // SPEC §10.9 draft sections. A section's opening text is its first THEME / INTRODUCTION content item.
@@ -230,6 +255,8 @@ export interface ConsoleApi {
 
   listFiles(exhibitionId: string): Promise<SourceFile[]>;
   uploadFile(exhibitionId: string, file: File, options?: UploadOptions): Promise<SourceFile>;
+  /** Stores a picture placed in the editor as an image of the exhibition (a file of its own, rights unconfirmed) and returns that image. */
+  uploadPicture(exhibitionId: string, file: File): Promise<ExhibitionImage>;
   deleteFile(exhibitionId: string, fileId: string): Promise<void>;
   /** A short-lived URL for the original file as it was uploaded. */
   getFileDownloadUrl(fileId: string): Promise<string>;
@@ -238,11 +265,15 @@ export interface ConsoleApi {
 
   listImages(exhibitionId: string): Promise<ExhibitionImage[]>;
   listContentItems(exhibitionId: string): Promise<ContentItem[]>;
+  /** Another exhibition's items, read only: unlike listContentItems it leaves the editor's loaded items alone. */
+  peekContentItems(exhibitionId: string): Promise<ContentItem[]>;
   updateContentItem(itemId: string, patch: ContentItemPatch): Promise<ContentItem>;
   /** The item's document (Tiptap JSON, SPEC §9.4 schema) as last loaded. */
   getContentDoc(itemId: string): unknown;
   /** Autosave of the editor: replaces the whole document and returns the item (an approved one goes back to review). REVISION_MISMATCH reads as "changed elsewhere". */
   saveContentDoc(itemId: string, doc: unknown): Promise<ContentItem>;
+  /** A new artwork written by a person, not drafted from files (SPEC §9.4: the console creates items itself). */
+  createArtwork(exhibitionId: string, doc: unknown): Promise<ContentItem>;
   /** The text blocks of an item with the source text each is traced to (`sourceText` is null without a source entry). */
   listBlockSources(itemId: string): Promise<BlockSource[]>;
   /** Rewrites one block to its source text (no scrap marks) and saves. */

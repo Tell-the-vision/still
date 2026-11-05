@@ -5,9 +5,9 @@ import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client";
 import { contents, exhibitions, images, venues } from "../../db/schema";
-import { publicImageUrl } from "../../media/public-url";
 import { compileDraft, type Compiled, type CompileContent } from "./compile";
 import { exhibitionRows } from "./exhibition-rows";
+import { consoleImageUrl } from "./image-files";
 
 // console.preview.get (SPEC §9.4 미리보기와 발행 점검): the compiled draft in the visitor
 // response shapes, the publication checks and what the compile left out.
@@ -18,15 +18,16 @@ type ImageRow = typeof images.$inferSelect;
 // but publication may go on. `ok` therefore means "does not block".
 export type PublicationCheck = { id: string; title: string; ok: boolean; warning: boolean; detail: string };
 
+// The URL is where the console shows the picture, published or not (image-files.ts); only the console reads it.
 const previewImage = (image: ImageRow) => ({
-  url: image.objectKey === null ? null : publicImageUrl(image.objectKey),
+  url: consoleImageUrl(image),
   altText: image.altText,
   width: image.width,
   height: image.height,
 });
 
-// The images a document's stillImage blocks point at; an image without a public copy has no URL yet.
-function previewImages(docs: (StillDocument | null)[], imageRows: ImageRow[]) {
+// The images a document's stillImage blocks point at; an image with no file at all has no URL.
+function previewImages(docs: ({ content: StillDocument["content"] } | null)[], imageRows: ImageRow[]) {
   const used = new Set(docs.flatMap((d) => d?.content ?? []).flatMap((b) => (b.type === "stillImage" ? [b.attrs.imageId] : [])));
   return Object.fromEntries(imageRows.filter((i) => used.has(i.id)).map((i) => [i.id, previewImage(i)]));
 }
@@ -85,10 +86,10 @@ function runChecks(
     passes("image-rights", "Image rights", imageProblems((i) => i.rights === "CONFIRMED", "has no confirmed rights"), `${used.length} images have confirmed rights`),
     passes("image-verification", "Image verification", imageProblems((i) => i.verification === "VERIFIED" || i.verification === "NOT_APPLICABLE", "is not verified"),
       `${used.length} images are verified`),
-    // Publication copies such an image from its analysis manifest; no manifest exists before the extraction
-    // module (#65), so until then an image without a public file cannot be published.
-    passes("image-files", "Image files", usedRows.filter(({ row }) => row?.objectKey === null).map(({ id }) => `image ${id} has no public file yet`),
-      `${used.length} images have a public file`),
+    // An image without a public file yet gets one at publication, copied from its document's display file
+    // (SPEC §10.9 step 2); an image that came from no document has nothing to copy.
+    passes("image-files", "Image files", usedRows.filter(({ row }) => row?.objectKey === null && row.documentId === null).map(({ id }) => `image ${id} has no file to publish`),
+      `${used.length} images have a file to publish`),
     passes("audio-link", "Audio link", playlist.success ? [] : ["playlist link does not match its provider"], draft.playlist ? "Playlist link is valid" : "No playlist"),
     passes("basic-info", "Basic info", basicInfo, "Title, venue, period and code are set"),
     passes("document-validation", "Document validation", compiled.invalid, "Description and guide are valid"),
@@ -133,7 +134,7 @@ export async function previewExhibition(institutionId: string, code: string) {
   const [row] = await exhibitionRows(institutionId, { where: eq(exhibitions.code, code) });
   if (!row) throw new TRPCError({ code: "NOT_FOUND" });
   const loaded = await loadDraft(db, row.id);
-  const { draft, venue, imageRows, compiled } = loaded;
+  const { draft, venue, contentRows, imageRows, compiled } = loaded;
 
   const cover = imageRows.find((i) => i.id === draft.coverImageId);
   return {
@@ -151,7 +152,8 @@ export async function previewExhibition(institutionId: string, code: string) {
     },
     // Mirrors guide.get's document.
     guide: compiled.guide,
-    images: previewImages([compiled.description, compiled.guide], imageRows),
+    // Every content's images too: the editor shows an item's pictures before it is approved and published.
+    images: previewImages([compiled.description, compiled.guide, ...contentRows.map((c) => c.doc)], imageRows),
     checks: publicationChecks(row.code, loaded),
     losses: compiled.losses,
   };

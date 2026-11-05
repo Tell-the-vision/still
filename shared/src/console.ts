@@ -96,7 +96,8 @@ export const consoleContentCreateInput = z.object({
 export const consoleContentUpdateInput = z.object({
   id: z.uuid(),
   revision: z.uuid(),
-  status: z.enum(["APPROVED", "REJECTED"]).optional(),
+  // READY takes an APPROVED item back to review: it leaves the guide at the next publication.
+  status: z.enum(["APPROVED", "READY", "REJECTED"]).optional(),
   kind: z.enum(CONTENT_KINDS).optional(),
   doc: stillDoc.optional(),
   sources: contentSources.optional(),

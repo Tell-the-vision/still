@@ -4,10 +4,11 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "../../../db/client";
 import { exhibitions, images } from "../../../db/schema";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
+import { consoleImageUrl } from "../../../services/console/image-files";
 import { consoleProcedure, router } from "../../init";
 
-// An image as the console shows it. Whether a public copy exists is all it learns about the file:
-// the object key never leaves the server (SPEC §10.3).
+// An image as the console shows it. Whether a public copy exists and where the console shows the picture is all it
+// learns about the file: the object key never leaves the server (SPEC §10.3).
 const toImage = (row: typeof images.$inferSelect) => ({
   id: row.id,
   documentId: row.documentId,
@@ -19,6 +20,7 @@ const toImage = (row: typeof images.$inferSelect) => ({
   width: row.width,
   height: row.height,
   published: row.objectKey !== null,
+  url: consoleImageUrl(row),
 });
 
 // console.image.* (SPEC §10.7). Only the caller's institution; another institution's image is NOT_FOUND.

@@ -3,17 +3,12 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./Layout";
 import { WorkspaceProvider } from "./store";
-import Upload from "./pages/Upload";
-import Review from "./pages/Review";
-import Overview from "./pages/Overview";
-import Preview from "./pages/Preview";
-import Publish from "./pages/Publish";
-import Published from "./pages/Published";
-import Guide from "./pages/Guide";
-import Exhibitions from "./pages/Exhibitions";
+import Editor from "./pages/Editor";
 import Placeholder from "./pages/Placeholder";
-import Settings from "./pages/Settings";
+import Venues from "./pages/Venues";
 import Workspace from "./pages/Workspace";
+import Works, { PublishedRedirect } from "./pages/Works";
+import Labels from "./pages/Labels";
 import Account from "./pages/Account";
 import Help from "./pages/Help";
 import ChangePassword from "./pages/ChangePassword";
@@ -28,20 +23,22 @@ createRoot(document.getElementById("root")!).render(
         <Routes>
           <Route path="sign-in" element={<SignIn />} />
           <Route path="change-password" element={<ChangePassword />} />
-          {/* Outside Layout so /console redirects right away, even while the workspace is loading or failed. */}
-          <Route index element={<Navigate to="/overview" replace />} />
           <Route element={<Layout />}>
-            <Route path="overview" element={<Overview />} />
-            <Route path="materials" element={<Upload />} />
-            <Route path="materials/review" element={<Review />} />
-            <Route path="materials/preview" element={<Preview />} />
-            <Route path="materials/publish" element={<Publish />} />
-            <Route path="materials/published" element={<Published />} />
-            <Route path="guide" element={<Guide />} />
-            <Route path="exhibitions" element={<Exhibitions />} />
+            {/* The editor is the console's home: upload, edit and review the artworks' texts in one place. */}
+            <Route index element={<Editor />} />
+            {/* The open artwork as a resource; the same Editor stays mounted while it changes. */}
+            <Route path="exhibitions/:code/works" element={<Works />} />
+            <Route path="exhibitions/:code/labels" element={<Labels />} />
+            <Route path="exhibitions/:code/:artwork?" element={<Editor />} />
+            {/* Screens the editor replaced (preview, publishing, the guide, the old lists) and earlier addresses land in it. */}
+            {["preview", "publish", "guide", "exhibitions", "overview", "materials", "materials/*"].map((path) => (
+              <Route key={path} path={path} element={<Navigate to="/" replace />} />
+            ))}
             <Route path="workspace" element={<Workspace />} />
+            <Route path="published" element={<PublishedRedirect />} />
             <Route path="account" element={<Account />} />
-            <Route path="settings" element={<Settings />} />
+            <Route path="venues" element={<Venues />} />
+            <Route path="settings" element={<Navigate to="/venues" replace />} />
             <Route path="help" element={<Help />} />
             <Route path="*" element={<Placeholder title="Not found" />} />
           </Route>
