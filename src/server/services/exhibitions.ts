@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte, lte } from "drizzle-orm";
-import { stillDocument } from "../../../shared/src/still-doc";
+import { blockText, stillDocument, type StillDocument } from "../../../shared/src/still-doc";
 import { db } from "../db/client";
 import { exhibitions } from "../db/schema";
 import { publicImageUrl } from "../media/public-url";
@@ -79,4 +79,44 @@ export async function listPublishedExhibitions(scope: ExhibitionScope) {
       availability: row.startDate > today ? ("UPCOMING" as const) : row.endDate < today ? ("ENDED" as const) : ("ON_VIEW" as const),
     })),
   };
+}
+
+// Home's feed, one tile per artwork (each has its own page, /e/{code}/{page}): every page of the published guides,
+// the newest exhibitions first and pages in guide order, each with its title, first picture, and where and when.
+// A page's blocks are those whose ids start with its first 8 characters (the publish compile); section titles
+// ("sec-…") belong to no page.
+export async function listPublishedPages(scope: ExhibitionScope) {
+  const today = seoulToday();
+  const rows = await db.query.exhibitions.findMany({
+    where: and(
+      eq(exhibitions.state, "PUBLISHED"),
+      scope === "ON_VIEW" ? and(lte(exhibitions.startDate, today), gte(exhibitions.endDate, today)) : undefined,
+    ),
+    with: { venue: true, images: true },
+    orderBy: [desc(exhibitions.startDate), exhibitions.title],
+  });
+  const items = rows.map(completeExhibition).flatMap((row) => {
+    const pages = new Map<string, StillDocument["content"]>();
+    for (const block of stillDocument.safeParse(row.guide).data?.content ?? []) {
+      const page = /^([0-9a-f]{8})-/.exec(block.attrs.id)?.[1];
+      if (page) pages.set(page, [...(pages.get(page) ?? []), block]);
+    }
+    const availability = row.startDate > today ? ("UPCOMING" as const) : row.endDate < today ? ("ENDED" as const) : ("ON_VIEW" as const);
+    return [...pages].map(([page, blocks]) => {
+      const heading = blocks.find((block) => block.type === "heading");
+      const picture = blocks.find((block) => block.type === "stillImage");
+      const image = picture?.type === "stillImage" ? row.images.find((i) => i.id === picture.attrs.imageId) : undefined;
+      return {
+        code: row.code,
+        page,
+        title: heading ? blockText(heading) : "",
+        image: hasPublicCopy(image) ? { url: publicImageUrl(image.objectKey), altText: image.altText, width: image.width, height: image.height } : null,
+        venue: { name: row.venue.name, city: row.venue.city },
+        startDate: row.startDate,
+        endDate: row.endDate,
+        availability,
+      };
+    });
+  });
+  return { items };
 }
