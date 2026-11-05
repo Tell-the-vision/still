@@ -162,6 +162,7 @@ export function toContentItem(row: ConsoleContentRow, order: number, documents: 
     sourceLocation: "",
     heading: title,
     fieldLabel: "Text",
+    doc: row.doc,
     text,
     // No analysis manifests exist yet, so there is no extracted original to compare against.
     originalText: text,

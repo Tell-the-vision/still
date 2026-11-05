@@ -55,6 +55,16 @@ export interface UploadOptions {
 export type ReviewStatus = "IN_REVIEW" | "APPROVED" | "REJECTED";
 export type ContentOrigin = "SOURCE" | "AI_SUGGESTION";
 
+// The STILL document a content item holds (SPEC §11.8); the visitor preview renders it as is.
+export type StillDoc = { type: "doc"; content: StillNode[] };
+export type StillNode = {
+  type: string;
+  attrs?: { id?: string; level?: number; imageId?: string; display?: string; caption?: string | null };
+  text?: string;
+  marks?: { type: string }[];
+  content?: StillNode[];
+};
+
 export interface ContentItem {
   id: string;
   order: number;
@@ -67,6 +77,7 @@ export interface ContentItem {
   sourceLocation: string; // "Curator statement · Page 2"
   heading: string; // editor title
   fieldLabel: string; // "Extracted sentence 01"
+  doc?: StillDoc; // the document behind `text`, for the visitor preview
   text: string; // current (edited) value
   originalText: string; // value as extracted; kept so edits can be compared and reverted
   theme: string;
