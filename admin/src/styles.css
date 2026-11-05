@@ -1,3 +1,4 @@
+@import "../../shared/fonts/fonts.css";
 /*
  * STILL — Platform admin (/admin) draft.
  * Values read from Figma 09 (node 219:2, 1440×1060): 72px header, 236px sidebar,
@@ -20,8 +21,8 @@
   --red: #9e3b38;
   --red-bg: #faebe8;
 
-  --font-display: "Futura PT", Futura, "Jost", "Century Gothic", sans-serif;
-  --font-text: "DM Sans", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-display: Futura, "Futura PT", Montserrat, "Noto Sans KR", sans-serif;
+  --font-text: "DM Sans", "Noto Sans KR", system-ui, sans-serif;
 
   --header-h: 72px;
   --sidebar-w: 236px;
