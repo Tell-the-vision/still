@@ -121,8 +121,7 @@ export function normalizeEditorDoc(value: unknown): unknown {
     if (n.type === "text" && n.text === "") return undefined;
     const out = Object.fromEntries(Object.entries(n).map(([key, child]) => [key, walk(child)]));
     if (n.type === "orderedList" && out.attrs && typeof out.attrs === "object") {
-      const { start: _start, type: _type, ...attrs } = out.attrs as Record<string, unknown>;
-      out.attrs = attrs;
+      out.attrs = Object.fromEntries(Object.entries(out.attrs).filter(([key]) => key !== "start" && key !== "type"));
     }
     return out;
   };

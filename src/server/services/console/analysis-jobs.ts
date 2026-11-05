@@ -19,7 +19,9 @@ export const VERIFY_QUEUE = "document.verify";
 const RETRY_LIMIT = 2;
 type JobData = { exhibitionId: string; analysisId: string };
 // `finalizedAt` marks that the contents are committed (only suggestions and the result remain), so a retry never inserts them twice.
-type Analysis = { id: string; documentIds: string[]; result: string | null; coverage: Coverage | null; finalizedAt?: string };
+type Analysis = { id: string; documentIds: string[]; result: string | null; coverage: Coverage | null; finalizedAt?: string; failures?: DocumentFailure[] };
+// A document the analysis could not read; it stays unanalyzed, so the next analysis tries it again.
+type DocumentFailure = { documentId: string; error: string };
 type Coverage = { total: number; uncovered: number; refs: string[] };
 
 // One boss per process, shared by the tRPC routes (send) and instrumentation (work).
@@ -29,13 +31,19 @@ export function getBoss(): Promise<PgBoss> {
     const boss = new PgBoss(databaseUrl());
     boss.on("error", (e) => console.error("pg-boss", e));
     await boss.start();
-    await boss.createQueue(ANALYSIS_QUEUE, { retryLimit: RETRY_LIMIT });
+    await boss.createQueue(ANALYSIS_QUEUE, ANALYSIS_JOB_OPTIONS);
     await boss.createQueue(STORAGE_DELETE_QUEUE, STORAGE_DELETE_OPTIONS);
     await boss.createQueue(VERIFY_QUEUE, { retryLimit: RETRY_LIMIT });
     return boss;
-  })();
+  })().catch((e) => {
+    globalForBoss.stillBoss = undefined; // the next call tries again instead of failing for the process's life
+    throw e;
+  });
   return globalForBoss.stillBoss;
 }
+
+// SPEC §10.10 analysis jobs: 2 retries with exponential backoff.
+export const ANALYSIS_JOB_OPTIONS = { retryLimit: RETRY_LIMIT, retryDelay: 30, retryBackoff: true };
 
 const ANALYSIS_CONCURRENCY = 4;
 
@@ -85,10 +93,10 @@ const analysisOf = async (exhibitionId: string) =>
   (await db.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)))[0]?.analysis as Analysis | null;
 const isRunning = (analysis: Analysis | null, id: string) => analysis?.id === id && analysis.result === null;
 
-async function settle({ exhibitionId, analysisId }: JobData, result: "FAILED") {
+async function settle({ exhibitionId, analysisId }: JobData, result: "FAILED", failures?: DocumentFailure[]) {
   await db.transaction(async (tx) => {
     const [row] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
-    if (isRunning(row?.analysis as Analysis | null, analysisId)) await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), result } }).where(eq(exhibitions.id, exhibitionId));
+    if (isRunning(row?.analysis as Analysis | null, analysisId)) await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), result, ...(failures && { failures }) } }).where(eq(exhibitions.id, exhibitionId));
     if (isRunning(row?.analysis as Analysis | null, analysisId)) await notify(tx, analysisId, "failed", "Analysis failed.");
   });
 }
@@ -96,7 +104,9 @@ async function settle({ exhibitionId, analysisId }: JobData, result: "FAILED") {
 // SPEC §10.10 analysis.structure: a document goes to the Worker in chunks of at most 100 pages or about
 // 100k input tokens. Tokens are estimated from characters (3 per token, cautious for Korean text).
 const CHUNK_PAGES = 100;
-const CHUNK_TOKENS = 100_000;
+// SPEC's ceiling is 100k input tokens, but the model copies the text back out, and its output is capped
+// lower (65,536 tokens for gemini-2.5-flash); chunks stay well under that.
+const CHUNK_TOKENS = 30_000;
 export function chunkPages<T extends { text: string }>(pages: T[]): T[][] {
   const chunks: T[][] = [];
   let current: T[] = [];
@@ -140,7 +150,16 @@ async function structureChunk(analysisId: string, chunk: number, document: { med
 async function structure(analysisId: string, document: { mediaType: string; category: string | null }, manifest: Awaited<ReturnType<typeof readManifest>>) {
   const byPage = new Map<number, string[]>();
   for (const s of manifest.segments) byPage.set(s.page, [...(byPage.get(s.page) ?? []), s.text]);
-  const pages = [...byPage].map(([page, texts]) => ({ page, text: texts.join("\n") }));
+  // A page bigger than a chunk (a long TXT is one page) is cut at segment boundaries into parts.
+  const pages = [...byPage].flatMap(([page, texts]) => {
+    const parts: { page: number; text: string }[] = [];
+    for (const text of texts) {
+      const last = parts.at(-1);
+      if (last && Math.ceil((last.text.length + text.length) / 3) <= CHUNK_TOKENS) last.text += `\n${text}`;
+      else parts.push({ page, text });
+    }
+    return parts;
+  });
   const outputs: StructureOutput[] = [];
   for (const [chunk, chunkPagesList] of chunkPages(pages).entries()) outputs.push(await structureChunk(analysisId, chunk, document, chunkPagesList));
   return mergeOutputs(outputs);
@@ -155,21 +174,36 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
   const docs = await db.select().from(documents).where(and(eq(documents.exhibitionId, exhibitionId), inArray(documents.id, analysis!.documentIds))).orderBy(documents.createdAt, documents.id);
   const coverage: Coverage = { total: 0, uncovered: 0, refs: [] };
   const aligned: { documentId: string; contents: AlignedContent[] }[] = [];
+  const failures: DocumentFailure[] = [];
+  let lastError: unknown = null;
   for (const doc of docs) {
-    const manifest = await readManifest(doc.manifestObjectKey!);
-    const output = await structure(analysisId, { mediaType: doc.mediaType, category: doc.category }, manifest);
-    const rows = await db.select({ id: images.id, assetId: images.manifestAssetId }).from(images).where(eq(images.documentId, doc.id));
-    const result = alignStructure({ output, documentId: doc.id, manifest, images: Object.fromEntries(rows.map((r) => [r.assetId!, r.id])) });
-    aligned.push({ documentId: doc.id, contents: result.contents });
-    coverage.total += result.coverage.total;
-    coverage.uncovered += result.coverage.uncovered;
-    coverage.refs.push(...result.coverage.refs);
+    try {
+      const manifest = await readManifest(doc.manifestObjectKey!);
+      // A scan without a text layer needs OCR (SPEC §9.4); until then it is reported, not passed as analyzed.
+      if (!manifest.segments.length) { failures.push({ documentId: doc.id, error: "NO_TEXT_LAYER" }); continue; }
+      const output = await structure(analysisId, { mediaType: doc.mediaType, category: doc.category }, manifest);
+      const rows = await db.select({ id: images.id, assetId: images.manifestAssetId }).from(images).where(eq(images.documentId, doc.id));
+      const result = alignStructure({ output, documentId: doc.id, manifest, images: Object.fromEntries(rows.map((r) => [r.assetId!, r.id])) });
+      aligned.push({ documentId: doc.id, contents: result.contents });
+      coverage.total += result.coverage.total;
+      coverage.uncovered += result.coverage.uncovered;
+      coverage.refs.push(...result.coverage.refs);
+    } catch (e) {
+      lastError = e;
+      failures.push({ documentId: doc.id, error: e instanceof Error ? e.message.slice(0, 200) : "Analysis failed." });
+    }
+  }
+  if (!aligned.length) {
+    // Nothing could be read. Only text-less files: retrying cannot help, so the analysis fails now.
+    if (failures.every((f) => f.error === "NO_TEXT_LAYER")) return settle({ exhibitionId, analysisId }, "FAILED", failures);
+    throw lastError ?? new Error("No document could be analyzed.");
   }
 
   const created: { id: string; kind: string; doc: StillDoc }[] = [];
   await db.transaction(async (tx) => {
     const [row] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
     if (!isRunning(row.analysis as Analysis, analysisId)) return; // cancelled meanwhile
+    if ((row.analysis as Analysis).finalizedAt) return; // another attempt already wrote the contents
     // Items keep source order: the console lists by created_at, which one transaction would make equal.
     const start = Date.now();
     let position = 0;
@@ -181,7 +215,7 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
       }
       await tx.update(documents).set({ analyzedAt: new Date() }).where(eq(documents.id, documentId));
     }
-    await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, finalizedAt: new Date().toISOString() } }).where(eq(exhibitions.id, exhibitionId));
+    await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, failures, finalizedAt: new Date().toISOString() } }).where(eq(exhibitions.id, exhibitionId));
   });
   // SPEC §10.10: analysis.suggest runs after the contents are committed, and only its end sets SUCCEEDED,
   // so the console (which stops watching at the result) sees the items with their suggestions.
@@ -220,6 +254,8 @@ async function suggestEdits(exhibitionId: string, analysisId: string, created: {
   const { suggestions } = suggestOutput.parse(await res.json());
 
   await db.transaction(async (tx) => {
+    const [current] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
+    if (!isRunning(current?.analysis as Analysis | null, analysisId)) return; // cancelled meanwhile
     // Ids are unique within a list: "w" + position among the new ones (aligned suggestions use "g").
     const stored = (list: typeof suggestions, taken: number) =>
       list.map(({ kind, target, proposal, rationale }, i) => ({ id: `w${taken + i + 1}`, kind, target, proposal, rationale, status: "OPEN", decidedBy: null, decidedAt: null }));
@@ -227,6 +263,7 @@ async function suggestEdits(exhibitionId: string, analysisId: string, created: {
       const mine = suggestions.filter((s) => s.contentId === id);
       if (!mine.length) continue;
       const [row] = await tx.select({ suggestions: contents.suggestions, status: contents.status }).from(contents).where(eq(contents.id, id)).for("update");
+      if (!row) continue; // deleted meanwhile
       const needsCheck = row.status === "READY" && mine.some((s) => NEEDS_CHECK_KINDS.includes(s.kind));
       await tx.update(contents).set({ suggestions: [...(row.suggestions as unknown[]), ...stored(mine, 0)], ...(needsCheck && { status: "NEEDS_REVIEW" as const }) }).where(eq(contents.id, id));
     }
