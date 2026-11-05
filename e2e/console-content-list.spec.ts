@@ -28,9 +28,9 @@ test("staff open an exhibition's review screen and see its contents, not another
   await expect(page.getByText("Why light", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("In review 1")).toBeVisible();
   await expect(page.getByText("Approved 1")).toBeVisible();
-  await expect(page.getByText("Light is the subject.")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Item text" }).getByText("Light is the subject.")).toBeVisible();
   await page.getByRole("button", { name: /Artwork/ }).click();
-  await expect(page.getByText("Oil on canvas, 1998.")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Item text" }).getByText("Oil on canvas, 1998.")).toBeVisible();
   await expect(page.getByText("Foreign heading")).toHaveCount(0);
   await expect(page.getByText("Foreign text.")).toHaveCount(0);
 });
@@ -78,7 +78,8 @@ test("console.content.list returns the exhibition's contents oldest first with t
   const got = (await consoleCall(page, "console.content.get", { id: first.id })).json.result.data;
   expect(got).toMatchObject({ id: first.id, kind: "ARTWORK", images: [{ id: image.id }] });
   expect(got.doc.content[0]).toEqual(paragraph("b1", "From the catalogue."));
-  expect(got.sources).toEqual({ b1: { refs: [`${document.id}:s001`], start: 0, end: 19 } });
+  // The document has no manifest, so the source text cannot be read (SPEC §10.8 sources).
+  expect(got.sources).toEqual({ b1: { refs: [`${document.id}:s001`], start: 0, end: 19, text: null } });
   expect(list[0].doc.content).toHaveLength(2);
   expect((await consoleCall(page, "console.content.get", { id: foreign.id })).status).toBe(404);
   expect((await consoleCall(page, "console.content.list", { code: other.code })).status).toBe(404);

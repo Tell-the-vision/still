@@ -104,3 +104,21 @@ test("blocks are labelled Source / Edited / No source and an edited one reverts 
   const [row] = await e2eSql<{ doc: { content: { attrs: { id: string }; content: { text: string }[] }[] } }>("SELECT doc FROM contents WHERE id = $1", [content.id]);
   expect(row.doc.content.find((b) => b.attrs.id === "b2")?.content).toEqual([{ type: "text", text: "One two." }]);
 });
+
+// A source whose document has no manifest yet cannot be read: the block is "No source", never "Edited",
+// so "Revert to source" cannot blank it.
+test("a block traced to a document without a manifest reads No source and cannot be reverted", async ({ page }) => {
+  const s = await storedDocument(page);
+  const content = await seedContent(s.exhibition, {
+    kind: "ARTWORK", status: "READY",
+    doc: [paragraph("b1", "Kept as written.")],
+    sources: { b1: { refs: [`${s.documentId}:s001`], start: 0, end: 8 } },
+  });
+  expect(data(await consoleCall(page, "console.content.get", { id: content.id })).sources.b1.text).toBeNull();
+
+  await page.goto("/institutions/exhibitions");
+  await page.getByText(s.exhibition.title, { exact: true }).click();
+  await page.goto("/institutions/materials/review");
+  await expect(page.locator(".source-marks__row").first().locator(".source-marks__label")).toHaveText("No source");
+  await expect(page.getByRole("button", { name: "Revert to source" })).toHaveCount(0);
+});
