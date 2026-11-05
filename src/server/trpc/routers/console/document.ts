@@ -221,10 +221,13 @@ export const consoleDocumentRouter = router({
 // manifest is validated, then the document and its image rows change together. An invalid manifest is not an
 // error: the document becomes FAILED / MANIFEST_INVALID and the caller reads that from the returned row.
 // The `document.verify` job (pg-boss) will later move images off UNVERIFIED; here they are only recorded.
-async function recordManifest(institutionId: string, id: string, manifestKey: string) {
+async function recordManifest(institutionId: string, id: string, name: string) {
   const [doc] = await db.select().from(documents).where(eq(documents.id, id));
   if (doc.status !== "STORED" && doc.status !== "EXTRACTED") throw new TRPCError({ code: "BAD_REQUEST", message: "Only a stored document can be extracted." });
   const prefix = documentPrefix(institutionId, doc.exhibitionId, id);
+  // The console names the manifest the way console.documentUpload.create does, relative to the document's
+  // prefix ("manifest.v1.json"); a full key under the prefix is accepted too.
+  const manifestKey = name.startsWith(prefix) ? name : `${prefix}${name}`;
   const version = manifestVersionOf(prefix, manifestKey);
   if (version === null) throw new TRPCError({ code: "BAD_REQUEST", message: "manifestKey must be this document's manifest.v{n}.json." });
   const current = doc.manifestObjectKey ? manifestVersionOf(prefix, doc.manifestObjectKey) : null;
