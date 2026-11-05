@@ -236,6 +236,8 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       allow("edit");
       return edited(Object.assign(findItem(itemId), patch));
     },
+    listBlockSources: async () => [],
+    revertBlockToSource: async () => { throw new Error("Not available in the sample data."); },
     async approveContentItem(itemId) {
       const blocker = approvalBlocker(findItem(itemId), siblings(itemId));
       if (blocker) throw new Error(blocker);

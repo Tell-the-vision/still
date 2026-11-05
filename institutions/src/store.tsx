@@ -300,6 +300,7 @@ function useWorkspaceState() {
     }),
 
     updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch))),
+    revertBlock: (itemId: string, nodeId: string) => run(() => applyItem(itemId, () => api.revertBlockToSource(itemId, nodeId))),
     approveItem: (itemId: string) => run(() => applyItem(itemId, () => api.approveContentItem(itemId))),
     rejectItem: (itemId: string) => run(() => applyItem(itemId, () => api.rejectContentItem(itemId))),
     reopenItem: (itemId: string) => run(() => applyItem(itemId, () => api.reopenContentItem(itemId))),

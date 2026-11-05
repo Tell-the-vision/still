@@ -1171,3 +1171,10 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .still-editor__body .ProseMirror:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 .still-editor__body mark[data-scrap] { background: rgba(255, 214, 0, 0.45); color: inherit; }
 .still-editor__body blockquote { margin: 8px 0; padding-left: 12px; border-left: 2px solid currentColor; }
+
+.source-marks { margin: 16px 0; }
+.source-marks__list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.source-marks__row { display: grid; grid-template-columns: 76px 1fr auto; gap: 12px; align-items: baseline; font-size: 13px; }
+.source-marks__label { font-size: 11px; color: var(--gray); }
+.source-marks__label[data-mark="Edited"] { color: var(--black); font-weight: 600; }
+.source-marks__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -6,12 +6,14 @@ import {
   consoleContentListInput,
   consoleContentUpdateInput,
 } from "@still/shared/console";
+import type { ContentSources } from "@still/shared/still-doc";
 import { TRPCError } from "@trpc/server";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../../../db/client";
-import { contents, exhibitions } from "../../../db/schema";
+import { contents, documents, exhibitions } from "../../../db/schema";
 import { approveReadyContents, createContent, deleteContent, updateContent } from "../../../services/console/content-write";
 import { contentRows } from "../../../services/console/content-rows";
+import { readManifest } from "../../../services/console/manifests";
 import { exhibitionRows } from "../../../services/console/exhibition-rows";
 import { consoleProcedure, router } from "../../init";
 
@@ -25,14 +27,14 @@ export const consoleContentRouter = router({
     return contentRows(exhibition.id);
   }),
 
-  // One item. `sources` maps node ids to refs and ranges; the referenced source text needs the analysis
-  // manifests, which do not exist yet, so it is not included.
+  // One item. `sources` maps node ids to refs and ranges; each entry also carries `text`, the range of the
+  // referenced segments' texts (joined with single spaces) read from the documents' manifests (SPEC §10.8).
   get: consoleProcedure.input(consoleContentGetInput).query(async ({ ctx, input }) => {
     const [owned] = await db.select({ exhibitionId: contents.exhibitionId }).from(contents).where(eq(contents.id, input.id));
     const [exhibition] = owned ? await exhibitionRows(ctx.institutionId, { where: eq(exhibitions.id, owned.exhibitionId) }) : [];
     const [row] = exhibition ? await contentRows(exhibition.id, { where: eq(contents.id, input.id) }) : [];
     if (!row) throw new TRPCError({ code: "NOT_FOUND" });
-    return row;
+    return { ...row, sources: await withSourceText(row.sources) };
   }),
 
   // A manual item (SPEC §9.4), READY.
@@ -64,3 +66,22 @@ export const consoleContentRouter = router({
     return ids.length ? contentRows(exhibition.id, { where: inArray(contents.id, ids) }) : [];
   }),
 });
+
+// Each sources entry with the slice [start, end) of its segments' texts. A ref whose document has no
+// manifest yet, or whose segment is unknown, contributes nothing.
+async function withSourceText(sources: ContentSources) {
+  const refs = Object.values(sources).flatMap((s) => s.refs);
+  const documentIds = [...new Set(refs.map((ref) => ref.split(":")[0]))];
+  const rows = documentIds.length ? await db.select({ id: documents.id, key: documents.manifestObjectKey }).from(documents).where(inArray(documents.id, documentIds)) : [];
+  const segmentTexts = new Map<string, string>();
+  for (const { id, key } of rows) {
+    if (!key) continue;
+    for (const segment of (await readManifest(key)).segments) segmentTexts.set(`${id}:${segment.id}`, segment.text);
+  }
+  return Object.fromEntries(
+    Object.entries(sources).map(([nodeId, s]) => {
+      const joined = s.refs.flatMap((ref) => segmentTexts.get(ref) ?? []).join(" ");
+      return [nodeId, { ...s, text: joined.slice(s.start, s.end) }];
+    }),
+  );
+}
