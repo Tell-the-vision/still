@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { Artwork } from "./Artwork";
 import { Text } from "./Text";
 import { colors, spacing } from "./theme";
@@ -29,6 +29,11 @@ function runsOf(paragraph: StillNode): Run[] {
   return runs;
 }
 
+// About 65 characters of body text per line; images may run wider than this.
+const MEASURE = 520;
+// A gallery slide shows a part of the next one, so it reads as swipeable.
+const SLIDE_WIDTH = 260;
+
 const quoted = (text: string) => (/^["“]/.test(text) ? text : `“${text}”`);
 
 function Paragraph({ node, renderSentence }: { node: StillNode; renderSentence?: RenderSentence }) {
@@ -38,7 +43,7 @@ function Paragraph({ node, renderSentence }: { node: StillNode; renderSentence?:
     <View style={{ gap: spacing.tight }}>
       {runs.map((run, i) => {
         if (!run.sentenceId || !renderSentence) return <Text key={i}>{run.text}</Text>;
-        const quote = <Text variant="quote">{quoted(run.text)}</Text>;
+        const quote = <Text variant="quote" style={{ textDecorationLine: "underline", textDecorationColor: colors.gray }}>{quoted(run.text)}</Text>;
         return <View key={i}>{renderSentence({ sentenceId: run.sentenceId, text: run.text }, quote)}</View>;
       })}
     </View>
@@ -57,7 +62,7 @@ function Block({ node, first, renderSentence }: { node: StillNode; first: boolea
     case "paragraph":
       return <Paragraph node={node} renderSentence={renderSentence} />;
     case "blockquote":
-      return <View style={{ gap: spacing.gap, paddingLeft: spacing.inset, borderLeftWidth: 2, borderLeftColor: colors.gray }}>{children}</View>;
+      return <View style={{ gap: spacing.gap, paddingLeft: spacing.inset, borderLeftWidth: 1, borderLeftColor: colors.gray }}>{children}</View>;
     case "bulletList":
     case "orderedList":
       return (
@@ -76,17 +81,50 @@ function Block({ node, first, renderSentence }: { node: StillNode; first: boolea
       const { url, altText, width, height, caption } = node.attrs ?? {};
       if (typeof url !== "string" || typeof width !== "number" || typeof height !== "number") return null;
       // Never cropped or upscaled (SPEC §0.3): Artwork contains the image within its natural size.
-      return <Artwork url={url} altText={typeof altText === "string" ? altText : null} width={width} height={height} caption={typeof caption === "string" ? caption : undefined} maxHeight={height} />;
+      const artwork = <Artwork url={url} altText={typeof altText === "string" ? altText : null} width={width} height={height} caption={typeof caption === "string" ? caption : undefined} maxHeight={height} />;
+      // HERO runs edge to edge (past the screen's gutter); PORTRAIT is narrower and centred; INLINE and a lone GALLERY stay in the column.
+      if (node.attrs?.display === "HERO") return <View style={{ marginHorizontal: -spacing.gutter }}>{artwork}</View>;
+      if (node.attrs?.display === "PORTRAIT") return <View style={{ width: "70%", alignSelf: "center" }}>{artwork}</View>;
+      return artwork;
     }
     default:
       return null;
   }
 }
 
+const isGallery = (node: StillNode) => node.type === "stillImage" && node.attrs?.display === "GALLERY";
+
+// Consecutive GALLERY images become one group: a horizontal row that snaps slide by slide.
+function Gallery({ nodes, renderSentence }: { nodes: StillNode[]; renderSentence?: RenderSentence }) {
+  return (
+    <ScrollView
+      horizontal
+      testID="gallery-row"
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={SLIDE_WIDTH + spacing.gap}
+      decelerationRate="fast"
+      style={{ marginHorizontal: -spacing.gutter }}
+      contentContainerStyle={{ gap: spacing.gap, paddingHorizontal: spacing.gutter }}
+    >
+      {nodes.map((node, i) => (
+        <View key={i} style={{ width: SLIDE_WIDTH }}>
+          <Block node={node} first={false} renderSentence={renderSentence} />
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
 export function StillDocView({ document, renderSentence }: { document: StillDoc; renderSentence?: RenderSentence }) {
   return (
-    <View style={{ gap: spacing.gap }}>
-      {document.content.map((node, i) => <Block key={i} node={node} first={i === 0} renderSentence={renderSentence} />)}
+    <View style={{ gap: spacing.gap, maxWidth: MEASURE }}>
+      {document.content.map((node, i) => {
+        if (!isGallery(node)) return <Block key={i} node={node} first={i === 0} renderSentence={renderSentence} />;
+        if (i > 0 && isGallery(document.content[i - 1])) return null; // already in the row above
+        const row = [node];
+        for (let j = i + 1; j < document.content.length && isGallery(document.content[j]); j++) row.push(document.content[j]);
+        return <Gallery key={i} nodes={row} renderSentence={renderSentence} />;
+      })}
     </View>
   );
 }

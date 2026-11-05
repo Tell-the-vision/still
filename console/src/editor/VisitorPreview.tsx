@@ -37,7 +37,7 @@ function Block({ node }: { node: StillNode }): ReactNode {
     }
     case "stillImage":
       return (
-        <figure>
+        <figure className={`vp__fig vp__fig--${(node.attrs?.display ?? "INLINE").toLowerCase()}`}>
           <div className="vp__image" role="img" aria-label={node.attrs?.caption ?? "Image"} />
           {node.attrs?.caption && <figcaption>{node.attrs.caption}</figcaption>}
         </figure>
@@ -47,10 +47,24 @@ function Block({ node }: { node: StillNode }): ReactNode {
   }
 }
 
+const isGallery = (node?: StillNode) => node?.type === "stillImage" && node.attrs?.display === "GALLERY";
+
+// Consecutive GALLERY images share one horizontally scrolling row, as in the visitor app.
+function Blocks({ nodes }: { nodes: StillNode[] }) {
+  const out: ReactNode[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    if (!isGallery(nodes[i])) { out.push(<Block key={i} node={nodes[i]} />); continue; }
+    const start = i;
+    while (isGallery(nodes[i + 1])) i++;
+    out.push(<div key={start} className="vp__gallery">{nodes.slice(start, i + 1).map((n, j) => <Block key={j} node={n} />)}</div>);
+  }
+  return <>{out}</>;
+}
+
 export function VisitorPreview({ doc }: { doc: StillDoc }) {
   return (
     <div className="vp" data-testid="visitor-preview" role="region" aria-label="Visitor preview" tabIndex={0}>
-      {doc.content.map((node, i) => <Block key={i} node={node} />)}
+      <Blocks nodes={doc.content} />
     </div>
   );
 }

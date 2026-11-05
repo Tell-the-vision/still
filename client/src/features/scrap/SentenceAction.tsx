@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { StyleSheet, View, type HostInstance } from "react-native";
 import { Notice } from "../../ui/Notice";
-import { spacing } from "../../ui/theme";
+import { colors, spacing } from "../../ui/theme";
 import { savePendingAction } from "../auth/pending-action";
 import { useMe } from "../auth/use-me";
 import { KeepMark } from "./KeepMark";
@@ -35,7 +35,7 @@ export function SentenceAction({ code, sentence, quote }: Props) {
   return (
     <View ref={viewRef} style={{ gap: spacing.inset }}>
       <View style={styles.row}>
-        <View style={styles.quote}>{quote}</View>
+        <View style={[styles.quote, kept && styles.kept]}>{quote}</View>
         <KeepMark kept={kept} pending={toggle.pending} hint={!me ? scrapStrings.signInHint : undefined} onPress={press} />
       </View>
       {toggle.keepFailed && !kept && <Notice message={scrapStrings.saveFailed} error action={{ label: scrapStrings.retry, onPress: toggle.keep }} />}
@@ -47,4 +47,6 @@ export function SentenceAction({ code, sentence, quote }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.tight },
   quote: { flex: 1 },
+  // A kept line carries a black rule at its left edge.
+  kept: { borderLeftWidth: 1, borderLeftColor: colors.black, paddingLeft: spacing.tight },
 });
