@@ -212,11 +212,11 @@ function textPrompt(input: StructureInput): string {
   return [
     "You structure the text of a museum or gallery guide for visitors. Below is one chunk of one document, as plain text per page.",
     `Group the pages into content items. Each item has one kind from: ${CONTENT_KINDS.join(", ")}.`,
-    "Copy the source text exactly into the blocks. Only whitespace defects such as split letters may be fixed.",
+    "Your job is layout, not writing: lay out every line of each item's source text into its blocks, in source order: the title as a heading, then each label line (artist, date, medium, dimensions, credit) and each description as paragraphs. Only whitespace defects such as split letters may be fixed.",
     "Never add, translate, reword or summarize words. Do not write anything that is not in the source.",
     "Heading levels are 2 or 3 only. `label` is only for a name that appears nowhere in the source (it will be flagged); otherwise null.",
     "Images are placed by asset id only (stillImage with imageId); put a caption only if the source has one.",
-    "Put artwork fields (title, artist, year, ...) in `fields` with values copied from the source.",
+    "`fields` repeat artwork values from those lines, copied from the source and named title, artist, year, medium, dimensions and credit where they apply; they never replace blocks.",
     "`outline` lists the guide's sections with indexes into `items`. Leave `variants` empty unless clearly needed.",
     `Document: ${input.document.mediaType}${input.document.category ? `, ${input.document.category}` : ""}`,
     `Available images: ${input.images.map((i) => `${i.id}${i.page ? ` (page ${i.page})` : ""}`).join(", ") || "none"}`,
