@@ -1,0 +1,5 @@
+/* Noto Sans KR, split by unicode-range so a page downloads only the slices it uses (family "Noto Sans KR Variable").
+   @import must come before every other rule, or the browser and the bundler drop it. */
+@import "@fontsource-variable/noto-sans-kr/wght.css";
+/* Self-hosted faces for the staff apps (SPEC §0.3), both OFL. Variable files cover the weight ranges. */
+@font-face { font-family: "DM Sans"; font-weight: 400 700; font-display: swap; src: url("./DMSans.woff2") format("woff2"); }

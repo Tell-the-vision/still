@@ -11,7 +11,7 @@ export type ContentPackage = {
     guide: StoredDocument | null;
     startDate: string;
     endDate: string;
-    status: "DRAFT" | "PUBLISHED";
+    state: "DRAFT" | "PUBLISHED" | "UNPUBLISHED";
     ambienceEnabled: boolean;
     playlist: { provider: "APPLE_MUSIC" | "SPOTIFY"; url: string; title: string; description: string | null } | null;
     // Sentences the guide references; any other stored sentence is soft-deleted.
@@ -52,7 +52,7 @@ const exhibition = (
     guide: guideOf(list),
     startDate: "2026-01-01",
     endDate: "2030-12-31",
-    status: "PUBLISHED",
+    state: "PUBLISHED",
     ambienceEnabled: true,
     playlist: null,
     sentences: list,
@@ -61,7 +61,7 @@ const exhibition = (
 };
 
 export const defaultPackage: ContentPackage = {
-  institution: { code: "still-museum", name: "Still Museum" },
+  institution: { code: "STILL-MUSEUM", name: "Still Museum" },
   venues: [
     { code: "seoul-hall", name: "Seoul Hall", city: "Seoul" },
     { code: "busan-gallery", name: "Busan Gallery", city: "Busan" },
@@ -75,7 +75,7 @@ export const defaultPackage: ContentPackage = {
       startDate: "2025-01-01", endDate: "2025-06-30",
     }),
     exhibition("draft-preview", "seoul-hall", "Draft Preview", ["Not yet open."], 4, {
-      startDate: "2027-01-01", endDate: "2027-12-31", status: "DRAFT", ambienceEnabled: false,
+      startDate: "2027-01-01", endDate: "2027-12-31", state: "DRAFT", ambienceEnabled: false,
     }),
   ],
 };

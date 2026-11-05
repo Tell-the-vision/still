@@ -5,6 +5,7 @@ import { archives } from "../../../../server/db/schema";
 import { renderKeepsakePng } from "../../../../server/media/keepsake-png";
 import { publicImageUrl } from "../../../../server/media/public-url";
 import { verifyTicket } from "../../../../server/media/keepsake-ticket";
+import { completeExhibition, hasPublicCopy } from "../../../../server/services/visible";
 
 // SPEC §7.3: the ticket is a bearer link, so it is never logged.
 export async function GET(req: Request) {
@@ -23,8 +24,9 @@ export async function GET(req: Request) {
     sentences: { sentenceId: string; content: string }[];
     journalExcerpt: string | null;
   };
-  const { coverImage } = archive.exhibition;
-  const image = await renderKeepsakePng({ exhibition: archive.exhibition, sentences, journalExcerpt, image: coverImage && { url: publicImageUrl(coverImage.objectKey), width: coverImage.width, height: coverImage.height } }, archive.keepsake.templateId);
+  const exhibition = completeExhibition(archive.exhibition);
+  const { coverImage } = exhibition;
+  const image = await renderKeepsakePng({ exhibition, sentences, journalExcerpt, image: hasPublicCopy(coverImage) ? { url: publicImageUrl(coverImage.objectKey), width: coverImage.width, height: coverImage.height } : null }, archive.keepsake.templateId);
   const seconds = Math.max(0, Math.floor((payload.exp - Date.now()) / 1000));
   return new Response(image.body, {
     headers: {

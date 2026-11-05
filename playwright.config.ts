@@ -19,7 +19,10 @@ export default defineConfig({
     },
   },
   projects: [{ name: "chromium", use: { browserName: "chromium", viewport: { width: 390, height: 844 } } }],
-  webServer: {
+  webServer: [
+    // A stand-in for the analysis Worker (SPEC §10.10); the app's jobs call it.
+    { command: "npx tsx e2e/support/fake-analysis-worker.ts", port: port + 1, reuseExistingServer: false, env: { FAKE_WORKER_PORT: String(port + 1) } },
+    {
     command: "npm run e2e:server",
     port,
     reuseExistingServer: false,
@@ -27,6 +30,9 @@ export default defineConfig({
     env: {
       ...E2E_DB_ENV,
       E2E: "1",
+      RUN_WORKERS: "true",
+      ANALYSIS_WORKER_URL: `http://localhost:${port + 1}`,
+      ANALYSIS_WORKER_SECRET: "e2e-analysis-worker-secret",
       E2E_PORT: String(port),
       STILL_ORIGIN: `http://localhost:${port}`,
       AUTH_GOOGLE_ID: "test-google-web-id",
@@ -50,5 +56,6 @@ export default defineConfig({
       RATE_LIMIT_USER_PER_MIN: "300",
       TRUST_PROXY: "1",
     },
-  },
+    },
+  ],
 });

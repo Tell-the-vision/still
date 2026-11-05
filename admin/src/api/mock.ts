@@ -1,6 +1,6 @@
 // In-memory PlatformApi for building screens without a backend. State resets on reload.
-import { ApiError } from "./errors";
-import type { Institution, InstitutionStatus, PlatformApi } from "./types";
+import { AccountNotIssuedError, ApiError } from "./errors";
+import type { Account, Institution, InstitutionStatus, PlatformApi } from "./types";
 
 const wait = <T,>(value: T, ms = 150): Promise<T> => new Promise((r) => setTimeout(() => r(structuredClone(value)), ms));
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
@@ -36,7 +36,7 @@ const SEED: [name: string, code: string, email: string, status: InstitutionStatu
 export function createMockApi(): PlatformApi {
   // Starts signed in so the screens open directly; ?signedOut (or Sign out) shows the temporary sign-in screen.
   let signedIn = !new URLSearchParams(window.location.search).has("signedOut");
-  const me = { email: "admin@still.app", role: "SUPER_ADMIN" as const };
+  const me = { email: "admin@still.app", role: "SUPER_ADMIN" as const, mustChangePassword: new URLSearchParams(window.location.search).has("mustChange") };
   const db: Institution[] = SEED.map(([name, code, adminEmail, status, created, last], i) => ({
     id: `inst-${i + 1}`,
     publicId: `STL-${code}-${String(i + 1).padStart(4, "0")}`,
@@ -44,6 +44,18 @@ export function createMockApi(): PlatformApi {
     createdAt: `${created}T09:00:00+09:00`,
     lastActiveAt: last === null ? null : daysAgo(last),
   }));
+  const accounts: Account[] = [
+    { id: "acc-1", role: "ADMIN", institution: null, email: me.email, name: "STILL Admin", status: "ACTIVE", lastSignInAt: daysAgo(0) },
+    ...db.slice(0, 5).map((i): Account => ({ id: `acc-${i.id}`, role: "INSTITUTION", institution: i.name, email: i.adminEmail, name: null, status: "ACTIVE", lastSignInAt: i.lastActiveAt })),
+  ];
+  const account = (id: string) => {
+    const hit = accounts.find((x) => x.id === id);
+    if (!hit) throw new ApiError("Account not found.", "NOT_FOUND");
+    return hit;
+  };
+  const assertNotLastOperator = (a: Account) => {
+    if (a.role === "ADMIN" && a.status === "ACTIVE" && accounts.filter((x) => x.role === "ADMIN" && x.status === "ACTIVE").length === 1) throw new ApiError("Conflict.", "CONFLICT", "LAST_ADMIN");
+  };
   const find = (id: string) => {
     const hit = db.find((x) => x.id === id);
     if (!hit) throw new ApiError("Institution not found.", "NOT_FOUND");
@@ -51,14 +63,45 @@ export function createMockApi(): PlatformApi {
   };
 
   const impl: PlatformApi = {
-    async signInWithGoogle() { signedIn = true; return wait(me, 400); },
+    async signIn(email, password) {
+      // Mock credentials: any email, any password except "wrong".
+      if (!email.trim() || password === "wrong") { await wait(undefined, 400); throw new ApiError("Email or password is incorrect.", "UNAUTHORIZED"); }
+      signedIn = true;
+      return wait(me, 400);
+    },
     async signOut() { signedIn = false; return wait(undefined, 200); },
+    async changePassword(currentPassword, newPassword) {
+      // Mock: the current password is "temporary" while the temporary-password screen is on (?mustChange).
+      if (currentPassword !== "temporary") throw new ApiError("The current password is incorrect.", "BAD_REQUEST");
+      if (newPassword.length < 12) throw new ApiError("The new password must be at least 12 characters.", "BAD_REQUEST");
+      me.mustChangePassword = false;
+      return wait(undefined, 300);
+    },
     getMe: () => wait(me),
+    listAccounts: () => wait(accounts),
+    async addOperator(name, email) {
+      const created: Account = { id: `acc-${Date.now()}`, role: "ADMIN", institution: null, email: email.trim(), name: name.trim(), status: "ACTIVE", lastSignInAt: null };
+      accounts.push(created);
+      return wait({ account: created, temporaryPassword: "mock-Temp-Pass-42" }, 300);
+    },
+    async setAccountStatus(id, status) {
+      const a = account(id);
+      if (status === "SUSPENDED") assertNotLastOperator(a);
+      a.status = status;
+      return wait(a, 300);
+    },
+    async resetAccountPassword(id) { return wait({ email: account(id).email, temporaryPassword: "mock-Temp-Pass-43" }, 300); },
+    async deleteAccount(id) {
+      assertNotLastOperator(account(id));
+      accounts.splice(accounts.findIndex((x) => x.id === id), 1);
+      return wait(undefined, 300);
+    },
     listInstitutions: () => wait(db),
-    async createInstitution({ name, code, adminEmail }) {
+    async createInstitution({ name, code, adminName, adminEmail }) {
       const c = code.trim().toUpperCase();
       if (!name.trim()) throw new ApiError("Enter the institution name.", "BAD_REQUEST");
       if (!/^[A-Z]{2,6}$/.test(c)) throw new ApiError("Short code: 2–6 letters (A–Z).", "BAD_REQUEST");
+      if (!adminName.trim()) throw new ApiError("Enter the workspace admin name.", "BAD_REQUEST");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail.trim())) throw new ApiError("Enter a valid admin email.", "BAD_REQUEST");
       if (db.some((x) => x.name.toLowerCase() === name.trim().toLowerCase())) throw new ApiError("An institution with this name already exists.", "CONFLICT");
       // The number is a platform-wide sequence, so an ID is never reused even after a code repeats.
@@ -66,21 +109,33 @@ export function createMockApi(): PlatformApi {
       const created: Institution = {
         id: `inst-${Date.now()}`,
         publicId: `STL-${c}-${String(next).padStart(4, "0")}`,
-        name: name.trim(), adminEmail: adminEmail.trim(), status: "PENDING",
+        name: name.trim(), adminEmail: "—", status: "PENDING",
         createdAt: new Date().toISOString(), lastActiveAt: null,
       };
       db.push(created);
-      return wait(created, 400);
+      // Like the server, the account step can fail after the institution exists.
+      try {
+        return await impl.issueWorkspaceAdmin(created, { adminName, adminEmail });
+      } catch (e) {
+        throw new AccountNotIssuedError(e instanceof Error ? e.message : String(e), structuredClone(created), "LOGIN_ID_TAKEN");
+      }
+    },
+    async issueWorkspaceAdmin(institution, { adminEmail }) {
+      const email = adminEmail.trim();
+      if (db.some((x) => x.adminEmail.toLowerCase() === email.toLowerCase())) throw new ApiError("This email already signs in to another account.", "CONFLICT", "LOGIN_ID_TAKEN");
+      const inst = find(institution.id);
+      inst.adminEmail = email;
+      return wait({ institution: inst, temporaryPassword: "mock-Temp-Pass-42" }, 400);
     },
     async setInstitutionStatus(id, status) {
       const inst = find(id);
-      // Reactivating someone who never accepted the invite puts them back to PENDING, not ACTIVE.
+      // Reactivating an institution whose accounts never signed in puts it back to PENDING, not ACTIVE.
       inst.status = status === "ACTIVE" && inst.lastActiveAt === null ? "PENDING" : status;
       return wait(inst, 300);
     },
-    async resendInvite(id) {
-      if (find(id).status !== "PENDING") throw new ApiError("Only pending institutions have an open invitation.", "BAD_REQUEST");
-      return wait(undefined, 300);
+    async resetWorkspaceAdminPassword(id) {
+      const groups = Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 6).padEnd(4, "x"));
+      return wait({ email: find(id).adminEmail, temporaryPassword: groups.join("-") }, 300);
     },
   };
 
@@ -88,7 +143,7 @@ export function createMockApi(): PlatformApi {
   return new Proxy(impl, {
     get(target, key: keyof PlatformApi) {
       const fn = target[key] as (...args: unknown[]) => Promise<unknown>;
-      if (key === "signInWithGoogle") return fn;
+      if (key === "signIn") return fn;
       return (...args: unknown[]) => (signedIn ? fn(...args) : Promise.reject(new ApiError("Sign in to continue.", "UNAUTHORIZED")));
     },
   });

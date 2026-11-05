@@ -19,3 +19,7 @@ export function clientIp(req: Request) {
 
 export const ipAllowed = (req: Request) => hit(`ip:${clientIp(req)}`, Number(process.env.RATE_LIMIT_IP_PER_MIN ?? 30));
 export const userAllowed = (userId: string) => hit(`user:${userId}`, Number(process.env.RATE_LIMIT_USER_PER_MIN ?? 120));
+
+// Password sign-in is limited per email as well as per IP (SPEC §11.1); lockout is separate (SPEC §10.5).
+export const loginAllowed = (email: string) =>
+  hit(`login:${email.trim().toLowerCase()}`, Number(process.env.RATE_LIMIT_LOGIN_PER_MIN ?? 20));

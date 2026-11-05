@@ -14,13 +14,14 @@ export const focusRing = { outlineWidth: 2, outlineOffset: 2, outlineColor: colo
 
 // Hangul glyphs come from Noto Sans KR. Only web supports a font-family stack;
 // native falls back per glyph on its own.
-const stack = (latin: string) =>
-  Platform.OS === "web" ? `${latin}, NotoSansKR_400Regular, sans-serif` : latin;
+// The Korean fallback uses the same weight as the Latin face (400/500/700).
+const stack = (latin: string, korean: "400Regular" | "500Medium" | "700Bold") =>
+  Platform.OS === "web" ? `${latin}, NotoSansKR_${korean}, sans-serif` : latin;
 
 export const fontFamily = {
-  display: stack("Montserrat_500Medium"),
-  body: stack("DMSans_400Regular"),
-  bodyMedium: stack("DMSans_500Medium"),
+  display: stack("Montserrat_500Medium", "500Medium"),
+  body: stack("DMSans_400Regular", "400Regular"),
+  bodyMedium: stack("DMSans_500Medium", "500Medium"),
 };
 
 // QR viewfinder corner brackets (Figma 03).

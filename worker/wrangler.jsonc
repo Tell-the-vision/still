@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "still-analysis",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "limits": { "cpu_ms": 120000 },
+  // Gemini rejects some Cloudflare locations (HKG: "User location is not supported"); pin to Seoul.
+  "placement": { "region": "gcp:asia-northeast3" },
+  // Secrets (wrangler secret put): GEMINI_KEY, ANALYSIS_WORKER_SECRET.
+  "vars": { "GEMINI_MODEL_STRUCTURE": "gemini-2.5-flash" }
+}

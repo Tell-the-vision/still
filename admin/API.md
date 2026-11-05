@@ -7,7 +7,7 @@ The screens only talk to `PlatformApi` (`src/api/types.ts`). To connect the real
 | `getMe` | query | — | `PlatformAdmin` (`{ email, role: "SUPER_ADMIN" }`); `UNAUTHORIZED` without a STILL staff session |
 | `signOut` | mutation | — | ends the STILL staff session |
 | `listInstitutions` | query | — | `Institution[]` |
-| `createInstitution` | mutation | `{ name, code, adminEmail }` | `Institution` (PENDING) |
+| `createInstitution` | mutation | `{ name, code, adminName, adminEmail }` | `{ institution (PENDING), temporaryPassword }` |
 | `setInstitutionStatus` | mutation | `{ id, status: "ACTIVE" \| "SUSPENDED" }` | `Institution` |
 | `resendInvite` | mutation | `{ id }` | `void` |
 

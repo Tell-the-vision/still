@@ -3,7 +3,7 @@ import type { ContentPackage } from "../../src/server/db/seed/content";
 const imageId = "00000000-0000-4000-9000-000000000001";
 
 const pkg: ContentPackage = {
-  institution: { code: "still-museum", name: "Still Museum" },
+  institution: { code: "STILL-MUSEUM", name: "Still Museum" },
   venues: [{ code: "seoul-hall", name: "Seoul Hall", city: "Seoul" }],
   exhibitions: [
     {
@@ -14,7 +14,7 @@ const pkg: ContentPackage = {
       guide: null,
       startDate: "2026-01-01",
       endDate: "2030-12-31",
-      status: "PUBLISHED",
+      state: "PUBLISHED",
       ambienceEnabled: false,
       playlist: null,
       sentences: [],

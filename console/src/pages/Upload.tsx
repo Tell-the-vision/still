@@ -11,14 +11,14 @@ const STATUS: Record<SourceFile["status"], { label: string; tone: "green" | "amb
   UPLOADING: { label: "Uploading", tone: "gray" },
   CANCELED: { label: "Canceled", tone: "gray" },
   UPLOADED: { label: "Uploaded", tone: "green" },
-  PROCESSING: { label: "Processing", tone: "gray" },
+  PROCESSING: { label: "Extracting…", tone: "gray" },
   PROCESSED: { label: "Processed", tone: "green" },
   FAILED: { label: "Failed", tone: "amber" },
 };
 
 export default function Upload() {
   const {
-    exhibition, files, uploadFiles, rejectFiles, retryUpload, cancelUpload, canRetry, dismissLocalFile, deleteFile, startAnalysis, createExhibition,
+    exhibition, files, uploadFiles, rejectFiles, retryUpload, cancelUpload, canRetry, dismissLocalFile, deleteFile, downloadFile, startAnalysis, createExhibition,
   } = useWorkspace();
   const [dragging, setDragging] = useState(false);
   const [duplicates, setDuplicates] = useState<File[]>([]);
@@ -34,7 +34,7 @@ export default function Upload() {
   const uploading = files.some((f) => f.status === "UPLOADING" || f.status === "QUEUED");
   const failed = files.filter((f) => f.status === "FAILED").length;
   // Handoff 4.1: processing is enabled once at least one file uploaded successfully.
-  const canAnalyse = onServer.some((f) => f.status === "UPLOADED") && !uploading && !busy;
+  const canAnalyse = onServer.some((f) => f.status === "UPLOADED" || f.status === "PROCESSED") && !uploading && !busy;
 
   const addFiles = (list: FileList | null) => {
     if (!list?.length) return;
@@ -159,7 +159,7 @@ export default function Upload() {
         <div className="section__head">
           <h2 className="h2">Uploaded materials</h2>
           <span className="caption">
-            {onServer.length} files · {formatMB(totalBytes)}
+            {onServer.length} {onServer.length === 1 ? "file" : "files"} · {formatMB(totalBytes)}
             {uploading && " · uploading"}
             {failed > 0 && ` · ${failed} failed`}
           </span>
@@ -180,10 +180,11 @@ export default function Upload() {
                       <td>
                         <p className="strong">{f.name}</p>
                         {f.error && <p className="caption-sm error">{f.error}</p>}
+                        {f.note && <p className="caption-sm muted">{f.note}</p>}
                       </td>
                       <td className="muted">{f.format}{f.summary ? ` · ${f.summary}` : ` · ${formatMB(f.sizeBytes)}`}</td>
                       <td className="muted">{formatAdded(f.uploadedAt)}</td>
-                      <td>
+                      <td aria-live="polite">
                         <Badge tone={STATUS[f.status].tone}>{STATUS[f.status].label}{f.status === "UPLOADING" && ` ${f.progress ?? 0}%`}</Badge>
                         {f.status === "UPLOADING" && (
                           <span className="progress" role="progressbar" aria-valuenow={f.progress ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label={`Uploading ${f.name}`}>
@@ -197,6 +198,9 @@ export default function Upload() {
                         )}
                         {(f.status === "FAILED" || f.status === "CANCELED") && canRetry(f.id) && (
                           <button type="button" className="link-btn link-btn--strong" onClick={() => retryUpload(f.id)}>Retry</button>
+                        )}
+                        {(f.status === "UPLOADED" || f.status === "PROCESSED") && (
+                          <button type="button" className="link-btn" onClick={() => downloadFile(f.id).catch(() => {})} aria-label={`Download ${f.name}`}>Download</button>
                         )}
                         {f.status !== "UPLOADING" && f.status !== "QUEUED" && (
                           <button

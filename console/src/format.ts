@@ -38,13 +38,13 @@ export function formatAdded(iso: ISODateTime) {
   return `${formatUpdated(iso)}, ${formatTime(iso)}`;
 }
 
-export const formatMB = (bytes: number) => `${(bytes / 1e6).toFixed(1)} MB`;
+export const formatMB = (bytes: number) => (bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1e3))} KB` : `${(bytes / 1e6).toFixed(1)} MB`);
 
 export type LibraryStatus = "live" | "scheduled" | "ended" | "draft";
 
-/** Library status is derived from publication status + dates, so the server only stores DRAFT | PUBLISHED. */
+/** Library status is derived from publication status + dates. An UNPUBLISHED guide is offline and editable like a draft. */
 export function libraryStatus(e: Exhibition, today = new Date()): LibraryStatus {
-  if (e.status === "DRAFT") return "draft";
+  if (e.status !== "PUBLISHED") return "draft";
   const t = `${today.getFullYear()}-${dd(today.getMonth() + 1)}-${dd(today.getDate())}`;
   if (e.startDate && t < e.startDate) return "scheduled";
   if (e.endDate && t > e.endDate) return "ended";

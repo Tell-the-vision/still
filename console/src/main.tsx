@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Workspace from "./pages/Workspace";
 import Account from "./pages/Account";
 import Help from "./pages/Help";
+import ChangePassword from "./pages/ChangePassword";
 import SignIn from "./pages/SignIn";
 import "./styles.css";
 
@@ -26,6 +27,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter basename="/console">
         <Routes>
           <Route path="sign-in" element={<SignIn />} />
+          <Route path="change-password" element={<ChangePassword />} />
           {/* Outside Layout so /console redirects right away, even while the workspace is loading or failed. */}
           <Route index element={<Navigate to="/overview" replace />} />
           <Route element={<Layout />}>

@@ -72,6 +72,7 @@ export default function Guide() {
     try { await saveGuide(sections); } catch { /* error banner */ } finally { setBusy(false); }
   };
 
+  // Publishing needs the rights confirmation, which lives on the publish settings page: save, then go there.
   const publish = async () => {
     setBusy(true);
     try {

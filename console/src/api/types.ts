@@ -9,7 +9,8 @@ export interface Workspace {
   institutionId: string; // "STL-MMCA-0002", issued by STILL platform admin; staff type it to sign in
 }
 
-export type PublicationStatus = "DRAFT" | "PUBLISHED";
+// SPEC §10.3 exhibitions.state: UNPUBLISHED is a guide taken offline after it was published.
+export type PublicationStatus = "DRAFT" | "PUBLISHED" | "UNPUBLISHED";
 
 export interface Exhibition {
   id: string;
@@ -17,6 +18,8 @@ export interface Exhibition {
   title: string; // "Damien Hirst"
   subtitle: string | null; // "Life, Death & Everything in Between"
   venueName: string;
+  /** The venue row the name comes from (SPEC §10.9 draft.venueId); null while none is chosen. */
+  venueId: string | null;
   startDate: ISODate | null;
   endDate: ISODate | null;
   status: PublicationStatus;
@@ -34,17 +37,33 @@ export interface SourceFile {
   uploadedAt: ISODateTime;
   status: FileStatus;
   error: string | null; // why it failed, shown on the row
+  note?: string; // client only: something to know about a healthy row ("Text extraction for DOCX is not available yet.")
   /** Client only: upload progress 0–100 while UPLOADING. */
   progress?: number;
 }
 export interface UploadOptions {
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
+  /** The file is stored and its text is being extracted in the browser. */
+  onExtracting?: () => void;
 }
 
 // Handoff 5: extracted → in_review → approved / rejected. Only APPROVED items reach the visitor guide.
 export type ReviewStatus = "IN_REVIEW" | "APPROVED" | "REJECTED";
 export type ContentOrigin = "SOURCE" | "AI_SUGGESTION";
+
+// The STILL document a content item holds (SPEC §11.8); the visitor preview renders it as is.
+export type StillDoc = { type: "doc"; content: StillNode[] };
+export type StillNode = {
+  type: string;
+  attrs?: { id?: string; level?: number; imageId?: string; display?: string; caption?: string | null };
+  text?: string;
+  marks?: { type: string }[];
+  content?: StillNode[];
+};
+
+/** An image of the exhibition (SPEC §10.3 images) the editor can place in a document. */
+export interface ExhibitionImage { id: string; altText: string | null }
 
 export interface ContentItem {
   id: string;
@@ -58,6 +77,7 @@ export interface ContentItem {
   sourceLocation: string; // "Curator statement · Page 2"
   heading: string; // editor title
   fieldLabel: string; // "Extracted sentence 01"
+  doc?: StillDoc; // the document behind `text`, for the visitor preview
   text: string; // current (edited) value
   originalText: string; // value as extracted; kept so edits can be compared and reverted
   theme: string;
@@ -73,6 +93,10 @@ export interface ContentItem {
   duplicateOf: string | null;
   /** Images and other media extracted with this item, each with its own rights record. */
   assets: MediaAsset[];
+  /** Server revision the item was read at; every write sends it (SPEC §10.8). Absent in the mock. */
+  revision?: string;
+  /** The server wants a person to look at it (NEEDS_REVIEW): approvable one by one, never in bulk. */
+  needsReview?: boolean;
 }
 export type ContentItemPatch = Partial<Pick<ContentItem, "text" | "theme" | "contentType" | "note">>;
 
@@ -123,7 +147,7 @@ export interface Guide {
 export interface PublicationDetails {
   title: string;
   subtitle: string | null;
-  venueName: string;
+  venueId: string | null;
   startDate: ISODate | null;
   endDate: ISODate | null;
   code: string;
@@ -135,6 +159,8 @@ export interface Me {
   id: string;
   name: string; // display name, or the email when there is none
   email: string;
+  /** Signed in with a temporary password: the server refuses everything but changePassword and signOut (SPEC §10.5). */
+  mustChangePassword: boolean;
 }
 
 /** Same shape as the existing `venues` table (code, name, city). Venues are shared by all institutions. */
@@ -155,6 +181,19 @@ export interface SignInRequest {
 }
 
 /** The one seam between screens and backend. Swap the implementation, not the screens. */
+export type NewExhibition = { title: string; code: string };
+
+/** An edit suggestion (SPEC §9.4 편집 제안). `contentId` is null for exhibition-wide ones; `revision` is the item's, for the decision. */
+export interface EditSuggestion {
+  id: string;
+  contentId: string | null;
+  kind: string;
+  status: "OPEN" | "ACCEPTED" | "DISMISSED";
+  proposalText: string | null;
+  rationale: string | null;
+  revision: string | null;
+}
+
 export interface ConsoleApi {
   getWorkspace(): Promise<Workspace>;
 
@@ -168,7 +207,10 @@ export interface ConsoleApi {
   createVenue(venue: Pick<Venue, "name" | "city">): Promise<Venue>;
 
   listExhibitions(): Promise<Exhibition[]>;
-  createExhibition(): Promise<Exhibition>;
+  /** A new DRAFT. `code` is the exhibition's permanent id in visitor URLs; a taken one fails with appCode CODE_TAKEN. */
+  createExhibition(input: NewExhibition): Promise<Exhibition>;
+  /** Removes a DRAFT or unpublished exhibition nobody has saved; refused for live ones and ones with visitor archives. */
+  deleteExhibition(id: string): Promise<void>;
   updateExhibition(id: string, patch: Partial<PublicationDetails>): Promise<Exhibition>;
   publishExhibition(id: string): Promise<Exhibition>;
   /** Takes a live guide offline. */
@@ -177,11 +219,22 @@ export interface ConsoleApi {
   listFiles(exhibitionId: string): Promise<SourceFile[]>;
   uploadFile(exhibitionId: string, file: File, options?: UploadOptions): Promise<SourceFile>;
   deleteFile(exhibitionId: string, fileId: string): Promise<void>;
+  /** A short-lived URL for the original file as it was uploaded. */
+  getFileDownloadUrl(fileId: string): Promise<string>;
   startAnalysis(exhibitionId: string): Promise<void>;
   listProcessingEvents(exhibitionId: string): Promise<ProcessingEvent[]>;
 
+  listImages(exhibitionId: string): Promise<ExhibitionImage[]>;
   listContentItems(exhibitionId: string): Promise<ContentItem[]>;
   updateContentItem(itemId: string, patch: ContentItemPatch): Promise<ContentItem>;
+  /** The item's document (Tiptap JSON, SPEC §9.4 schema) as last loaded. */
+  getContentDoc(itemId: string): unknown;
+  /** Autosave of the editor: replaces the whole document. REVISION_MISMATCH reads as "changed elsewhere". */
+  saveContentDoc(itemId: string, doc: unknown): Promise<void>;
+  /** The text blocks of an item with the source text each is traced to (`sourceText` is null without a source entry). */
+  listBlockSources(itemId: string): Promise<BlockSource[]>;
+  /** Rewrites one block to its source text (no scrap marks) and saves. */
+  revertBlockToSource(itemId: string, nodeId: string): Promise<ContentItem>;
   /** Server must refuse while the item has an open duplicate suggestion (`approvalBlocker`). */
   approveContentItem(itemId: string): Promise<ContentItem>;
   /** REJECTED is final (SPEC §10.8): the item leaves the guide draft and cannot come back. */
@@ -193,9 +246,21 @@ export interface ConsoleApi {
   /** Edits one image's rights, credit or alt text; returns the parent item. */
   updateMediaAsset(itemId: string, assetId: string, patch: MediaAssetPatch): Promise<ContentItem>;
 
+  listSuggestions(exhibitionId: string): Promise<EditSuggestion[]>;
+  /** Accepting applies the proposal text to its node. A stale revision throws REVISION_MISMATCH. */
+  /** `exhibitionId` (the code) names the exhibition of an exhibition-wide suggestion. */
+  decideSuggestion(suggestion: EditSuggestion, status: "ACCEPTED" | "DISMISSED", exhibitionId?: string): Promise<void>;
+
   listPublicationChecks(exhibitionId: string): Promise<PublicationCheck[]>;
 
   getGuide(exhibitionId: string): Promise<Guide>;
   saveGuide(exhibitionId: string, sections: GuideSection[]): Promise<Guide>;
   publishGuide(exhibitionId: string): Promise<Guide>;
+}
+
+/** One top-level text block of a content item (SPEC §9.4 원문 대조 표시). */
+export interface BlockSource {
+  nodeId: string;
+  text: string;
+  sourceText: string | null;
 }

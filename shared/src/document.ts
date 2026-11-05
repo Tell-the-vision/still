@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { StillBlock } from "./still-doc";
 
 // Stored form of a description or guide document (SPEC §9).
 // Strict objects: unknown blocks or fields are rejected, not stripped.
@@ -15,11 +16,11 @@ export const storedDocument = z.strictObject({
 });
 export type StoredDocument = z.infer<typeof storedDocument>;
 
-// Served form: image and sentence references are resolved.
+// Served form (SPEC §11.8): a STILL document whose stillImage attrs also carry the public url and size.
 export type ExpandedBlock =
-  | { type: "heading"; text: string }
-  | { type: "paragraph"; text: string }
-  | { type: "image"; imageId: string; url: string; altText: string | null; width: number; height: number }
-  | { type: "sentence"; sentenceId: string; text: string };
+  | Exclude<StillBlock, { type: "stillImage" }>
+  | (Omit<Extract<StillBlock, { type: "stillImage" }>, "attrs"> & {
+      attrs: Extract<StillBlock, { type: "stillImage" }>["attrs"] & { url: string; altText: string | null; width: number; height: number };
+    });
 
-export type ExpandedDocument = { version: 1; blocks: ExpandedBlock[] };
+export type ExpandedDocument = { version: 1; type: "doc"; content: ExpandedBlock[] };

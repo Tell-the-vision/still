@@ -14,6 +14,7 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
 
+  if (status === "password-change") return <Navigate to="/change-password" replace />;
   if (status === "ready") return <Navigate to={from && from !== "/sign-in" ? from : "/overview"} replace />;
 
   const submit = async (e: FormEvent) => {
