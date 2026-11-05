@@ -19,7 +19,21 @@ export type InstitutionRow = {
   createdAt: string;
 };
 
-const accountsOf = sql`users u JOIN user_tokens t ON t.user_id = u.id AND t.provider = 'PASSWORD' WHERE u.institution_id = ${institutions.id}`;
+// Drizzle prints a column of a one-table select without its table, which inside these subqueries
+// would resolve to users.id; the explicit name reaches the institution.
+const institutionId = sql.raw('"institutions"."id"');
+const accountsOf = sql`users u JOIN user_tokens t ON t.user_id = u.id AND t.provider = 'PASSWORD' WHERE u.institution_id = ${institutionId}`;
+
+// created_at at the millisecond the API shows it, so ordering and the list cursor agree with it.
+export const createdAtMs = sql`date_trunc('milliseconds', ${institutions.createdAt})`;
+
+// WHERE fragment for one display status; the same definition as InstitutionRow.displayStatus.
+export function displayStatusWhere(status: InstitutionRow["displayStatus"]): SQL {
+  const signedIn = sql`EXISTS (SELECT 1 FROM ${accountsOf} AND t.last_login_at IS NOT NULL)`;
+  if (status === "SUSPENDED") return sql`${institutions.status} = 'SUSPENDED'`;
+  if (status === "PENDING_SETUP") return sql`(${institutions.status} = 'ACTIVE' AND NOT ${signedIn})`;
+  return sql`(${institutions.status} = 'ACTIVE' AND ${signedIn})`;
+}
 
 // Institutions matching `where`, most recently added first (ties by id).
 export async function institutionRows({ where, limit }: { where?: SQL; limit?: number } = {}): Promise<InstitutionRow[]> {
@@ -29,7 +43,7 @@ export async function institutionRows({ where, limit }: { where?: SQL; limit?: n
       code: institutions.code,
       name: institutions.name,
       status: sql<InstitutionRow["status"]>`${institutions.status}`,
-      accountCount: sql<number>`(SELECT count(*)::int FROM users u WHERE u.institution_id = ${institutions.id})`,
+      accountCount: sql<number>`(SELECT count(*)::int FROM users u WHERE u.institution_id = ${institutionId})`,
       workspaceAdmin: sql<InstitutionRow["workspaceAdmin"]>`(SELECT json_build_object('accountId', u.id, 'email', t.email) FROM ${accountsOf} ORDER BY u.created_at, u.id LIMIT 1)`,
       lastActiveAt: sql<string | null>`(SELECT to_json(max(t.last_login_at)) #>> '{}' FROM ${accountsOf})`,
       analysisDailyTokenLimit: institutions.analysisDailyTokenLimit,
@@ -37,7 +51,7 @@ export async function institutionRows({ where, limit }: { where?: SQL; limit?: n
     })
     .from(institutions)
     .where(where)
-    .orderBy(desc(institutions.createdAt), desc(institutions.id))
+    .orderBy(desc(createdAtMs), desc(institutions.id))
     .limit(limit ?? 10_000);
   return rows.map((row) => ({
     ...row,

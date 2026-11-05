@@ -56,8 +56,17 @@ export function createTrpcApi(): PlatformApi {
     signIn: async (email, password) => toAdmin(await call("admin.session.create", { email, password })),
     signOut: () => call("session.delete"),
     getMe: async () => toAdmin(await call("me.get")),
-    // Not on the server yet (SPEC admin.institution.* / admin.account.*).
-    listInstitutions: () => call("platform.listInstitutions"),
+    listInstitutions: async () => {
+      const institutions: Institution[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await call<{ items: InstitutionRow[]; nextCursor: string | null }>("admin.institution.list", { limit: 50, cursor });
+        institutions.push(...page.items.map(toInstitution));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return institutions;
+    },
+    // Not on the server yet (SPEC admin.institution.create / update, admin.account.*).
     createInstitution: (input) => call("platform.createInstitution", input),
     setInstitutionStatus: (id, status) => call("platform.setInstitutionStatus", { id, status }),
     resendInvite: (id) => call("platform.resendInvite", { id }),
