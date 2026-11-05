@@ -997,3 +997,15 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 /* Publication complete: real QR (handoff 4.7) */
 .qr-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .qr--img { display: block; object-fit: contain; background: #ffffff; }
+
+/* Preview: the guide draft by section (handoff 4.5) */
+.phone--scroll { max-height: 760px; overflow-y: auto; }
+.phone__section { margin-top: 8px; }
+.phone__block { margin-top: 12px; }
+.phone__figure { margin: 0 0 8px; }
+.phone__figure .phone__image { margin-top: 0; }
+.phone__credit { font-size: 9px; color: var(--gray); margin-top: 4px; }
+.phone__quote { font-size: 13px; color: var(--ink); line-height: 1.5; }
+.phone__empty { font-style: italic; }
+.left-out { margin: 18px 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.left-out ul { display: flex; flex-direction: column; gap: 4px; padding-left: 16px; list-style: disc; }
