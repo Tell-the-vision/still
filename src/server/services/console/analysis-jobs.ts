@@ -6,12 +6,14 @@ import { db } from "../../db/client";
 import { contents, documents, exhibitions, images } from "../../db/schema";
 import { databaseUrl } from "../../db/url";
 import { alignStructure, type AlignedContent } from "./align";
+import { presignPrivateGet } from "../../media/r2";
 import { readManifest } from "./manifests";
 import { runStorageDelete, STORAGE_DELETE_OPTIONS, STORAGE_DELETE_QUEUE, type StorageDelete } from "./storage-jobs";
 
 // SPEC §9.4 구조화, §10.10 Worker 호출. One queue runs a whole analysis; SPEC splits it into structure and
 // finalize jobs, which this simplification folds into one handler.
 export const ANALYSIS_QUEUE = "analysis.run";
+export const VERIFY_QUEUE = "document.verify";
 const RETRY_LIMIT = 2;
 type JobData = { exhibitionId: string; analysisId: string };
 type Analysis = { id: string; documentIds: string[]; result: string | null; coverage: Coverage | null };
@@ -26,6 +28,7 @@ export function getBoss(): Promise<PgBoss> {
     await boss.start();
     await boss.createQueue(ANALYSIS_QUEUE, { retryLimit: RETRY_LIMIT });
     await boss.createQueue(STORAGE_DELETE_QUEUE, STORAGE_DELETE_OPTIONS);
+    await boss.createQueue(VERIFY_QUEUE, { retryLimit: RETRY_LIMIT });
     return boss;
   })();
   return globalForBoss.stillBoss;
@@ -43,6 +46,27 @@ export async function startWorkers() {
       throw e;
     }
   });
+  await boss.work<{ documentId: string }>(VERIFY_QUEUE, async ([job]) => verifyDocument(job.data.documentId));
+}
+
+// SPEC §10.7 검증, §10.10 document.verify: the Worker re-reads each asset's source range from the original
+// and compares hashes. A MISMATCH blocks publication (§9.7).
+async function verifyDocument(documentId: string) {
+  const [doc] = await db.select().from(documents).where(eq(documents.id, documentId));
+  if (!doc?.manifestObjectKey) return;
+  const manifest = await readManifest(doc.manifestObjectKey);
+  const ranges = manifest.assets.flatMap((a) => (a.sourceRange ? [{ assetId: a.id, ...a.sourceRange, sha256: a.sha256 }] : []));
+  if (!ranges.length) return;
+  let { url } = await presignPrivateGet(doc.objectKey);
+  if (url.startsWith("/")) url = `${process.env.STILL_ORIGIN}${url}`; // dry-run URLs are local paths
+  const body = JSON.stringify({ url, ranges });
+  const headers = await signWorkerRequest(process.env.ANALYSIS_WORKER_SECRET ?? "", body, Math.floor(Date.now() / 1000));
+  const res = await fetch(`${process.env.ANALYSIS_WORKER_URL}/verify`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
+  if (!res.ok) throw new Error(`Worker answered HTTP ${res.status}`);
+  const { results } = (await res.json()) as { results: { assetId: string; ok: boolean }[] };
+  for (const { assetId, ok } of results) {
+    await db.update(images).set({ verification: ok ? "VERIFIED" : "MISMATCH" }).where(and(eq(images.documentId, documentId), eq(images.manifestAssetId, assetId)));
+  }
 }
 
 const analysisOf = async (exhibitionId: string) =>
