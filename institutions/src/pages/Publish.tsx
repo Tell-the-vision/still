@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, type Venue } from "../api";
+import { RIGHTS_STATEMENT } from "../constants";
 import { VISITOR_HOST } from "../format";
 import { blockingAssets, NO_PERMISSION } from "../rules";
 import { useWorkspace } from "../store";
@@ -160,7 +161,7 @@ export default function Publish() {
         <h2 className="h3">Content rights confirmation</h2>
         <label className={`checkbox${attempted && !rightsConfirmed ? " has-error" : ""}`}>
           <input type="checkbox" checked={rightsConfirmed} onChange={(e) => setRightsConfirmed(e.target.checked)} />
-          <span>I confirm that the museum has permission to publish the submitted text and media for this exhibition.</span>
+          <span>{RIGHTS_STATEMENT}</span>
         </label>
         <ul className="blockers">
           {!allowed && <li className="field-error">{NO_PERMISSION.publish}</li>}

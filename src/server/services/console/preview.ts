@@ -4,7 +4,7 @@ import type { StoredDocument } from "../../../../shared/src/document";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client";
-import { contents, exhibitions, images } from "../../db/schema";
+import { contents, exhibitions, images, venues } from "../../db/schema";
 import { publicImageUrl } from "../../media/public-url";
 import { compileDraft, sentenceIdOf, type Compiled, type CompileContent } from "./compile";
 import { exhibitionRows } from "./exhibition-rows";
@@ -103,29 +103,54 @@ function runChecks(
     passes("image-rights", "Image rights", imageProblems((i) => i.rights === "CONFIRMED", "has no confirmed rights"), `${used.length} images have confirmed rights`),
     passes("image-verification", "Image verification", imageProblems((i) => i.verification === "VERIFIED" || i.verification === "NOT_APPLICABLE", "is not verified"),
       `${used.length} images are verified`),
+    // Publication copies such an image from its analysis manifest; no manifest exists before the extraction
+    // module (#65), so until then an image without a public file cannot be published.
+    passes("image-files", "Image files", usedRows.filter(({ row }) => row?.objectKey === null).map(({ id }) => `image ${id} has no public file yet`),
+      `${used.length} images have a public file`),
     passes("audio-link", "Audio link", playlist.success ? [] : ["playlist link does not match its provider"], draft.playlist ? "Playlist link is valid" : "No playlist"),
     passes("basic-info", "Basic info", basicInfo, "Title, venue, period and code are set"),
     passes("document-validation", "Document validation", compiled.invalid, "Description and guide are valid"),
   ];
 }
 
-export async function previewExhibition(institutionId: string, code: string) {
-  const [row] = await exhibitionRows(institutionId, { where: eq(exhibitions.code, code) });
-  if (!row) throw new TRPCError({ code: "NOT_FOUND" });
-  const [{ draft: storedDraft }] = await db.select({ draft: exhibitions.draft }).from(exhibitions).where(eq(exhibitions.id, row.id));
+// What publication and the preview both work from: the draft, the rows it points at and its compile.
+export type LoadedDraft = {
+  draft: ExhibitionDraft;
+  venue: { name: string; city: string } | null;
+  contentRows: CompileContent[];
+  imageRows: ImageRow[];
+  compiled: Compiled;
+};
+
+// Reads an exhibition's draft and compiles it. `lockContents` takes the contents' row locks, so that the
+// publication transaction compiles what it then writes back (a content being rejected waits).
+export async function loadDraft(executor: Pick<typeof db, "select">, exhibitionId: string, { lockContents = false } = {}): Promise<LoadedDraft> {
+  const [{ draft: storedDraft }] = await executor.select({ draft: exhibitions.draft }).from(exhibitions).where(eq(exhibitions.id, exhibitionId));
   // The playlist rule is a publication check, so a draft that breaks it is still previewed.
   const { playlist } = storedDraft as { playlist: ExhibitionDraft["playlist"] };
   const draft = { ...exhibitionDraft.parse({ ...(storedDraft as object), playlist: null }), playlist };
 
-  const contentRows: CompileContent[] = (await db.select().from(contents).where(eq(contents.exhibitionId, row.id))).map((c) => ({
+  const [venue = null] = draft.venueId ? await executor.select({ name: venues.name, city: venues.city }).from(venues).where(eq(venues.id, draft.venueId)) : [];
+  const contentQuery = executor.select().from(contents).where(eq(contents.exhibitionId, exhibitionId));
+  const contentRows: CompileContent[] = (await (lockContents ? contentQuery.for("update") : contentQuery)).map((c) => ({
     id: c.id,
     kind: c.kind as CompileContent["kind"],
     status: c.status as CompileContent["status"],
     blocks: contentBlocks.parse(c.blocks),
     fields: c.fields as CompileContent["fields"],
   }));
-  const imageRows = await db.select().from(images).where(eq(images.exhibitionId, row.id));
-  const compiled = compileDraft(draft, contentRows, imageRows);
+  const imageRows = await executor.select().from(images).where(eq(images.exhibitionId, exhibitionId));
+  return { draft, venue, contentRows, imageRows, compiled: compileDraft(draft, contentRows, imageRows) };
+}
+
+export const publicationChecks = (code: string, { draft, venue, contentRows, imageRows, compiled }: LoadedDraft) =>
+  runChecks(draft, code, venue, contentRows, imageRows, compiled);
+
+export async function previewExhibition(institutionId: string, code: string) {
+  const [row] = await exhibitionRows(institutionId, { where: eq(exhibitions.code, code) });
+  if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+  const loaded = await loadDraft(db, row.id);
+  const { draft, venue, imageRows, compiled } = loaded;
 
   const sentenceText = new Map(compiled.sentences.map((s) => [sentenceIdOf(s), s.text]));
   const cover = imageRows.find((i) => i.id === draft.coverImageId);
@@ -136,7 +161,7 @@ export async function previewExhibition(institutionId: string, code: string) {
       title: draft.title,
       subtitle: draft.subtitle,
       description: expandForPreview(compiled.description, imageRows, sentenceText),
-      venue: row.venue && { name: row.venue.name, city: row.venue.city },
+      venue,
       startDate: draft.startDate,
       endDate: draft.endDate,
       coverImage: cover ? { id: cover.id, ...previewImage(cover) } : null,
@@ -144,7 +169,7 @@ export async function previewExhibition(institutionId: string, code: string) {
     },
     // Mirrors guide.get's document.
     guide: expandForPreview(compiled.guide, imageRows, sentenceText),
-    checks: runChecks(draft, row.code, row.venue, contentRows, imageRows, compiled),
+    checks: publicationChecks(row.code, loaded),
     losses: compiled.losses,
   };
 }

@@ -5,7 +5,7 @@ import { useWorkspace } from "../store";
 import { Badge, EmptyState, NoExhibition, PageHead } from "../ui";
 
 export default function Guide() {
-  const { exhibition, guide, counts, items, approvedItems, saveGuide, publishGuide, createExhibition, can } = useWorkspace();
+  const { exhibition, guide, counts, items, approvedItems, saveGuide, createExhibition, can } = useWorkspace();
   const editable = can("edit");
   const navigate = useNavigate();
 
@@ -92,11 +92,12 @@ export default function Guide() {
     try { await saveGuide({ sections, themes }); } catch { /* error banner */ } finally { setBusy(false); }
   };
 
+  // Publishing needs the rights confirmation, which lives on the publish settings page: save, then go there.
   const publish = async () => {
     setBusy(true);
     try {
       if (localDirty) await saveGuide({ sections, themes });
-      await publishGuide();
+      navigate("/materials/publish");
     } catch { /* error banner */ } finally {
       setBusy(false);
     }

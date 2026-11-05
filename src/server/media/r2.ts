@@ -97,6 +97,23 @@ export async function putObject(key: string, bytes: Buffer, contentType: string)
   if (!res.ok) throw new Error(`R2 upload of ${key} failed: ${res.status}`);
 }
 
+// Copies an image's display file from the private bucket to the public bucket under `publicKey`, inside R2
+// (SPEC §10.9 발행 쓰기 경로 step 2); nothing is downloaded. R2_DRY_RUN=1 skips the copy.
+// Unreachable until the extraction module (#65) writes manifests: no image has a private display file yet.
+export async function copyPrivateToPublic(privateKey: string, publicKey: string) {
+  if (dryRun()) return;
+  const res = await fetchObject(publicKey, {
+    method: "PUT",
+    headers: {
+      "x-amz-copy-source": `/${privateBucket()}/${privateKey}`,
+      "x-amz-metadata-directive": "REPLACE",
+      "Content-Type": "image/webp",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+  if (!res.ok) throw new Error(`R2 copy of ${privateKey} to ${publicKey} failed: ${res.status}`);
+}
+
 // Removes an object from R2 (SPEC §10.5). R2_DRY_RUN=1 skips the delete.
 export async function deleteObject(key: string) {
   if (process.env.R2_DRY_RUN === "1") return;

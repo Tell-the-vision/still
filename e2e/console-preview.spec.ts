@@ -135,7 +135,7 @@ test("each publication check passes and fails on its own condition", async ({ pa
   const first = await checks();
   expect(first.map((c) => [c.id, c.ok])).toEqual([
     ["content-approval", false], ["artwork-metadata", true], ["image-rights", true], ["image-verification", true],
-    ["audio-link", true], ["basic-info", true], ["document-validation", true],
+    ["image-files", true], ["audio-link", true], ["basic-info", true], ["document-validation", true],
   ]);
   expect(checkOf(first, "artwork-metadata").warning).toBe(false);
 
@@ -153,6 +153,11 @@ test("each publication check passes and fails on its own condition", async ({ pa
   const cover = await seedImage(exhibition.id, { rights: "RESTRICTED" });
   await setDraft(exhibition.id, { coverImageId: cover });
   expect(checkOf(await checks(), "image-rights").ok).toBe(false);
+
+  // Image files: an image without a public file cannot be published before the extraction module exists.
+  await e2eSql("UPDATE images SET object_key = NULL WHERE id = $1", [image]);
+  expect(checkOf(await checks(), "image-files").ok).toBe(false);
+  await e2eSql("UPDATE images SET object_key = $2 WHERE id = $1", [image, `e2e/${randomUUID()}.jpg`]);
 
   // Audio link: the provider decides the URL.
   await setDraft(exhibition.id, { playlist: { provider: "SPOTIFY", url: "https://music.apple.com/x", title: "Mix", description: null } });

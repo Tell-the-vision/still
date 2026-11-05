@@ -106,7 +106,8 @@ export const consolePreviewGetInput = exhibitionCode;
 export const consolePublicationCreateInput = z.object({
   code: codeSchema,
   revision: z.uuid(),
-  rightsConfirmed: z.literal(true),
+  // `false` is accepted so that the server answers RIGHTS_NOT_CONFIRMED (SPEC §11.2), not a validation error.
+  rightsConfirmed: z.boolean(),
   rightsStatementVersion: z.string().min(1).max(50),
 });
 export const consolePublicationDeleteInput = exhibitionCode;

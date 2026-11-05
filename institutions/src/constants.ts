@@ -28,3 +28,8 @@ export const UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
 export const ARTWORK_TEMPLATE_CSV =
   "title,artist,year,medium,dimensions,credit_line,description,image_file,copyright_holder,usage_permission,usage_scope,permission_expires\n" +
   "Untitled,Artist Name,2024,Oil on canvas,100 x 80 cm,Collection of the artist,Short description for the guide.,artwork-01.jpg,Artist Name,granted,Digital guide during the exhibition,2027-03-28\n";
+
+// The rights confirmation staff agree to when they publish (SPEC §9.4 발행). The version is stored with the
+// publication (exhibitions.rights_statement_version): change it whenever the text changes.
+export const RIGHTS_STATEMENT = "I confirm that the museum has permission to publish the submitted text and media for this exhibition.";
+export const RIGHTS_STATEMENT_VERSION = "2026-11";

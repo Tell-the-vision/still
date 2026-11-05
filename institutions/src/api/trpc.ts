@@ -2,7 +2,7 @@
 // Calls with a full path ("console.session.create", "me.get") use the SPEC procedures (console.*, SPEC §9.5);
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
-import { UPLOAD_FORMATS } from "../constants";
+import { RIGHTS_STATEMENT_VERSION, UPLOAD_FORMATS } from "../constants";
 import type { ContentItem, Exhibition, Guide, GuideSection, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
@@ -382,6 +382,17 @@ async function writeDraft(code: string, edit: (draft: ServerDraft) => ServerDraf
   }
 }
 
+const RIGHTS_REQUIRED = "Confirm the content rights on the publish settings page before publishing.";
+const PUBLISH_REVISION_CHANGED = "The draft changed while you were publishing. Check the preview and publish again.";
+
+// The refusals of console.publication.create as plain sentences. A failed check already comes with its own sentence.
+function publicationError(e: unknown) {
+  if (!(e instanceof ApiError)) return e;
+  if (e.appCode === "REVISION_MISMATCH") return new ApiError(PUBLISH_REVISION_CHANGED, e.code, e.appCode);
+  if (e.appCode === "RIGHTS_NOT_CONFIRMED") return new ApiError(RIGHTS_REQUIRED, e.code, e.appCode);
+  return e;
+}
+
 export function createTrpcApi(): InstitutionsApi {
   return {
     getWorkspace: async () => toWorkspace(await q<StaffMe>("me.get")),
@@ -426,8 +437,19 @@ export function createTrpcApi(): InstitutionsApi {
       await writeDraft(id, (draft) => ({ ...draft, ...details }));
       return toExhibition(await q<ConsoleExhibitionRow>("console.exhibition.get", { code: id }));
     },
-    publishExhibition: (id) => m("publishExhibition", { id }),
-    unpublishExhibition: (id) => m("unpublishExhibition", { id }),
+    publishExhibition: async (id) => {
+      const { draftRevision } = await q<ConsoleExhibitionRow>("console.exhibition.get", { code: id });
+      try {
+        await m("console.publication.create", { code: id, revision: draftRevision, rightsConfirmed: true, rightsStatementVersion: RIGHTS_STATEMENT_VERSION });
+      } catch (e) {
+        throw publicationError(e);
+      }
+      return toExhibition(await q<ConsoleExhibitionRow>("console.exhibition.get", { code: id }));
+    },
+    unpublishExhibition: async (id) => {
+      await m("console.publication.delete", { code: id });
+      return toExhibition(await q<ConsoleExhibitionRow>("console.exhibition.get", { code: id }));
+    },
     duplicateExhibition: (id) => m("duplicateExhibition", { id }),
 
     listFiles: async (exhibitionId) => (await q<ConsoleDocument[]>("console.document.list", { code: exhibitionId })).map(toSourceFile),
@@ -489,6 +511,9 @@ export function createTrpcApi(): InstitutionsApi {
       const { draft, ...row } = await q<ConsoleExhibitionRow & { draft: ServerDraft }>("console.exhibition.get", { code: exhibitionId });
       return toGuide(draft, row);
     },
-    publishGuide: (exhibitionId) => m("publishGuide", { exhibitionId }),
+    // Every publication needs the rights confirmation, which is on the publish settings page (see Guide.tsx).
+    publishGuide: async () => {
+      throw new ApiError(RIGHTS_REQUIRED);
+    },
   };
 }
