@@ -20,6 +20,11 @@ async function open(page: Page) {
       { type: "paragraph", attrs: { id: "b1" }, content: [{ type: "text", text: "Old words." }] },
     ],
   });
+  await seedContent(exhibition, {
+    kind: "ARTWORK",
+    status: "READY",
+    doc: [{ type: "heading", attrs: { id: "h2", level: 2 }, content: [{ type: "text", text: "Other item" }] }],
+  });
   await signInConsole(page, account);
   await page.goto("/institutions/exhibitions");
   await page.getByText(exhibition.title, { exact: true }).click();
@@ -36,6 +41,26 @@ test("typing in the editor autosaves the doc", async ({ page }) => {
   await page.keyboard.type(" New words.");
   await expect.poll(async () => (await docOf(item.id)).content[1].content?.[0].text).toBe("Old words. New words.");
   await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+});
+
+test("an edit typed just before switching items is saved, not dropped", async ({ page }) => {
+  const item = await open(page);
+  await page.locator(".ProseMirror").getByText("Old words.").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type(" Quick.");
+  await page.locator(".item", { hasText: "Other item" }).click();
+  await expect.poll(async () => (await docOf(item.id)).content[1].content?.[0].text).toBe("Old words. Quick.");
+  await page.reload();
+  await page.locator(".item", { hasText: "Farewell" }).click();
+  await expect(page.locator(".ProseMirror").getByText("Old words. Quick.")).toBeVisible();
+});
+
+test("the visitor preview shows an edit before autosave", async ({ page }) => {
+  await open(page);
+  await page.locator(".ProseMirror").getByText("Old words.").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type(" Live.");
+  await expect(page.getByTestId("visitor-preview").getByText("Old words. Live.")).toBeVisible({ timeout: 500 });
 });
 
 test("Scrap marks the selected sentence", async ({ page }) => {
