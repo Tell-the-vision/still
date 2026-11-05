@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type Me, type ProcessingEvent,
+  api, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type MediaAssetPatch, type Me, type ProcessingEvent,
   type PublicationCheck, type PublicationDetails, type SourceFile, type Workspace,
 } from "./api";
+import { can, type Action } from "./rules";
 
 // All screens read and write through here; this file only talks to `api`, never to sample data.
 
@@ -26,7 +27,9 @@ function useWorkspaceState() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [data, setData] = useState<ExhibitionData>(EMPTY);
   const [dataStatus, setDataStatus] = useState<Status>("ready");
-  const [uploading, setUploading] = useState<SourceFile[]>([]);
+  // Rows that are not on the server yet: uploading, or failed (unsupported, too big, interrupted).
+  const [localFiles, setLocalFiles] = useState<SourceFile[]>([]);
+  const retryable = useRef(new Map<string, File>());
 
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
 
@@ -61,11 +64,46 @@ function useWorkspaceState() {
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;
   const replaceExhibition = (e: Exhibition) => setExhibitions((list) => list.map((x) => (x.id === e.id ? e : x)));
 
+  // Entry counts by review status. Removed items are kept for Restore but never counted with the rest.
   const counts = useMemo(() => {
-    const total = data.items.reduce((n, i) => n + i.itemCount, 0);
-    const needReview = data.items.reduce((n, i) => n + i.pendingCount, 0);
-    return { total, needReview, approved: total - needReview };
+    const sum = (f: (i: ContentItem) => boolean) => data.items.filter(f).reduce((n, i) => n + i.itemCount, 0);
+    return {
+      total: sum((i) => !i.removed),
+      needReview: sum((i) => !i.removed && i.reviewStatus === "IN_REVIEW"),
+      approved: sum((i) => !i.removed && i.reviewStatus === "APPROVED"),
+      rejected: sum((i) => !i.removed && i.reviewStatus === "REJECTED"),
+      removed: sum((i) => i.removed),
+    };
   }, [data.items]);
+
+  // Runs an item mutation, swaps in the returned item, then refreshes the publication checks it can change.
+  const applyItem = async (itemId: string, fn: () => Promise<ContentItem>) => {
+    const item = await fn();
+    setData((d) => ({ ...d, items: d.items.map((i) => (i.id === itemId ? item : i)) }));
+    if (currentId) {
+      const checks = await api.listPublicationChecks(currentId);
+      setData((d) => ({ ...d, checks }));
+    }
+  };
+
+  const localRow = (file: File, id: string): SourceFile => ({
+    id, name: file.name, format: file.name.split(".").pop()?.toUpperCase() ?? "FILE", summary: null,
+    sizeBytes: file.size, uploadedAt: new Date().toISOString(), status: "UPLOADING", error: null,
+  });
+  const uploadOne = async (file: File, rowId: string) => {
+    if (!currentId) return;
+    setLocalFiles((l) => [...l.filter((r) => r.id !== rowId), localRow(file, rowId)]);
+    try {
+      const saved = await api.uploadFile(currentId, file);
+      retryable.current.delete(rowId);
+      setLocalFiles((l) => l.filter((r) => r.id !== rowId));
+      setData((d) => ({ ...d, files: [...d.files, saved] }));
+    } catch (e) {
+      retryable.current.set(rowId, file);
+      const error = e instanceof Error ? e.message : String(e);
+      setLocalFiles((l) => l.map((r) => (r.id === rowId ? { ...r, status: "FAILED", error } : r)));
+    }
+  };
 
   // Wraps a mutation: clears the old error, reports a new one, rethrows so callers can stop.
   const run = async <T,>(fn: () => Promise<T>): Promise<T> => {
@@ -100,20 +138,20 @@ function useWorkspaceState() {
       replaceExhibition(await api.publishExhibition(currentId));
     }),
 
-    uploadFiles: (files: File[]) => run(async () => {
-      if (!currentId) return;
-      const pending = files.map((f, i): SourceFile => ({
-        id: `pending-${Date.now()}-${i}`, name: f.name, format: f.name.split(".").pop()?.toUpperCase() ?? "FILE",
-        summary: null, sizeBytes: f.size, uploadedAt: new Date().toISOString(), status: "UPLOADING",
-      }));
-      setUploading((u) => [...u, ...pending]);
-      try {
-        const saved = await Promise.all(files.map((f) => api.uploadFile(currentId, f)));
-        setData((d) => ({ ...d, files: [...d.files, ...saved] }));
-      } finally {
-        setUploading((u) => u.filter((p) => !pending.includes(p)));
-      }
-    }),
+    /** Uploads each file on its own: one failure never discards the others (handoff 12). */
+    uploadFiles: (files: File[]) => Promise.all(files.map((f) => uploadOne(f, `local-${Date.now()}-${Math.random().toString(36).slice(2)}`))),
+    /** Files refused before upload (unsupported type, too big) still get a row that says why (handoff 9). */
+    rejectFiles: (rows: { file: File; reason: string }[]) =>
+      setLocalFiles((l) => [...l, ...rows.map(({ file, reason }) => ({ ...localRow(file, `local-${Date.now()}-${Math.random().toString(36).slice(2)}`), status: "FAILED" as const, error: reason }))]),
+    canRetry: (rowId: string) => retryable.current.has(rowId),
+    retryUpload: (rowId: string) => {
+      const file = retryable.current.get(rowId);
+      return file ? uploadOne(file, rowId) : Promise.resolve();
+    },
+    dismissLocalFile: (rowId: string) => {
+      retryable.current.delete(rowId);
+      setLocalFiles((l) => l.filter((r) => r.id !== rowId));
+    },
     deleteFile: (fileId: string) => run(async () => {
       if (!currentId) return;
       await api.deleteFile(currentId, fileId);
@@ -125,18 +163,14 @@ function useWorkspaceState() {
       await loadExhibitionData(currentId);
     }),
 
-    updateItem: (itemId: string, patch: ContentItemPatch) => run(async () => {
-      const item = await api.updateContentItem(itemId, patch);
-      setData((d) => ({ ...d, items: d.items.map((i) => (i.id === itemId ? item : i)) }));
-    }),
-    approveItem: (itemId: string) => run(async () => {
-      const item = await api.approveContentItem(itemId);
-      setData((d) => ({ ...d, items: d.items.map((i) => (i.id === itemId ? item : i)) }));
-      if (currentId) {
-        const checks = await api.listPublicationChecks(currentId);
-        setData((d) => ({ ...d, checks }));
-      }
-    }),
+    updateItem: (itemId: string, patch: ContentItemPatch) => run(() => applyItem(itemId, () => api.updateContentItem(itemId, patch))),
+    approveItem: (itemId: string) => run(() => applyItem(itemId, () => api.approveContentItem(itemId))),
+    rejectItem: (itemId: string) => run(() => applyItem(itemId, () => api.rejectContentItem(itemId))),
+    reopenItem: (itemId: string) => run(() => applyItem(itemId, () => api.reopenContentItem(itemId))),
+    updateAsset: (itemId: string, assetId: string, patch: MediaAssetPatch) => run(() => applyItem(itemId, () => api.updateMediaAsset(itemId, assetId, patch))),
+    removeItem: (itemId: string) => run(() => applyItem(itemId, () => api.removeContentItem(itemId))),
+    restoreItem: (itemId: string) => run(() => applyItem(itemId, () => api.restoreContentItem(itemId))),
+    dismissDuplicate: (itemId: string) => run(() => applyItem(itemId, () => api.dismissDuplicate(itemId))),
 
     saveGuide: (guide: Pick<Guide, "sections" | "themes">) => run(async () => {
       if (!currentId) return;
@@ -152,7 +186,8 @@ function useWorkspaceState() {
 
   return {
     status, dataStatus, error, workspace, me, exhibitions, exhibition, counts,
-    files: [...data.files, ...uploading], items: data.items, events: data.events, checks: data.checks, guide: data.guide,
+    files: [...data.files, ...localFiles], items: data.items,
+    can: (action: Action) => can(me, action), events: data.events, checks: data.checks, guide: data.guide,
     ...actions,
   };
 }

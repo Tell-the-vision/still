@@ -9,7 +9,7 @@ const TONE: Record<LibraryStatus, Tone> = { live: "green", scheduled: "amber", e
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export default function Exhibitions() {
-  const { exhibitions, selectExhibition, createExhibition } = useWorkspace();
+  const { exhibitions, selectExhibition, createExhibition, can } = useWorkspace();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [query, setQuery] = useState("");
@@ -43,7 +43,7 @@ export default function Exhibitions() {
         eyebrow="Museum content library"
         title="Published exhibitions"
         lede="Manage live visitor guides, review publication status and return to an exhibition workspace."
-        actions={<button type="button" className="btn btn--primary btn--xwide" onClick={create}>+ New exhibition</button>}
+        actions={can("edit") && <button type="button" className="btn btn--primary btn--xwide" onClick={create}>+ New exhibition</button>}
       />
       <hr className="rule" />
 
@@ -76,7 +76,7 @@ export default function Exhibitions() {
         <EmptyState
           title={exhibitions.length ? "No exhibitions match" : "No exhibitions yet"}
           body={exhibitions.length ? "Try another filter or search." : "Create the first exhibition to start building a visitor guide."}
-          action={!exhibitions.length && <button type="button" className="btn btn--primary btn--xwide" onClick={create}>+ New exhibition</button>}
+          action={!exhibitions.length && can("edit") && <button type="button" className="btn btn--primary btn--xwide" onClick={create}>+ New exhibition</button>}
         />
       ) : (
         <div className="table-wrap">

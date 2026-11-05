@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { ROLES } from "./rules";
 import { useWorkspace } from "./store";
 
 const WORKSPACE_NAV = [
@@ -8,7 +9,6 @@ const WORKSPACE_NAV = [
   { to: "/guide", label: "Digital guide" },
   { to: "/exhibitions", label: "Published exhibitions" },
 ];
-const ROLE_LABEL = { ADMIN: "Admin", CURATOR: "Curator", EDITOR: "Editor" } as const;
 const ACCOUNT_NAV = [
   { to: "/settings", label: "Workspace settings" },
   { to: "/help", label: "Help & support" },
@@ -62,7 +62,7 @@ export default function Layout() {
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen((o) => !o)}
             >
-              {workspace.institutionName} <span aria-hidden>/</span> {me ? ROLE_LABEL[me.role] : workspace.role}
+              {workspace.institutionName} <span aria-hidden>/</span> {me ? ROLES[me.role].label : workspace.role}
               <span aria-hidden className="account-menu__caret">▾</span>
             </button>
             {accountOpen && (

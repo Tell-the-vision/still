@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type MemberRole, type NotificationPrefs } from "../api";
+import { api, type NotificationPrefs } from "../api";
+import { ROLES } from "../rules";
 import { useWorkspace } from "../store";
 import { Arrow, Badge, EmptyState, PageHead } from "../ui";
 
-const ROLE_INFO: Record<MemberRole, { label: string; can: string }> = {
-  ADMIN: { label: "Admin", can: "Manage settings and team, review, approve and publish." },
-  CURATOR: { label: "Curator", can: "Review, approve and publish exhibitions." },
-  EDITOR: { label: "Editor", can: "Upload materials and edit drafts." },
-};
 const NOTIFS: { key: keyof NotificationPrefs; title: string; detail: string }[] = [
   { key: "analysisComplete", title: "Analysis finished", detail: "Email me when STILL finishes reading uploaded files." },
   { key: "reviewNeeded", title: "Items waiting for review", detail: "Email me when content needs my review or approval." },
@@ -56,7 +52,7 @@ export default function Account() {
     try { await signOut(); setSignedOut(true); } catch { /* error banner */ }
   };
 
-  const role = ROLE_INFO[me.role];
+  const role = ROLES[me.role];
 
   return (
     <>
@@ -94,10 +90,11 @@ export default function Account() {
               <Badge>{role.label}</Badge>
             </div>
             <p className="caption-sm">{role.can}</p>
+            {me.role === "CURATOR" && <p className="caption-sm">{me.canPublish ? "You can publish exhibitions." : "Publishing is not enabled for you."}</p>}
           </div>
           <div className="info-card info-card--short">
             <p className="strong">Need a different role?</p>
-            <p className="caption-sm">Roles are managed by workspace admins.</p>
+            <p className="caption-sm">Roles and publishing rights are managed by institution admins.</p>
             <Link to="/settings" className="open-link info-card__link">Workspace settings <Arrow /></Link>
           </div>
         </section>

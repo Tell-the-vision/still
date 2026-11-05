@@ -1,14 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, type Me, type Member, type MemberRole, type Venue, type WorkspaceSettings } from "../api";
 import { VISITOR_HOST } from "../format";
+import { ROLE_ORDER, ROLES } from "../rules";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, PageHead } from "../ui";
 
-const ROLES: { value: MemberRole; label: string; hint: string }[] = [
-  { value: "ADMIN", label: "Admin", hint: "Settings, team and publishing" },
-  { value: "CURATOR", label: "Curator", hint: "Review, approve and publish" },
-  { value: "EDITOR", label: "Editor", hint: "Upload and edit drafts" },
-];
 const LANGUAGES: { value: WorkspaceSettings["guideLanguage"]; label: string }[] = [
   { value: "ko+en", label: "Korean + English" },
   { value: "ko", label: "Korean" },
@@ -19,7 +15,7 @@ const PUBLISHING: { key: keyof WorkspaceSettings["publishing"]; title: string; d
   { key: "allowVisitorScrap", title: "Allow visitors to save guide sentences", detail: "Visitors can keep approved sentences in their personal archive." },
   { key: "ambienceDefaultOn", title: "Start STILL Ambience on by default", detail: "Used only when an exhibition has no external playlist. Visitors can turn it off." },
 ];
-const roleLabel = (r: MemberRole) => ROLES.find((x) => x.value === r)?.label ?? r;
+const roleLabel = (r: MemberRole) => ROLES[r].label;
 const slug = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export default function Settings() {
@@ -49,7 +45,7 @@ export default function Settings() {
   if (!form || !saved || !me) return <EmptyState title="Settings are unavailable" body="Try again in a moment." />;
 
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
-  const isAdmin = me.role === "ADMIN";
+  const isAdmin = me.role === "INSTITUTION_ADMIN";
 
   const save = async () => {
     if (!dirty || saving) return;
@@ -71,16 +67,19 @@ export default function Settings() {
         title="Workspace settings"
         lede="Manage your museum profile, team access and publishing defaults."
         actions={
-          <>
-            <button type="button" className="btn btn--secondary btn--wide" onClick={() => setForm(saved)} aria-disabled={!dirty}>Discard changes</button>
-            <button type="button" className="btn btn--primary btn--xwide" onClick={save} aria-disabled={!dirty || saving}>
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-          </>
+          isAdmin && (
+            <>
+              <button type="button" className="btn btn--secondary btn--wide" onClick={() => setForm(saved)} aria-disabled={!dirty}>Discard changes</button>
+              <button type="button" className="btn btn--primary btn--xwide" onClick={save} aria-disabled={!dirty || saving}>
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            </>
+          )
         }
       >
         <div className="page-head__badge">
-          {dirty ? <Badge tone="amber" className="badge--wide">Unsaved changes</Badge> : <Badge tone="green" className="badge--wide">All changes saved</Badge>}
+          {!isAdmin ? <Badge className="badge--wide">View only</Badge>
+            : dirty ? <Badge tone="amber" className="badge--wide">Unsaved changes</Badge> : <Badge tone="green" className="badge--wide">All changes saved</Badge>}
         </div>
       </PageHead>
       {flash && <p className="flash" role="status">{flash}</p>}
@@ -122,7 +121,7 @@ export default function Settings() {
           </div>
           <div className="info-card info-card--short">
             <p className="strong">Access</p>
-            <p className="caption-sm">Only people invited to this workspace can sign in. Roles decide who can edit, approve and publish.</p>
+            <p className="caption-sm">Only people invited to this workspace can sign in. Roles decide who can edit, approve and publish; publishing is granted per curator.</p>
           </div>
         </section>
       </div>
@@ -142,8 +141,8 @@ export default function Settings() {
           if (m) { setMembers((l) => [...l, m]); show(`Invitation sent to ${email}`); }
           return !!m;
         }}
-        onRole={async (id, role) => {
-          const m = await guard(() => api.updateMemberRole(id, role));
+        onUpdate={async (id, patch) => {
+          const m = await guard(() => api.updateMember(id, patch));
           if (m) setMembers((l) => l.map((x) => (x.id === id ? m : x)));
         }}
         onRemove={async (id) => {
@@ -227,13 +226,13 @@ function Venues({ venues, canEdit, onAdd }: { venues: Venue[]; canEdit: boolean;
 }
 
 function Team({
-  me, members, canEdit, onInvite, onRole, onRemove,
+  me, members, canEdit, onInvite, onUpdate, onRemove,
 }: {
   me: Me;
   members: Member[];
   canEdit: boolean;
   onInvite: (email: string, role: MemberRole) => Promise<boolean>;
-  onRole: (id: string, role: MemberRole) => Promise<void>;
+  onUpdate: (id: string, patch: Partial<Pick<Member, "role" | "canPublish">>) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
 }) {
   const [email, setEmail] = useState("");
@@ -254,7 +253,7 @@ function Team({
       </div>
       <div className="table-wrap">
         <table className="table table--team">
-          <thead><tr><th>Member</th><th>Role</th><th>Status</th><th aria-label="Actions" /></tr></thead>
+          <thead><tr><th>Member</th><th>Role</th><th>Publish</th><th>Status</th><th aria-label="Actions" /></tr></thead>
           <tbody>
             {members.map((m) => {
               const self = m.id === me.id;
@@ -266,11 +265,22 @@ function Team({
                   </td>
                   <td>
                     {canEdit && !self ? (
-                      <select className="input input--compact" value={m.role} aria-label={`Role for ${m.email}`} onChange={(e) => onRole(m.id, e.target.value as MemberRole)}>
-                        {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      <select className="input input--compact" value={m.role} aria-label={`Role for ${m.email}`} onChange={(e) => onUpdate(m.id, { role: e.target.value as MemberRole })}>
+                        {ROLE_ORDER.map((r) => <option key={r} value={r}>{ROLES[r].label}</option>)}
                       </select>
                     ) : (
                       <span className="strong-light">{roleLabel(m.role)}</span>
+                    )}
+                  </td>
+                  <td>
+                    {/* Handoff 3: curators publish only if granted. Admins always can; reviewers and read-only never. */}
+                    {m.role === "CURATOR" ? (
+                      <label className="checkbox checkbox--inline">
+                        <input type="checkbox" checked={m.canPublish} disabled={!canEdit} onChange={(e) => onUpdate(m.id, { canPublish: e.target.checked })} />
+                        <span>{m.canPublish ? "Allowed" : "Not allowed"}</span>
+                      </label>
+                    ) : (
+                      <span className="caption-sm">{m.role === "INSTITUTION_ADMIN" ? "Always" : "—"}</span>
                     )}
                   </td>
                   <td>{m.status === "ACTIVE" ? <Badge tone="green" className="badge--status">Active</Badge> : <Badge tone="amber" className="badge--status">Invited</Badge>}</td>
@@ -298,7 +308,7 @@ function Team({
           <label className="field">
             <span className="field__label">Role</span>
             <select className="input" value={role} onChange={(e) => setRole(e.target.value as MemberRole)}>
-              {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label} — {r.hint}</option>)}
+              {ROLE_ORDER.map((r) => <option key={r} value={r}>{ROLES[r].label}</option>)}
             </select>
           </label>
           <button type="submit" className="btn btn--primary" aria-disabled={!valid}>Send invite</button>

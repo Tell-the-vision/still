@@ -53,3 +53,4 @@ export function libraryStatus(e: Exhibition, today = new Date()): LibraryStatus 
 
 export const VISITOR_HOST = "still.art/e/";
 export const visitorUrl = (code: string) => `${VISITOR_HOST}${code}`;
+

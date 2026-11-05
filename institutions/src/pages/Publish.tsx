@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { VISITOR_HOST } from "../format";
+import { blockingAssets, NO_PERMISSION } from "../rules";
 import { useWorkspace } from "../store";
 import { Badge, NoExhibition, PageHead, Stepper } from "../ui";
 
 export default function Publish() {
-  const { exhibition, counts, updateExhibition, publishExhibition, createExhibition } = useWorkspace();
+  const { exhibition, counts, items, can, updateExhibition, publishExhibition, createExhibition } = useWorkspace();
   const navigate = useNavigate();
   const [form, setForm] = useState(() => ({
     title: exhibition?.title ?? "",
@@ -24,8 +25,12 @@ export default function Publish() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
   const missing = !form.title.trim() || !form.venueName.trim() || !form.startDate || !form.endDate || !form.code.trim();
   const badDates = !!form.startDate && !!form.endDate && form.endDate < form.startDate;
-  const blocked = !rightsConfirmed || missing || badDates;
-  const ready = counts.total > 0 && counts.needReview === 0;
+  // Handoff 4.6 / 12: publish is blocked until metadata, approval and rights checks are complete.
+  const allowed = can("publish");
+  const noApproved = counts.approved === 0;
+  const rightsBlocked = blockingAssets(items);
+  const blocked = !allowed || noApproved || rightsBlocked.length > 0 || !rightsConfirmed || missing || badDates;
+  const ready = !noApproved && rightsBlocked.length === 0;
 
   const publish = async () => {
     setAttempted(true);
@@ -56,7 +61,7 @@ export default function Publish() {
         lede="Set the visitor access details and confirm the content that will go live."
       >
         <div className="page-head__badge">
-          {ready ? <Badge tone="green" className="badge--wide">Ready to publish</Badge> : <Badge tone="amber" className="badge--wide">{counts.needReview} items need review</Badge>}
+          {ready ? <Badge tone="green" className="badge--wide">Ready to publish</Badge> : <Badge tone="amber" className="badge--wide">{noApproved ? "No approved content" : rightsBlocked.length === 1 ? "1 image needs rights" : `${rightsBlocked.length} images need rights`}</Badge>}
         </div>
       </PageHead>
       <hr className="rule" />
@@ -103,6 +108,18 @@ export default function Publish() {
           <input type="checkbox" checked={rightsConfirmed} onChange={(e) => setRightsConfirmed(e.target.checked)} />
           <span>I confirm that the museum has permission to publish the submitted text and media for this exhibition.</span>
         </label>
+        <ul className="blockers">
+          {!allowed && <li className="field-error">{NO_PERMISSION.publish}</li>}
+          {noApproved && <li className="field-error">No content is approved yet. Only approved items are published.</li>}
+          {rightsBlocked.map(({ item, asset, issue }) => (
+            <li key={asset.id} className="field-error">
+              {asset.caption} ({item.title}): {issue}. Add the rights details or mark it "Don't publish this image" in <Link to="/materials/review">Review</Link>.
+            </li>
+          ))}
+          {counts.needReview + counts.rejected > 0 && (
+            <li className="caption-sm">{counts.needReview} items in review and {counts.rejected} rejected items will not be included.</li>
+          )}
+        </ul>
         {attempted && !rightsConfirmed && <p className="field-error" role="alert">Confirm content rights before publishing.</p>}
         {attempted && missing && <p className="field-error" role="alert">Fill in title, venue, period and visitor URL.</p>}
         {badDates && <p className="field-error" role="alert">End date must be on or after the start date.</p>}

@@ -9,7 +9,7 @@ export default function Preview() {
   if (!exhibition) return <NoExhibition title="Preview digital guide" onCreate={createExhibition} />;
 
   // The phone shows the first approved item as the "About" text.
-  const about = items.find((i) => i.pendingCount === 0)?.text;
+  const about = items.find((i) => !i.removed && i.reviewStatus === "APPROVED")?.text;
 
   return (
     <>
