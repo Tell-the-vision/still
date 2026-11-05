@@ -9,17 +9,12 @@ import { TRPCError } from "@trpc/server";
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../../db/client";
+import { isUniqueViolation } from "../../../db/errors";
 import { institutions, userSessions, users } from "../../../db/schema";
 import { createdAtMs, displayStatusWhere, institutionRows } from "../../../services/admin/institution-rows";
 import { AppError, adminProcedure, router } from "../../init";
 
 const DEFAULT_LIMIT = 20;
-const UNIQUE_VIOLATION = "23505";
-
-// drizzle wraps the driver error, so the SQLSTATE may sit on the error or on its cause.
-const isUniqueViolation = (error: unknown) =>
-  [error, (error as { cause?: unknown } | null)?.cause].some((e) => (e as { code?: string } | null)?.code === UNIQUE_VIOLATION);
-
 // The cursor is the last row's createdAt + id, opaque to the client (keyset, not offset).
 const cursorSchema = z.object({ createdAt: z.iso.datetime(), id: z.uuid() });
 const encodeCursor = (row: { createdAt: string; id: string }) => Buffer.from(JSON.stringify({ createdAt: row.createdAt, id: row.id })).toString("base64url");

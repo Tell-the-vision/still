@@ -8,16 +8,11 @@ import {
 import { TRPCError } from "@trpc/server";
 import { and, count, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../../../db/client";
+import { isUniqueViolation } from "../../../db/errors";
 import { archives, contents, documents, exhibitions, images, venues } from "../../../db/schema";
 import { deleteObject } from "../../../media/r2";
 import { draftTitle, exhibitionRows } from "../../../services/console/exhibition-rows";
 import { AppError, consoleProcedure, router } from "../../init";
-
-const UNIQUE_VIOLATION = "23505";
-
-// drizzle wraps the driver error, so the SQLSTATE may sit on the error or on its cause.
-const isUniqueViolation = (error: unknown) =>
-  [error, (error as { cause?: unknown } | null)?.cause].some((e) => (e as { code?: string } | null)?.code === UNIQUE_VIOLATION);
 
 function parseCursor(cursor: string) {
   try {
