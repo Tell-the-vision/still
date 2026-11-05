@@ -167,8 +167,15 @@ export async function deletePrefix(prefix: string) {
 export async function deletePrivatePrefix(prefix: string) {
   if (dryRun()) return dryRunDeletePrefix(privateBucket(), prefix);
   const { client, env } = r2Client();
-  const query = new URLSearchParams({ "list-type": "2", prefix });
-  const res = await client.fetch(`${env.R2_ENDPOINT}/${privateBucket()}?${query}`, { method: "GET" });
-  if (!res.ok) throw new Error(`R2 list of ${prefix} failed: ${res.status}`);
-  for (const [, key] of (await res.text()).matchAll(/<Key>(.*?)<\/Key>/g)) await deletePrivateObject(key);
+  // One listing returns at most 1000 keys; follow the continuation tokens like listObjects.
+  let token: string | undefined;
+  do {
+    const query = new URLSearchParams({ "list-type": "2", prefix });
+    if (token) query.set("continuation-token", token);
+    const res = await client.fetch(`${env.R2_ENDPOINT}/${privateBucket()}?${query}`, { method: "GET" });
+    if (!res.ok) throw new Error(`R2 list of ${prefix} failed: ${res.status}`);
+    const xml = await res.text();
+    for (const [, key] of xml.matchAll(/<Key>(.*?)<\/Key>/g)) await deletePrivateObject(key);
+    token = xml.match(/<NextContinuationToken>(.*?)<\/NextContinuationToken>/)?.[1];
+  } while (token);
 }

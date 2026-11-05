@@ -69,6 +69,31 @@ test("a file that reviewed content refers to cannot be removed", async ({ page }
   expect(await e2eSql("SELECT 1 FROM documents WHERE id = $1", [id])).toHaveLength(1);
 });
 
+// Analysis and the editor write `doc` and `sources` (the legacy `blocks` stay empty): a source ref there
+// keeps the file too, and so does an image of it placed in the doc.
+test("a file that analysed content refers to through doc sources or a placed image cannot be removed", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account);
+  const id = await seedDocument(account, exhibition, "analysed.pdf");
+  await seedContent(exhibition, {
+    kind: "INTRODUCTION", status: "READY",
+    doc: [{ type: "paragraph", attrs: { id: "n1" }, content: [{ type: "text", text: "From the catalogue." }] }],
+    sources: { n1: { refs: [`${id}:s001`], start: 0, end: 19 } },
+  });
+  const imageDoc = await seedDocument(account, exhibition, "plates.pdf");
+  const [image] = await e2eSql<{ id: string }>(
+    "INSERT INTO images (exhibition_id, document_id, manifest_asset_id, object_key, width, height, rights, verification) VALUES ($1, $2, 'a01', NULL, 800, 600, 'UNCONFIRMED', 'VERIFIED') RETURNING id",
+    [exhibition.id, imageDoc]);
+  await seedContent(exhibition, { kind: "ARTWORK", status: "READY", doc: [{ type: "stillImage", attrs: { id: "i1", imageId: image.id, display: "INLINE", caption: null } }] });
+  await openMaterials(page, account, exhibition.title);
+
+  for (const name of ["analysed.pdf", "plates.pdf"]) {
+    await page.getByRole("button", { name: `Remove ${name}` }).click();
+    await expect(page.getByText("This file is used by reviewed content and cannot be removed.").first()).toBeVisible();
+  }
+  expect(await e2eSql("SELECT 1 FROM documents WHERE id = ANY($1)", [[id, imageDoc]])).toHaveLength(2);
+});
+
 test("a stuck uploading row disappears when cancelled", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
