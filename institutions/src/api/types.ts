@@ -21,6 +21,8 @@ export interface Exhibition {
   title: string; // "Damien Hirst"
   subtitle: string | null; // "Life, Death & Everything in Between"
   venueName: string;
+  /** The venue row the name comes from (SPEC §10.9 draft.venueId); null while none is chosen. */
+  venueId: string | null;
   startDate: ISODate | null;
   endDate: ISODate | null;
   status: PublicationStatus;
@@ -120,8 +122,12 @@ export interface PublicationCheck {
   ok: boolean;
 }
 
+// SPEC §10.9 draft.sections[].kind. Sections the staff add are CUSTOM.
+export type SectionKind = "INTRODUCTION" | "ARTIST" | "THEMES" | "ARTWORK_HIGHLIGHTS" | "GALLERY_GUIDE" | "CLOSING" | "CUSTOM";
+
 export interface GuideSection {
   id: string;
+  kind: SectionKind;
   title: string;
   summary: string; // "Published · 3 blocks"
   visible: boolean;
@@ -143,7 +149,7 @@ export interface Guide {
 export interface PublicationDetails {
   title: string;
   subtitle: string | null;
-  venueName: string;
+  venueId: string | null;
   startDate: ISODate | null;
   endDate: ISODate | null;
   code: string;

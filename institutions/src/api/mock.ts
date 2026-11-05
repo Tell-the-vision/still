@@ -137,7 +137,7 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
       if (db.exhibitions.some((x) => x.code === code)) throw new ApiError("Exhibition code is already taken", "CONFLICT", "CODE_TAKEN");
       const e: Exhibition = {
         id: uid(), code, title, subtitle: null,
-        venueName: db.workspace.institutionName, startDate: null, endDate: null, status: "DRAFT", updatedAt: now(),
+        venueName: db.workspace.institutionName, venueId: null, startDate: null, endDate: null, status: "DRAFT", updatedAt: now(),
       };
       db.exhibitions.unshift(e);
       db.guides[e.id] = { sections: [], themes: [], hasUnpublishedChanges: false };
@@ -152,7 +152,9 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
     },
     async updateExhibition(id, patch) {
       allow("edit");
-      Object.assign(exhibition(id), patch, { updatedAt: now() });
+      const { venueId, ...rest } = patch;
+      const venue = venueId ? { venueId, venueName: db.venues.find((v) => v.id === venueId)?.name ?? "" } : {};
+      Object.assign(exhibition(id), rest, venue, { updatedAt: now() });
       return wait(exhibition(id));
     },
     async unpublishExhibition(id) {

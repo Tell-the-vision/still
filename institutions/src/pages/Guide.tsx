@@ -37,7 +37,7 @@ export default function Guide() {
 
   const addSection = () => {
     const id = `new-${Date.now()}`;
-    edit(() => setSections((s) => [...s, { id, title: "Untitled section", summary: "Draft · 0 items", visible: false, intro: "", itemIds: [] }]));
+    edit(() => setSections((s) => [...s, { id, kind: "CUSTOM", title: "Untitled section", summary: "Draft · 0 items", visible: false, intro: "", itemIds: [] }]));
     setSelectedId(id);
   };
 

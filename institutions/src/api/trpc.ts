@@ -3,7 +3,7 @@
 // bare names ("listFiles") still point at the draft `institutions` router from API.md until they move over.
 import { ApiError } from "./errors";
 import { UPLOAD_FORMATS } from "../constants";
-import type { ContentItem, Exhibition, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SourceFile, UploadOptions, Workspace } from "./types";
+import type { ContentItem, Exhibition, Guide, GuideSection, InstitutionsApi, MediaAsset, Me, ProcessingEvent, PublicationCheck, SectionKind, SourceFile, UploadOptions, Workspace } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -75,6 +75,7 @@ export const toExhibition = (row: ConsoleExhibitionRow): Exhibition => ({
   title: row.title,
   subtitle: row.subtitle,
   venueName: row.venue?.name ?? "",
+  venueId: row.venue?.id ?? null,
   startDate: row.startDate,
   endDate: row.endDate,
   status: row.state,
@@ -334,6 +335,53 @@ async function removeDocument(id: string) {
   }
 }
 
+// exhibitions.draft v1 (shared/src/console-draft.ts), the part the screens edit. Fields the screens do not
+// touch (cover, ambience, playlist) travel through unchanged.
+type ServerDraft = {
+  title: string;
+  subtitle: string | null;
+  venueId: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  sections: { id: string; kind: SectionKind; title: string; visible: boolean; contentIds: string[] }[];
+  [untouched: string]: unknown;
+};
+type DraftState = { draft: ServerDraft; revision: string };
+
+const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
+
+// The draft's sections as the guide screen shows them. The SPEC draft has no section introduction and no
+// theme cards, so `intro` is empty and `themes` is always []: whatever the staff type in those two places
+// is not saved. `summary` is derived from the items.
+const toGuideSection = (s: ServerDraft["sections"][number]): GuideSection => ({
+  id: s.id,
+  kind: s.kind,
+  title: s.title,
+  visible: s.visible,
+  summary: `Draft · ${itemCount(s.contentIds.length)}`,
+  intro: "",
+  itemIds: s.contentIds,
+});
+const toGuide = (draft: ServerDraft, row: ConsoleExhibitionRow): Guide => ({
+  sections: draft.sections.map(toGuideSection),
+  themes: [],
+  hasUnpublishedChanges: row.hasUnpublishedChanges,
+});
+
+const STALE_DRAFT = "This draft changed elsewhere. Reload to see the latest.";
+
+// Replaces the draft the caller just read. Someone else saving in between is REVISION_MISMATCH, which
+// the screens show as a plain sentence instead of the raw error.
+async function writeDraft(code: string, edit: (draft: ServerDraft) => ServerDraft) {
+  const { draft, revision } = await q<DraftState>("console.draft.get", { code });
+  try {
+    await m("console.draft.update", { code, revision, draft: edit(draft) });
+  } catch (e) {
+    if (e instanceof ApiError && e.appCode === "REVISION_MISMATCH") throw new ApiError(STALE_DRAFT, e.code, e.appCode);
+    throw e;
+  }
+}
+
 export function createTrpcApi(): InstitutionsApi {
   return {
     getWorkspace: async () => toWorkspace(await q<StaffMe>("me.get")),
@@ -371,7 +419,13 @@ export function createTrpcApi(): InstitutionsApi {
     },
     createExhibition: async (input) => toExhibition(await m<ConsoleExhibitionRow>("console.exhibition.create", input)),
     deleteExhibition: (id) => m("console.exhibition.delete", { code: id }),
-    updateExhibition: (id, patch) => m("updateExhibition", { id, ...patch }),
+    // Publication details are draft fields (SPEC §9.4 전시 초안). The code is fixed at creation.
+    updateExhibition: async (id, patch) => {
+      if (patch.code !== undefined && patch.code !== id) throw new ApiError("The visitor URL cannot be changed after the exhibition is created.");
+      const { code: _code, ...details } = patch;
+      await writeDraft(id, (draft) => ({ ...draft, ...details }));
+      return toExhibition(await q<ConsoleExhibitionRow>("console.exhibition.get", { code: id }));
+    },
     publishExhibition: (id) => m("publishExhibition", { id }),
     unpublishExhibition: (id) => m("unpublishExhibition", { id }),
     duplicateExhibition: (id) => m("duplicateExhibition", { id }),
@@ -422,8 +476,19 @@ export function createTrpcApi(): InstitutionsApi {
 
     listPublicationChecks: async (exhibitionId) => toPublicationChecks((await q<{ checks: ConsoleCheck[] }>("console.preview.get", { code: exhibitionId })).checks),
 
-    getGuide: (exhibitionId) => q("getGuide", { exhibitionId }),
-    saveGuide: (exhibitionId, guide) => m("saveGuide", { exhibitionId, ...guide }),
+    getGuide: async (exhibitionId) => {
+      const { draft, ...row } = await q<ConsoleExhibitionRow & { draft: ServerDraft }>("console.exhibition.get", { code: exhibitionId });
+      return toGuide(draft, row);
+    },
+    // Only the sections are saved (see toGuideSection); the theme cards have nowhere to go.
+    saveGuide: async (exhibitionId, { sections }) => {
+      await writeDraft(exhibitionId, (draft) => ({
+        ...draft,
+        sections: sections.map(({ id, kind, title, visible, itemIds }) => ({ id, kind, title, visible, contentIds: itemIds })),
+      }));
+      const { draft, ...row } = await q<ConsoleExhibitionRow & { draft: ServerDraft }>("console.exhibition.get", { code: exhibitionId });
+      return toGuide(draft, row);
+    },
     publishGuide: (exhibitionId) => m("publishGuide", { exhibitionId }),
   };
 }

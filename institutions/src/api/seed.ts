@@ -70,15 +70,15 @@ export function sampleSeed(): Seed {
     exhibitions: [
       {
         id: ex, code: "exhibition-title", title: "Exhibition Title", subtitle: "Exhibition subtitle",
-        venueName: "MMCA Seoul", startDate: "2026-11-20", endDate: "2027-03-28", status: "DRAFT", updatedAt: new Date().toISOString(),
+        venueName: "MMCA Seoul", venueId: "v1", startDate: "2026-11-20", endDate: "2027-03-28", status: "DRAFT", updatedAt: new Date().toISOString(),
       },
       {
         id: "sample-ex-2", code: "live-exhibition", title: "Live Exhibition", subtitle: "Exhibition subtitle",
-        venueName: "MMCA Seoul", startDate: "2026-08-27", endDate: "2027-02-09", status: "PUBLISHED", updatedAt: "2026-11-04T09:00:00Z",
+        venueName: "MMCA Seoul", venueId: "v1", startDate: "2026-08-27", endDate: "2027-02-09", status: "PUBLISHED", updatedAt: "2026-11-04T09:00:00Z",
       },
       {
         id: "sample-ex-3", code: "past-exhibition", title: "Past Exhibition", subtitle: "Exhibition subtitle",
-        venueName: "SeMA Seosomun", startDate: "2026-05-19", endDate: "2026-10-25", status: "PUBLISHED", updatedAt: "2026-10-28T09:00:00Z",
+        venueName: "SeMA Seosomun", venueId: "v2", startDate: "2026-05-19", endDate: "2026-10-25", status: "PUBLISHED", updatedAt: "2026-10-28T09:00:00Z",
       },
     ],
     files: {
@@ -159,8 +159,8 @@ export function sampleSeed(): Seed {
       [ex]: {
         hasUnpublishedChanges: true,
         sections: [
-          { id: "gs1", title: "Exhibition introduction", summary: "Draft · 3 blocks", visible: true, intro: "Section introduction.", itemIds: ["ci1"] },
-          { id: "gs2", title: "Themes & keywords", summary: "Draft · 2 blocks", visible: true, intro: "Themes introduction.", itemIds: ["ci2", "ci3"] },
+          { id: "gs1", kind: "INTRODUCTION", title: "Exhibition introduction", summary: "Draft · 3 blocks", visible: true, intro: "Section introduction.", itemIds: ["ci1"] },
+          { id: "gs2", kind: "THEMES", title: "Themes & keywords", summary: "Draft · 2 blocks", visible: true, intro: "Themes introduction.", itemIds: ["ci2", "ci3"] },
         ],
         themes: [
           { id: "th1", name: "Life & Death", description: "끝과 시작, 유한한 생명" },
