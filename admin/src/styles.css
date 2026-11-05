@@ -212,3 +212,9 @@ button { cursor: pointer; }
   .pa-pager { flex-wrap: wrap; padding: 10px 16px; white-space: normal; }
 }
 .pa-dialog code.pa-input { display: flex; align-items: center; user-select: all; }
+
+/* Users & access (temporary screen) */
+.pa-tr--accounts { grid-template-columns: 90px 170px 220px 130px 100px 120px minmax(0, 1fr); min-height: 0; padding-bottom: 14px; }
+.pa-tr--accounts .pa-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.pa-adding { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin-top: 16px; }
+.pa-adding .pa-search { width: 240px; }
