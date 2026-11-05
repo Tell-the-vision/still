@@ -29,6 +29,20 @@
       "when": 1793867248085,
       "tag": "0003_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793867666460,
+      "tag": "0004_console_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793867669850,
+      "tag": "0005_drop_exhibition_status",
+      "breakpoints": true
     }
   ]
 }

@@ -15,7 +15,7 @@ const pkg: ContentPackage = {
       guide: null,
       startDate: "2026-01-01",
       endDate: "2030-12-31",
-      status: "PUBLISHED",
+      state: "PUBLISHED",
       ambienceEnabled: false,
       playlist: null,
       sentences: [],

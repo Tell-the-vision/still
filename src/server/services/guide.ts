@@ -7,7 +7,7 @@ import { expandDocument } from "./documents";
 
 export async function getGuide(code: string) {
   const row = await db.query.exhibitions.findFirst({
-    where: and(eq(exhibitions.code, code), eq(exhibitions.status, "PUBLISHED")),
+    where: and(eq(exhibitions.code, code), eq(exhibitions.state, "PUBLISHED")),
     with: { images: true, sentences: { where: isNull(guideSentences.deletedAt) } },
   });
   if (!row) throw new TRPCError({ code: "NOT_FOUND" });

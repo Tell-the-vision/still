@@ -42,7 +42,7 @@ export function exhibitionFromBoard(b: Board): ContentPackage["exhibitions"][num
     },
     startDate: b.startDate,
     endDate: b.endDate,
-    status: "PUBLISHED",
+    state: "PUBLISHED",
     ambienceEnabled: true,
     playlist: { provider: "APPLE_MUSIC", ...b.playlist },
     sentences,

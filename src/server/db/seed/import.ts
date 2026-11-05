@@ -1,5 +1,6 @@
+import type { ExhibitionDraft } from "@still/shared/console-draft";
 import type { StoredDocument } from "@still/shared/document";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
@@ -34,7 +35,36 @@ export async function importPackage(pkg: ContentPackage) {
     for (const { venueCode, playlist, sentences, images: imageFiles = [], cover = null, code, ...fields } of pkg.exhibitions) {
       const venueId = venueIds.get(venueCode);
       if (!venueId) throw new Error(`Unknown venue "${venueCode}" in exhibition "${code}"`);
-      const mutable = { ...fields, institutionId: institution.id, venueId };
+      const published = fields.state !== "DRAFT";
+      const [existing] = await tx.select({ firstPublishedAt: exhibitions.firstPublishedAt }).from(exhibitions).where(eq(exhibitions.code, code));
+      if (!published && existing?.firstPublishedAt) {
+        throw new Error(`Exhibition "${code}": already published, so it cannot be imported as DRAFT (use UNPUBLISHED)`);
+      }
+      // One revision stands for both the working copy and, unless DRAFT, the published copy (SPEC §10.9).
+      const revision = randomUUID();
+      const now = new Date();
+      const draft: ExhibitionDraft = {
+        version: 1,
+        title: fields.title,
+        subtitle: null,
+        venueId,
+        startDate: fields.startDate,
+        endDate: fields.endDate,
+        coverImageId: null, // set below, once the image rows exist
+        ambienceEnabled: fields.ambienceEnabled,
+        playlist,
+        sections: [],
+      };
+      const mutable = {
+        ...fields,
+        institutionId: institution.id,
+        venueId,
+        firstPublishedAt: published ? (existing?.firstPublishedAt ?? now) : null,
+        draft,
+        draftRevision: revision,
+        publishedRevision: published ? revision : null,
+        publishedAt: published ? now : null,
+      };
 
       const [exhibition] = await tx
         .insert(exhibitions)
@@ -48,13 +78,13 @@ export async function importPackage(pkg: ContentPackage) {
         const bytes = await readFile(file);
         const ext = extname(file).slice(1).toLowerCase();
         const objectKey = `exhibitions/${code}/${createHash("sha256").update(bytes).digest("hex")}.${ext}`;
-        await tx.insert(images).values({ ...image, exhibitionId: exhibition.id, objectKey }).onConflictDoNothing({ target: images.objectKey });
+        await tx.insert(images).values({ ...image, exhibitionId: exhibition.id, objectKey, rights: "CONFIRMED", verification: "NOT_APPLICABLE" }).onConflictDoNothing({ target: images.objectKey });
         await putObject(objectKey, bytes, imageContentType(file));
         const [row] = await tx.select({ id: images.id }).from(images).where(eq(images.objectKey, objectKey));
         imageRows.push(row);
       }
       const coverImageId = cover === null ? null : imageRows[cover].id;
-      await tx.update(exhibitions).set({ coverImageId }).where(eq(exhibitions.id, exhibition.id));
+      await tx.update(exhibitions).set({ coverImageId, draft: { ...draft, coverImageId } }).where(eq(exhibitions.id, exhibition.id));
 
       // Image rows that are neither the cover nor an image block of a stored document (SPEC §9).
       const used = new Set<string>(coverImageId ? [coverImageId] : []);
@@ -65,7 +95,7 @@ export async function importPackage(pkg: ContentPackage) {
         .delete(images)
         .where(and(eq(images.exhibitionId, exhibition.id), used.size > 0 ? notInArray(images.id, [...used]) : undefined))
         .returning({ objectKey: images.objectKey });
-      removedKeys.set(code, removed.map((r) => r.objectKey));
+      removedKeys.set(code, removed.flatMap((r) => (r.objectKey === null ? [] : [r.objectKey])));
 
       for (const s of sentences) {
         await tx

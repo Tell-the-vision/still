@@ -2,10 +2,10 @@ import type { ExpandedBlock, ExpandedDocument, StoredDocument } from "../../../s
 import { publicImageUrl } from "../media/public-url";
 
 type SentenceRow = { id: string; content: string };
-type ImageRow = { id: string; objectKey: string; altText: string | null; width: number; height: number };
+type ImageRow = { id: string; objectKey: string | null; altText: string | null; width: number; height: number };
 
 // Resolves stored references into the served form (SPEC §11.8).
-// Blocks whose reference is missing are dropped.
+// Blocks whose reference is missing, or whose image has no public copy yet, are dropped.
 export function expandDocument(
   doc: StoredDocument | null,
   { images, sentences = [] }: { images: ImageRow[]; sentences?: SentenceRow[] },
@@ -15,7 +15,7 @@ export function expandDocument(
   for (const block of doc.blocks) {
     if (block.type === "image") {
       const image = images.find((i) => i.id === block.imageId);
-      if (!image) continue;
+      if (!image || image.objectKey === null) continue;
       const { altText, width, height } = image;
       blocks.push({ type: "image", imageId: image.id, url: publicImageUrl(image.objectKey), altText, width, height });
     } else if (block.type === "sentence") {

@@ -38,7 +38,7 @@ function parseDocument(label: string, doc: unknown): StoredDocument | null {
 function validateExhibition(e: PackageExhibition) {
   const label = `Exhibition "${e.code}"`;
   if (!codeSchema.safeParse(e.code).success) throw new Error(`${label}: invalid code`);
-  if (e.status !== "DRAFT" && e.status !== "PUBLISHED") throw new Error(`${label}: invalid status "${e.status}"`);
+  if (!["DRAFT", "PUBLISHED", "UNPUBLISHED"].includes(e.state)) throw new Error(`${label}: invalid state "${e.state}"`);
 
   if (e.playlist) {
     const prefix = PLAYLIST_PREFIX[e.playlist.provider];
