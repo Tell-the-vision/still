@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type MediaAssetPatch, type Me, type ProcessingEvent,
+  api, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type MediaAssetPatch, type Me, type NewExhibition, type ProcessingEvent,
   type PublicationCheck, type PublicationDetails, type SignInRequest, type SourceFile, type Workspace,
 } from "./api";
 import { can, type Action } from "./rules";
@@ -208,11 +208,22 @@ function useWorkspaceState() {
       return user;
     }),
 
-    createExhibition: () => run(async () => {
-      const e = await api.createExhibition();
-      setExhibitions((list) => [e, ...list]);
-      setCurrentId(e.id);
-      return e;
+    /** Errors (code taken, invalid code) stay on the dialog and are rethrown for it. */
+    createExhibition: async (input: NewExhibition) => {
+      try {
+        const e = await api.createExhibition(input);
+        setExhibitions((list) => [e, ...list]);
+        setCurrentId(e.id);
+        return e;
+      } catch (e) {
+        if (isUnauthorized(e)) fail(e);
+        throw e;
+      }
+    },
+    deleteExhibition: (id: string) => run(async () => {
+      await api.deleteExhibition(id);
+      setExhibitions((list) => list.filter((e) => e.id !== id));
+      setCurrentId((current) => (current === id ? null : current));
     }),
     updateExhibition: (patch: Partial<PublicationDetails>) => run(async () => {
       if (!currentId) return;

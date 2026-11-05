@@ -1135,3 +1135,11 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   .signin__pitch { margin-top: 28px; }
   .signin__panel-foot { margin-top: 40px; }
 }
+
+/* New exhibition dialog (native <dialog>: focus trap, Escape and inert background come with it). */
+.dialog { width: min(480px, calc(100vw - 32px)); padding: 28px; border: 1px solid var(--line); background: var(--white); color: var(--ink); }
+.dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.dialog .field:first-of-type { margin-top: 0; }
+.dialog__actions { display: flex; justify-content: flex-end; gap: 14px; margin-top: 26px; }
+.dialog__actions .btn--primary, .dialog__actions .btn--secondary { min-width: 132px; }
+.dialog .field-error { margin-top: 0; }

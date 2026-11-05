@@ -132,15 +132,23 @@ export function createMockApi(kind: "sample" | "empty"): InstitutionsApi {
     sendSupportRequest: () => wait({ ticketId: `T-${Math.floor(1000 + Math.random() * 9000)}` }, 500),
 
     listExhibitions: () => wait(db.exhibitions),
-    async createExhibition() {
+    async createExhibition({ title, code }) {
       allow("edit");
+      if (db.exhibitions.some((x) => x.code === code)) throw new ApiError("Exhibition code is already taken", "CONFLICT", "CODE_TAKEN");
       const e: Exhibition = {
-        id: uid(), code: `untitled-${db.exhibitions.length + 1}`, title: "Untitled Exhibition", subtitle: null,
+        id: uid(), code, title, subtitle: null,
         venueName: db.workspace.institutionName, startDate: null, endDate: null, status: "DRAFT", updatedAt: now(),
       };
       db.exhibitions.unshift(e);
       db.guides[e.id] = { sections: [], themes: [], hasUnpublishedChanges: false };
       return wait(e);
+    },
+    async deleteExhibition(id) {
+      allow("edit");
+      if (exhibition(id).status === "PUBLISHED") throw new ApiError("A published exhibition cannot be deleted", "CONFLICT", "EXHIBITION_PUBLISHED");
+      db.exhibitions = db.exhibitions.filter((x) => x.id !== id);
+      delete db.guides[id];
+      return wait(undefined);
     },
     async updateExhibition(id, patch) {
       allow("edit");

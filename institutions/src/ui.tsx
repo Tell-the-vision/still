@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import type { NewExhibition } from "./api";
+import { NewExhibitionButton } from "./NewExhibition";
 
 export type Tone = "green" | "amber" | "gray" | "neutral";
 
@@ -74,7 +76,7 @@ export function EmptyState({ title, body, action }: { title: string; body?: Reac
 }
 
 /** Shown on exhibition-scoped screens when there is no exhibition yet. */
-export function NoExhibition({ title, onCreate }: { title: string; onCreate: () => void }) {
+export function NoExhibition({ title, onCreate }: { title: string; onCreate: (input: NewExhibition) => Promise<unknown> }) {
   return (
     <>
       <PageHead eyebrow="Museum workspace" title={title} />
@@ -82,7 +84,7 @@ export function NoExhibition({ title, onCreate }: { title: string; onCreate: () 
       <EmptyState
         title="No exhibition yet"
         body="Create an exhibition to upload materials, review content and publish a visitor guide."
-        action={<button type="button" className="btn btn--primary btn--xwide" onClick={onCreate}>+ New exhibition</button>}
+        action={<NewExhibitionButton onCreate={onCreate} />}
       />
     </>
   );

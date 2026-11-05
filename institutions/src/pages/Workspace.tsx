@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, type WorkspaceSummary } from "../api";
+import { api, type NewExhibition, type WorkspaceSummary } from "../api";
 import { formatTime, formatUpdated, libraryStatus } from "../format";
+import { NewExhibitionButton } from "../NewExhibition";
 import { useWorkspace } from "../store";
 import { Arrow, EmptyState, PageHead, StatCard } from "../ui";
 
@@ -27,11 +28,10 @@ export default function Workspace() {
     selectExhibition(id);
     navigate(to);
   };
-  const create = async () => {
-    try {
-      await createExhibition();
-      navigate("/materials");
-    } catch { /* error banner */ }
+  // The dialog shows a failure itself and stays open.
+  const create = async (input: NewExhibition) => {
+    await createExhibition(input);
+    navigate("/materials");
   };
 
   return (
@@ -40,7 +40,7 @@ export default function Workspace() {
         eyebrow="Museum workspace"
         title={workspace?.institutionName ?? "Workspace"}
         lede="Everything happening across your exhibitions, in one place."
-        actions={<button type="button" className="btn btn--primary btn--xwide" onClick={create}>+ New exhibition</button>}
+        actions={<NewExhibitionButton onCreate={create} />}
       />
       <hr className="rule" />
 

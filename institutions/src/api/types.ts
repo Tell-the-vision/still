@@ -215,6 +215,8 @@ export interface SignInRequest {
 }
 
 /** The one seam between screens and backend. Swap the implementation, not the screens. */
+export type NewExhibition = { title: string; code: string };
+
 export interface InstitutionsApi {
   getWorkspace(): Promise<Workspace>;
   getWorkspaceSummary(): Promise<WorkspaceSummary>;
@@ -240,7 +242,10 @@ export interface InstitutionsApi {
   sendSupportRequest(request: SupportRequest): Promise<{ ticketId: string }>;
 
   listExhibitions(): Promise<Exhibition[]>;
-  createExhibition(): Promise<Exhibition>;
+  /** A new DRAFT. `code` is the exhibition's permanent id in visitor URLs; a taken one fails with appCode CODE_TAKEN. */
+  createExhibition(input: NewExhibition): Promise<Exhibition>;
+  /** Removes a DRAFT or unpublished exhibition nobody has saved; refused for live ones and ones with visitor archives. */
+  deleteExhibition(id: string): Promise<void>;
   updateExhibition(id: string, patch: Partial<PublicationDetails>): Promise<Exhibition>;
   publishExhibition(id: string): Promise<Exhibition>;
   /** Takes a live guide offline (status back to DRAFT). */

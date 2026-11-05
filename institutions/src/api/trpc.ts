@@ -304,7 +304,8 @@ export function createTrpcApi(): InstitutionsApi {
       } while (cursor);
       return rows.map(toExhibition);
     },
-    createExhibition: () => m("createExhibition"),
+    createExhibition: async (input) => toExhibition(await m<ConsoleExhibitionRow>("console.exhibition.create", input)),
+    deleteExhibition: (id) => m("console.exhibition.delete", { code: id }),
     updateExhibition: (id, patch) => m("updateExhibition", { id, ...patch }),
     publishExhibition: (id) => m("publishExhibition", { id }),
     unpublishExhibition: (id) => m("unpublishExhibition", { id }),

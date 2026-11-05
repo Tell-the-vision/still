@@ -1,10 +1,23 @@
-import { consoleExhibitionCursor, consoleExhibitionGetInput, consoleExhibitionListInput } from "@still/shared/console";
+import {
+  consoleExhibitionCreateInput,
+  consoleExhibitionCursor,
+  consoleExhibitionDeleteInput,
+  consoleExhibitionGetInput,
+  consoleExhibitionListInput,
+} from "@still/shared/console";
 import { TRPCError } from "@trpc/server";
 import { and, count, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../../../db/client";
-import { contents, documents, exhibitions, venues } from "../../../db/schema";
+import { archives, contents, documents, exhibitions, images, venues } from "../../../db/schema";
+import { deleteObject } from "../../../media/r2";
 import { draftTitle, exhibitionRows } from "../../../services/console/exhibition-rows";
-import { consoleProcedure, router } from "../../init";
+import { AppError, consoleProcedure, router } from "../../init";
+
+const UNIQUE_VIOLATION = "23505";
+
+// drizzle wraps the driver error, so the SQLSTATE may sit on the error or on its cause.
+const isUniqueViolation = (error: unknown) =>
+  [error, (error as { cause?: unknown } | null)?.cause].some((e) => (e as { code?: string } | null)?.code === UNIQUE_VIOLATION);
 
 function parseCursor(cursor: string) {
   try {
@@ -62,5 +75,60 @@ export const consoleExhibitionRouter = router({
         },
       },
     };
+  }),
+
+  // A new draft (SPEC §9.4 전시 초안, §10.3): the code was confirmed by the institution and never changes.
+  create: consoleProcedure.input(consoleExhibitionCreateInput).mutation(async ({ ctx, input }) => {
+    const draft = {
+      version: 1,
+      title: input.title,
+      subtitle: null,
+      venueId: null,
+      startDate: null,
+      endDate: null,
+      coverImageId: null,
+      ambienceEnabled: false,
+      playlist: null,
+      sections: [],
+    };
+    try {
+      const [created] = await db
+        .insert(exhibitions)
+        .values({ code: input.code, institutionId: ctx.institutionId, title: input.title, state: "DRAFT", draft, createdBy: ctx.session.userId })
+        .returning({ id: exhibitions.id });
+      const [row] = await exhibitionRows(ctx.institutionId, { where: eq(exhibitions.id, created.id) });
+      return row;
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new TRPCError({ code: "CONFLICT", cause: new AppError("CODE_TAKEN") });
+      throw error;
+    }
+  }),
+
+  // Deletes an exhibition nobody has used (SPEC §10.9 전시 삭제): not published, no visitor archive.
+  // The row lock serializes with publishing and with a visitor creating an archive (its foreign key
+  // check waits for the lock), so neither can slip in between the checks and the delete.
+  delete: consoleProcedure.input(consoleExhibitionDeleteInput).mutation(async ({ ctx, input }) => {
+    const objectKeys = await db.transaction(async (tx) => {
+      const [exhibition] = await tx
+        .select({ id: exhibitions.id, state: exhibitions.state })
+        .from(exhibitions)
+        .where(and(eq(exhibitions.institutionId, ctx.institutionId), eq(exhibitions.code, input.code)))
+        .for("update");
+      if (!exhibition) throw new TRPCError({ code: "NOT_FOUND" });
+      if (exhibition.state === "PUBLISHED") throw new TRPCError({ code: "CONFLICT", cause: new AppError("EXHIBITION_PUBLISHED") });
+      if (await tx.$count(archives, eq(archives.exhibitionId, exhibition.id))) {
+        throw new TRPCError({ code: "CONFLICT", cause: new AppError("EXHIBITION_HAS_ARCHIVES") });
+      }
+      const documentKeys = await tx
+        .select({ key: documents.objectKey, manifestKey: documents.manifestObjectKey })
+        .from(documents)
+        .where(eq(documents.exhibitionId, exhibition.id));
+      const imageKeys = await tx.select({ key: images.objectKey }).from(images).where(eq(images.exhibitionId, exhibition.id));
+      // Documents, contents and images go with the row (ON DELETE CASCADE).
+      await tx.delete(exhibitions).where(eq(exhibitions.id, exhibition.id));
+      return [...documentKeys.flatMap((d) => [d.key, d.manifestKey]), ...imageKeys.map((i) => i.key)].filter((key) => key !== null);
+    });
+    // Best effort after commit. TODO: SPEC queues these as `storage.delete` jobs (pg-boss), which do not exist yet.
+    await Promise.allSettled(objectKeys.map(deleteObject));
   }),
 });

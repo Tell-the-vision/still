@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { NewExhibition } from "../api";
 import { formatPeriod, formatUpdated, libraryStatus, visitorUrl, type LibraryStatus } from "../format";
+import { NewExhibitionButton } from "../NewExhibition";
 import { useWorkspace } from "../store";
 import { Badge, EmptyState, PageHead, StatCard, type Tone } from "../ui";
 
@@ -16,9 +18,10 @@ const SORTS = {
 type SortKey = keyof typeof SORTS;
 
 export default function Exhibitions() {
-  const { exhibitions, selectExhibition, createExhibition, duplicateExhibition, unpublishExhibition, can } = useWorkspace();
+  const { exhibitions, selectExhibition, createExhibition, duplicateExhibition, unpublishExhibition, deleteExhibition, can } = useWorkspace();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [confirmUnpublish, setConfirmUnpublish] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const navigate = useNavigate();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
@@ -50,11 +53,15 @@ export default function Exhibitions() {
     setMenuId(null);
     try { await unpublishExhibition(id); show("Guide taken offline. Visitors can no longer open it."); } catch { /* error banner */ }
   };
-  const create = async () => {
-    try {
-      await createExhibition();
-      navigate("/materials");
-    } catch { /* error banner */ }
+  const remove = async (id: string) => {
+    setConfirmDelete(null);
+    setMenuId(null);
+    try { await deleteExhibition(id); show("Draft deleted"); } catch { /* error banner */ }
+  };
+  // The dialog shows a failure itself and stays open.
+  const create = async (input: NewExhibition) => {
+    await createExhibition(input);
+    navigate("/materials");
   };
 
   return (
@@ -63,7 +70,7 @@ export default function Exhibitions() {
         eyebrow="Museum content library"
         title="Published exhibitions"
         lede="Manage live visitor guides, review publication status and return to an exhibition workspace."
-        actions={can("edit") && <button type="button" className="btn btn--primary btn--xwide" onClick={create}>+ New exhibition</button>}
+        actions={can("edit") && <NewExhibitionButton onCreate={create} />}
       />
       <hr className="rule" />
 
@@ -100,7 +107,7 @@ export default function Exhibitions() {
         <EmptyState
           title={exhibitions.length ? "No exhibitions match" : "No exhibitions yet"}
           body={exhibitions.length ? "Try another filter or search." : "Create the first exhibition to start building a visitor guide."}
-          action={!exhibitions.length && can("edit") && <button type="button" className="btn btn--primary btn--xwide" onClick={create}>+ New exhibition</button>}
+          action={!exhibitions.length && can("edit") && <NewExhibitionButton onCreate={create} />}
         />
       ) : (
         <div className="table-wrap">
@@ -121,7 +128,7 @@ export default function Exhibitions() {
                   <td className="muted">{formatUpdated(e.updatedAt)}</td>
                   <td className="cell-action" onClick={(ev) => ev.stopPropagation()}>
                     <div className="row-menu">
-                      <button type="button" className="more" aria-haspopup="menu" aria-expanded={menuId === e.id} aria-label={`More actions for ${e.title}`} onClick={() => { setMenuId(menuId === e.id ? null : e.id); setConfirmUnpublish(null); }}>•••</button>
+                      <button type="button" className="more" aria-haspopup="menu" aria-expanded={menuId === e.id} aria-label={`More actions for ${e.title}`} onClick={() => { setMenuId(menuId === e.id ? null : e.id); setConfirmUnpublish(null); setConfirmDelete(null); }}>•••</button>
                       {menuId === e.id && (
                         <div className="row-menu__panel" role="menu">
                           <button type="button" role="menuitem" onClick={() => open(e.id)}>Open workspace</button>
@@ -136,6 +143,17 @@ export default function Exhibitions() {
                               </span>
                             ) : (
                               <button type="button" role="menuitem" className="danger" onClick={() => setConfirmUnpublish(e.id)}>Unpublish…</button>
+                            )
+                          )}
+                          {can("edit") && e.status === "DRAFT" && (
+                            confirmDelete === e.id ? (
+                              <span className="row-menu__confirm">
+                                <span className="caption-sm">This draft and its uploads will be removed.</span>
+                                <button type="button" className="link-btn link-btn--danger" onClick={() => remove(e.id)}>Delete draft</button>
+                                <button type="button" className="link-btn" onClick={() => setConfirmDelete(null)}>Cancel</button>
+                              </span>
+                            ) : (
+                              <button type="button" role="menuitem" className="danger" onClick={() => setConfirmDelete(e.id)}>Delete draft…</button>
                             )
                           )}
                         </div>
