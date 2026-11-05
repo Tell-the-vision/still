@@ -284,7 +284,7 @@ function AddInstitution({ all, onClose, onAdded }: { all: Institution[]; onClose
         <p className="pa-desc">
           {created
             ? `${created.name} was created with the ID ${created.publicId}, but its first account was not. Fix the details below and try again; the institution is not created twice.`
-            : "STILL issues the institution ID and the workspace admin's account with a temporary password. The admin then invites the rest of their team."}
+            : "STILL issues the institution ID and the workspace admin's account with a temporary password, shown once. STILL also issues any further accounts."}
         </p>
         <label className="pa-dfield">
           <span className="pa-field-label">Institution name</span>

@@ -13,21 +13,6 @@ test("the operator resets a workspace admin's password from the institution row"
   const staff = await seedInstitutionAccount();
   await signInAdmin(page, await seedOperator());
 
-  // The institution list is built in a parallel change (#46): serve the row the A9 table needs.
-  await page.route("**/api/trpc/admin.institution.list", (route) =>
-    route.fulfill({
-      json: {
-        result: {
-          data: [{
-            id: staff.institutionId, code: staff.institutionCode, name: staff.institutionName, status: "ACTIVE", displayStatus: "ACTIVE",
-            accountCount: 1, workspaceAdmin: { accountId: staff.userId, email: staff.email }, lastActiveAt: null,
-            analysisDailyTokenLimit: null, createdAt: new Date().toISOString(),
-          }],
-        },
-      },
-    }),
-  );
-
   // The staff member is signed in elsewhere.
   const staffContext = await browser.newContext();
   const staffPage = await staffContext.newPage();
@@ -35,6 +20,8 @@ test("the operator resets a workspace admin's password from the institution row"
   expect((await consoleCall(staffPage, "me.get")).status).toBe(200);
 
   await page.goto("/admin/institutions");
+  // Other tests add institutions at the same time: find this one by its ID.
+  await page.getByPlaceholder("Search institution name or ID").fill(staff.institutionCode);
   await page.getByRole("button", { name: `Actions for ${staff.institutionName}` }).click();
   await page.getByRole("menuitem", { name: "Reset password" }).click();
   await page.getByRole("button", { name: "Reset password", exact: true }).click();

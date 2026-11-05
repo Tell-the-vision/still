@@ -4,8 +4,6 @@ import { adminCall, consoleCall, e2eSql, seedInstitutionAccount, seedOperator, s
 
 // SPEC §9.2 기관 정지·재개, §9.5, §10.5: the operator suspends or reactivates an institution from the
 // A9 row menu (admin.institution.update). Suspending ends every staff session of that institution.
-// The A9 table is fed by admin.institution.list (#46), so this spec drives update through adminCall,
-// which is the exact call setInstitutionStatus makes.
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -22,9 +20,14 @@ test("suspending signs the institution's staff out at once and reactivating lets
   expect(await sessionCount(account.institutionId)).toBe(1);
 
   await signInAdmin(page, await seedOperator());
-  const suspended = await adminCall(page, "admin.institution.update", { id: account.institutionId, status: "SUSPENDED" });
-  expect(suspended.status).toBe(200);
-  expect(suspended.json.result.data).toMatchObject({ id: account.institutionId, status: "SUSPENDED", displayStatus: "SUSPENDED" });
+  await page.goto("/admin/institutions");
+  // Other tests add institutions at the same time: find this one by its ID.
+  await page.getByPlaceholder("Search institution name or ID").fill(account.institutionCode);
+  const row = page.getByRole("row").filter({ hasText: account.institutionCode });
+  await page.getByRole("button", { name: `Actions for ${account.institutionName}` }).click();
+  await page.getByRole("menuitem", { name: "Suspend access…" }).click();
+  await page.getByRole("button", { name: "Suspend", exact: true }).click();
+  await expect(row.getByText("Suspended", { exact: true })).toBeVisible();
 
   expect((await consoleCall(staffPage, "me.get")).status).toBe(401);
   expect(await sessionCount(account.institutionId)).toBe(0);
@@ -32,8 +35,9 @@ test("suspending signs the institution's staff out at once and reactivating lets
   expect(refused.status).toBe(401);
   expect(refused.json.error.message).toBe(WRONG);
 
-  const reactivated = await adminCall(page, "admin.institution.update", { id: account.institutionId, status: "ACTIVE" });
-  expect(reactivated.json.result.data).toMatchObject({ status: "ACTIVE", displayStatus: "ACTIVE" });
+  await page.getByRole("button", { name: `Actions for ${account.institutionName}` }).click();
+  await page.getByRole("menuitem", { name: "Reactivate access" }).click();
+  await expect(row.getByText("Active", { exact: true })).toBeVisible();
   await signInConsole(staffPage, account);
   expect((await consoleCall(staffPage, "me.get")).status).toBe(200);
   await staff.close();

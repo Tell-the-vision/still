@@ -99,7 +99,7 @@ export function createMockApi(): PlatformApi {
     },
     async setInstitutionStatus(id, status) {
       const inst = find(id);
-      // Reactivating someone who never accepted the invite puts them back to PENDING, not ACTIVE.
+      // Reactivating an institution whose accounts never signed in puts it back to PENDING, not ACTIVE.
       inst.status = status === "ACTIVE" && inst.lastActiveAt === null ? "PENDING" : status;
       return wait(inst, 300);
     },

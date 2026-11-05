@@ -2,7 +2,7 @@
 
 export type ISODateTime = string; // "2026-11-05T10:42:00Z"
 
-/** PENDING: created, the first institution admin has not accepted the invite yet. SUSPENDED: nobody can sign in; data is kept. */
+/** PENDING: "Pending setup", no account of the institution has signed in yet. SUSPENDED: nobody can sign in; data is kept (SPEC §9.2). */
 export type InstitutionStatus = "ACTIVE" | "PENDING" | "SUSPENDED";
 
 export interface Institution {
