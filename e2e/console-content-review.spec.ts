@@ -216,3 +216,28 @@ test("batchUpdate approves every READY item and never a NEEDS_REVIEW one", async
   expect(await statusOf(unsure.id)).toBe("NEEDS_REVIEW");
   expect(await statusOf(done.id)).toBe("APPROVED");
 });
+
+test("a sentence keeps its published sentence id whatever the client sends", async ({ page }) => {
+  const { account, exhibition } = await setup();
+  const published = randomUUID();
+  const item = await seedContent(exhibition, {
+    kind: "ARTWORK",
+    status: "READY",
+    blocks: [{ type: "sentence", id: "s1", text: "Light stays.", origin: "SOURCE", refs: [], guideSentenceId: published }],
+  });
+  await signedIn(page, account);
+
+  // The client drops the id on an edit, and invents one on a new sentence block.
+  const res = await call(page, "console.content.update", {
+    id: item.id,
+    revision: await revisionOf(item.id),
+    blocks: [
+      { type: "sentence", id: "s1", text: "Light stays here.", origin: "EDITED", refs: [] },
+      { type: "sentence", id: "s2", text: "A new line.", origin: "EDITED", refs: [], guideSentenceId: randomUUID() },
+    ],
+  });
+  expect(res.status).toBe(200);
+  const [stored] = await e2eSql<{ blocks: { id: string; guideSentenceId?: string }[] }>("SELECT blocks FROM contents WHERE id = $1", [item.id]);
+  expect(stored.blocks.find((b) => b.id === "s1")?.guideSentenceId).toBe(published);
+  expect(stored.blocks.find((b) => b.id === "s2")?.guideSentenceId).toBeUndefined();
+});

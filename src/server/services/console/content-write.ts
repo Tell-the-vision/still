@@ -47,7 +47,13 @@ async function checkedBlocks(tx: Tx, exhibitionId: string, blocks: ContentBlock[
     assertNoNewRefs(refsOf(block), before ? refsOf(before) : [], `block ${block.id}`);
     if (block.type === "image") return block;
     const unchanged = before && before.type === block.type && "text" in before && before.text === block.text;
-    return { ...block, origin: unchanged && "origin" in before ? before.origin : "EDITED" };
+    const origin = unchanged && "origin" in before ? before.origin : "EDITED";
+    if (block.type !== "sentence") return { ...block, origin };
+    // A sentence's guideSentenceId is assigned at publication and owned by the server (SPEC §10.9): keep the
+    // stored one and ignore whatever the client sends, so visitors' kept lines keep their sentence id.
+    const sentence = { id: block.id, type: block.type, text: block.text, refs: block.refs, origin };
+    const kept = before?.type === "sentence" ? before.guideSentenceId : undefined;
+    return kept ? { ...sentence, guideSentenceId: kept } : sentence;
   });
 }
 
