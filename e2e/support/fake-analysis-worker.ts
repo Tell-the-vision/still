@@ -15,7 +15,9 @@ createServer(async (req, res) => {
   if (req.url !== "/structure/text" && !isVerify && !isSuggest || req.method !== "POST") return reply(404, {});
   if (!(await verifyWorkerRequest("e2e-analysis-worker-secret", body, headers, Math.floor(Date.now() / 1000)))) return reply(401, {});
   if (isSuggest) {
-    const { items } = JSON.parse(body) as { items: { contentId: string; blocks: { id: string }[] }[] };
+    const { items } = JSON.parse(body) as { items: { contentId: string; blocks: { id: string; text?: string }[] }[] };
+    // "SLOW_SUGGEST" in the text lets a test check that the result waits for the suggestions.
+    if (items.some((i) => i.blocks.some((b) => b.text?.includes("SLOW_SUGGEST")))) await new Promise((r) => setTimeout(r, 3000));
     return reply(200, {
       suggestions: [{ contentId: items[0].contentId, kind: "PUNCTUATION_CONSISTENCY", target: { node: items[0].blocks[0].id }, proposal: { from: "--", to: "—" }, rationale: "Use one dash style." }],
       usage: { model: "fake", inputTokens: 1, outputTokens: 1 },
