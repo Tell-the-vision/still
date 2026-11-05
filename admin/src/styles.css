@@ -208,3 +208,4 @@ button { cursor: pointer; }
   .pa-badge { margin: 4px 0; }
   .pa-pager { flex-wrap: wrap; padding: 10px 16px; white-space: normal; }
 }
+.pa-dialog code.pa-input { display: flex; align-items: center; user-select: all; }

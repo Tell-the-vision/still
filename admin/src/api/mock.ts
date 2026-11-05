@@ -1,5 +1,5 @@
 // In-memory PlatformApi for building screens without a backend. State resets on reload.
-import { ApiError } from "./errors";
+import { AccountNotIssuedError, ApiError } from "./errors";
 import type { Institution, InstitutionStatus, PlatformApi } from "./types";
 
 const wait = <T,>(value: T, ms = 150): Promise<T> => new Promise((r) => setTimeout(() => r(structuredClone(value)), ms));
@@ -60,10 +60,11 @@ export function createMockApi(): PlatformApi {
     async signOut() { signedIn = false; return wait(undefined, 200); },
     getMe: () => wait(me),
     listInstitutions: () => wait(db),
-    async createInstitution({ name, code, adminEmail }) {
+    async createInstitution({ name, code, adminName, adminEmail }) {
       const c = code.trim().toUpperCase();
       if (!name.trim()) throw new ApiError("Enter the institution name.", "BAD_REQUEST");
       if (!/^[A-Z]{2,6}$/.test(c)) throw new ApiError("Short code: 2–6 letters (A–Z).", "BAD_REQUEST");
+      if (!adminName.trim()) throw new ApiError("Enter the workspace admin name.", "BAD_REQUEST");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail.trim())) throw new ApiError("Enter a valid admin email.", "BAD_REQUEST");
       if (db.some((x) => x.name.toLowerCase() === name.trim().toLowerCase())) throw new ApiError("An institution with this name already exists.", "CONFLICT");
       // The number is a platform-wide sequence, so an ID is never reused even after a code repeats.
@@ -71,11 +72,23 @@ export function createMockApi(): PlatformApi {
       const created: Institution = {
         id: `inst-${Date.now()}`,
         publicId: `STL-${c}-${String(next).padStart(4, "0")}`,
-        name: name.trim(), adminEmail: adminEmail.trim(), status: "PENDING",
+        name: name.trim(), adminEmail: "—", status: "PENDING",
         createdAt: new Date().toISOString(), lastActiveAt: null,
       };
       db.push(created);
-      return wait(created, 400);
+      // Like the server, the account step can fail after the institution exists.
+      try {
+        return await impl.issueWorkspaceAdmin(created, { adminName, adminEmail });
+      } catch (e) {
+        throw new AccountNotIssuedError(e instanceof Error ? e.message : String(e), structuredClone(created), "LOGIN_ID_TAKEN");
+      }
+    },
+    async issueWorkspaceAdmin(institution, { adminEmail }) {
+      const email = adminEmail.trim();
+      if (db.some((x) => x.adminEmail.toLowerCase() === email.toLowerCase())) throw new ApiError("This email already signs in to another account.", "CONFLICT", "LOGIN_ID_TAKEN");
+      const inst = find(institution.id);
+      inst.adminEmail = email;
+      return wait({ institution: inst, temporaryPassword: "mock-Temp-Pass-42" }, 400);
     },
     async setInstitutionStatus(id, status) {
       const inst = find(id);

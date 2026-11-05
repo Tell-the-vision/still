@@ -10,7 +10,7 @@ export interface Institution {
   /** The institution ID staff type to sign in (Figma 10), e.g. "STL-SEO-0001". Unique, never reused. */
   publicId: string;
   name: string;
-  /** First INSTITUTION_ADMIN, invited when the institution is created. */
+  /** Email of the first account, issued when the institution is created. */
   adminEmail: string;
   status: InstitutionStatus;
   createdAt: ISODateTime;
@@ -22,7 +22,15 @@ export interface NewInstitution {
   name: string;
   /** 2–6 letters used in the ID: STL-<CODE>-<number>. */
   code: string;
+  /** Name and email of the first account (the workspace admin). */
+  adminName: string;
   adminEmail: string;
+}
+
+/** An account was issued: the temporary password is returned this once and never again (SPEC §9.2, §10.5). */
+export interface Issued {
+  institution: Institution;
+  temporaryPassword: string;
 }
 
 export interface PlatformAdmin {
@@ -41,8 +49,14 @@ export interface PlatformApi {
   /** Throws UNAUTHORIZED without a STILL staff session. */
   getMe(): Promise<PlatformAdmin>;
   listInstitutions(): Promise<Institution[]>;
-  /** Issues the next ID for the code and emails a one-time invite link to adminEmail. Returns the PENDING institution. */
-  createInstitution(input: NewInstitution): Promise<Institution>;
+  /**
+   * Issues the next ID for the code (one above the highest number in `existing`), then the first account with a
+   * temporary password. Returns the PENDING institution. If only the account step fails it throws
+   * AccountNotIssuedError carrying the institution; finish with issueWorkspaceAdmin.
+   */
+  createInstitution(input: NewInstitution, existing: Institution[]): Promise<Issued>;
+  /** Issues the first account of an institution that has none yet, after createInstitution's account step failed. */
+  issueWorkspaceAdmin(institution: Institution, admin: Pick<NewInstitution, "adminName" | "adminEmail">): Promise<Issued>;
   /** Suspend or reactivate. Suspending ends every staff session of that institution; nothing is deleted. */
   setInstitutionStatus(id: string, status: "ACTIVE" | "SUSPENDED"): Promise<Institution>;
   /** New invite link for a PENDING institution's admin (the old link stops working). */

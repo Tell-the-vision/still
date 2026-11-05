@@ -1,13 +1,24 @@
-import { adminInstitutionGetInput, adminInstitutionListInput, adminInstitutionUpdateInput } from "@still/shared/admin";
+import {
+  INSTITUTION_CODE,
+  adminInstitutionCreateInput,
+  adminInstitutionGetInput,
+  adminInstitutionListInput,
+  adminInstitutionUpdateInput,
+} from "@still/shared/admin";
 import { TRPCError } from "@trpc/server";
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../../db/client";
 import { institutions, userSessions, users } from "../../../db/schema";
 import { createdAtMs, displayStatusWhere, institutionRows } from "../../../services/admin/institution-rows";
-import { adminProcedure, router } from "../../init";
+import { AppError, adminProcedure, router } from "../../init";
 
 const DEFAULT_LIMIT = 20;
+const UNIQUE_VIOLATION = "23505";
+
+// drizzle wraps the driver error, so the SQLSTATE may sit on the error or on its cause.
+const isUniqueViolation = (error: unknown) =>
+  [error, (error as { cause?: unknown } | null)?.cause].some((e) => (e as { code?: string } | null)?.code === UNIQUE_VIOLATION);
 
 // The cursor is the last row's createdAt + id, opaque to the client (keyset, not offset).
 const cursorSchema = z.object({ createdAt: z.iso.datetime(), id: z.uuid() });
@@ -60,6 +71,21 @@ export const adminInstitutionRouter = router({
     const [row] = await institutionRows({ where: eq(institutions.id, input.id), limit: 1 });
     if (!row) throw new TRPCError({ code: "NOT_FOUND" });
     return row;
+  }),
+
+  // 발급 (SPEC §9.2): the institution row only; its first account comes from admin.account.create.
+  create: adminProcedure.input(adminInstitutionCreateInput).mutation(async ({ input }) => {
+    if (!INSTITUTION_CODE.test(input.code)) throw new TRPCError({ code: "BAD_REQUEST", cause: new AppError("CODE_INVALID") });
+    try {
+      const [created] = await db
+        .insert(institutions)
+        .values({ code: input.code, name: input.name, status: input.status, analysisDailyTokenLimit: input.analysisDailyTokenLimit })
+        .returning({ id: institutions.id });
+      return (await institutionRows({ where: eq(institutions.id, created.id) }))[0];
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new TRPCError({ code: "CONFLICT", cause: new AppError("CODE_TAKEN") });
+      throw error;
+    }
   }),
 
   // Rename, suspend or reactivate, or set the daily analysis token limit (SPEC §9.2, §10.5).

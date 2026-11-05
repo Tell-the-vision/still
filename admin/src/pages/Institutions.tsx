@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api, type Institution, type InstitutionStatus } from "../api";
+import { AccountNotIssuedError } from "../api/errors";
 
 // Figma 09 — Platform admin / Institution ID management (node 219:2).
-// STILL issues each institution its ID (staff type it to sign in, Figma 10) and invites the first institution admin.
+// STILL issues each institution its ID (staff type it to sign in, Figma 10) and the first institution admin's account.
 
 type StatusFilter = "ALL" | InstitutionStatus;
 type Sort = "recent" | "name" | "active";
@@ -141,12 +142,12 @@ export default function Institutions() {
 
       {adding && (
         <AddInstitution
+          all={all}
           onClose={() => setAdding(false)}
-          onCreated={(inst) => {
-            setList((l) => [...(l ?? []), inst]);
-            setAdding(false);
+          onAdded={(inst) => {
+            setList((l) => [...(l ?? []).filter((x) => x.id !== inst.id), inst]);
             setSort("recent");
-            setNotice(`Created ${inst.name} with ID ${inst.publicId}. An invitation was sent to ${inst.adminEmail}.`);
+            setNotice(`Created ${inst.name} with ID ${inst.publicId}.`);
           }}
         />
       )}
@@ -194,9 +195,14 @@ function RowMenu({ inst, onCopy, onResend, onSetStatus }: {
   );
 }
 
-// Not in Figma: the form behind "Add institution". Kept to the fields an ID and an invite need.
-function AddInstitution({ onClose, onCreated }: { onClose: () => void; onCreated: (inst: Institution) => void }) {
-  const [form, setForm] = useState({ name: "", code: "", adminEmail: "" });
+// Not in Figma: the form behind "Add institution". Kept to the fields an ID and a first account need.
+// Three steps: the form; if only the account step failed, the form again to retry just that step (the
+// institution already exists); then the temporary password, shown once.
+function AddInstitution({ all, onClose, onAdded }: { all: Institution[]; onClose: () => void; onAdded: (inst: Institution) => void }) {
+  const [form, setForm] = useState({ name: "", code: "", adminName: "", adminEmail: "" });
+  const [created, setCreated] = useState<Institution | null>(null); // the institution exists, its account does not
+  const [issued, setIssued] = useState<{ institution: Institution; temporaryPassword: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -206,23 +212,57 @@ function AddInstitution({ onClose, onCreated }: { onClose: () => void; onCreated
     e.preventDefault();
     setBusy(true);
     setError(null);
-    try { onCreated(await api.createInstitution(form)); } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
+    try {
+      const result = created ? await api.issueWorkspaceAdmin(created, form) : await api.createInstitution(form, all);
+      onAdded(result.institution);
+      setIssued(result);
+    } catch (err) {
+      if (err instanceof AccountNotIssuedError) { setCreated(err.institution); onAdded(err.institution); }
+      setError(err instanceof Error ? err.message : String(err));
+    } finally { setBusy(false); }
+  };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(issued!.temporaryPassword); setCopied(true); } catch { setError("Could not copy. Select the password and copy it by hand."); }
   };
   const code = form.code.trim().toUpperCase() || "CODE";
+
+  if (issued) {
+    return (
+      <dialog ref={dialog} className="pa-dialog" onClose={onClose} onCancel={(e) => e.preventDefault()} aria-labelledby="add-title">
+        <h2 id="add-title" className="pa-dialog__title">Institution created</h2>
+        <p className="pa-desc">{issued.institution.name} now has the ID <strong>{issued.institution.publicId}</strong>. Give {issued.institution.adminEmail} this temporary password. They must change it when they first sign in.</p>
+        <p className="pa-dfield"><span className="pa-field-label">Temporary password</span><code className="pa-input" data-testid="temporary-password">{issued.temporaryPassword}</code></p>
+        <p className="pa-alert" role="status">It will not be shown again. Copy it now.</p>
+        {error && <p className="pa-alert pa-alert--error" role="alert">{error}</p>}
+        <div className="pa-dialog__actions">
+          <button type="button" className="pa-btn pa-btn--secondary" onClick={copy}>{copied ? "Copied" : "Copy password"}</button>
+          <button type="button" className="pa-btn pa-btn--primary" onClick={() => dialog.current?.close()}>Done</button>
+        </div>
+      </dialog>
+    );
+  }
 
   return (
     <dialog ref={dialog} className="pa-dialog" onClose={onClose} aria-labelledby="add-title">
       <form onSubmit={submit} noValidate>
         <h2 id="add-title" className="pa-dialog__title">Add institution</h2>
-        <p className="pa-desc">STILL issues the institution ID. The workspace admin gets an email to set a password, then invites the rest of their team.</p>
+        <p className="pa-desc">
+          {created
+            ? `${created.name} was created with the ID ${created.publicId}, but its first account was not. Fix the details below and try again; the institution is not created twice.`
+            : "STILL issues the institution ID and the workspace admin's account with a temporary password. The admin then invites the rest of their team."}
+        </p>
         <label className="pa-dfield">
           <span className="pa-field-label">Institution name</span>
-          <input className="pa-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Seoul Museum of Art" autoFocus />
+          <input className="pa-input" value={form.name} disabled={!!created} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Seoul Museum of Art" autoFocus />
         </label>
         <label className="pa-dfield">
           <span className="pa-field-label">Short code (2–6 letters)</span>
-          <input className="pa-input" value={form.code} maxLength={6} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/[^a-z]/gi, "") })} placeholder="e.g. SEMA" />
+          <input className="pa-input" value={form.code} disabled={!!created} maxLength={6} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/[^a-z]/gi, "") })} placeholder="e.g. SEMA" />
           <span className="pa-hint">ID will look like STL-{code}-#### (the number is assigned on save and never reused).</span>
+        </label>
+        <label className="pa-dfield">
+          <span className="pa-field-label">Workspace admin name</span>
+          <input className="pa-input" value={form.adminName} onChange={(e) => setForm({ ...form, adminName: e.target.value })} placeholder="e.g. Dana Curator" />
         </label>
         <label className="pa-dfield">
           <span className="pa-field-label">Workspace admin email</span>
@@ -230,8 +270,8 @@ function AddInstitution({ onClose, onCreated }: { onClose: () => void; onCreated
         </label>
         {error && <p className="pa-alert pa-alert--error" role="alert">{error}</p>}
         <div className="pa-dialog__actions">
-          <button type="button" className="pa-btn pa-btn--secondary" onClick={() => dialog.current?.close()}>Cancel</button>
-          <button type="submit" className="pa-btn pa-btn--primary" disabled={busy}>{busy ? "Creating…" : "Create and send invite"}</button>
+          <button type="button" className="pa-btn pa-btn--secondary" onClick={() => dialog.current?.close()}>{created ? "Close" : "Cancel"}</button>
+          <button type="submit" className="pa-btn pa-btn--primary" disabled={busy}>{busy ? "Creating…" : created ? "Issue account" : "Create institution"}</button>
         </div>
       </form>
     </dialog>

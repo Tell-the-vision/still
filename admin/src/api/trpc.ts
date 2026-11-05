@@ -1,7 +1,7 @@
 // PlatformApi over the still server (tRPC at /api/trpc, no transformer = plain JSON).
 // Procedure names follow the SPEC (admin.*, me.get, session.delete); see ../../API.md for what is still missing.
-import { ApiError } from "./errors";
-import type { Institution, PlatformAdmin, PlatformApi } from "./types";
+import { AccountNotIssuedError, ApiError } from "./errors";
+import type { Institution, NewInstitution, PlatformAdmin, PlatformApi } from "./types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -51,6 +51,38 @@ export const toInstitution = (row: InstitutionRow): Institution => ({
 type StaffMe = { email: string; role: "ADMIN"; mustChangePassword: boolean };
 const toAdmin = (me: StaffMe): PlatformAdmin => ({ email: me.email, role: "SUPER_ADMIN", mustChangePassword: me.mustChangePassword });
 
+// admin.account.create: the temporary password appears only in this response (SPEC §9.5).
+type IssuedAccount = { account: { email: string }; temporaryPassword: string };
+
+// The number in STL-<CODE>-<NNNN> is platform-wide; a taken ID (someone else just added one) moves on to the next number.
+const ID_ATTEMPTS = 3;
+const numberOf = (publicId: string) => Number(publicId.split("-").pop()) || 0;
+
+async function issueAccount(institution: Institution, { adminName, adminEmail }: Pick<NewInstitution, "adminName" | "adminEmail">) {
+  const issued = await call<IssuedAccount>("admin.account.create", { role: "INSTITUTION", institutionId: institution.id, email: adminEmail, displayName: adminName });
+  return { institution: { ...institution, adminEmail: issued.account.email }, temporaryPassword: issued.temporaryPassword };
+}
+
+async function createInstitution(input: NewInstitution, existing: Institution[]) {
+  const first = Math.max(0, ...existing.map((i) => numberOf(i.publicId))) + 1;
+  const short = input.code.trim().toUpperCase();
+  let row: InstitutionRow | undefined;
+  for (let attempt = 0; !row; attempt++) {
+    const code = `STL-${short}-${String(first + attempt).padStart(4, "0")}`;
+    try {
+      row = await call<InstitutionRow>("admin.institution.create", { code, name: input.name });
+    } catch (e) {
+      if (!(e instanceof ApiError && e.appCode === "CODE_TAKEN") || attempt === ID_ATTEMPTS - 1) throw e;
+    }
+  }
+  const institution = toInstitution(row);
+  try {
+    return await issueAccount(institution, input);
+  } catch (e) {
+    throw new AccountNotIssuedError(e instanceof Error ? e.message : String(e), institution, e instanceof ApiError ? e.appCode : undefined);
+  }
+}
+
 export function createTrpcApi(): PlatformApi {
   return {
     signIn: async (email, password) => toAdmin(await call("admin.session.create", { email, password })),
@@ -66,8 +98,8 @@ export function createTrpcApi(): PlatformApi {
       } while (cursor);
       return institutions;
     },
-    // Not on the server yet (SPEC admin.institution.create / update, admin.account.*).
-    createInstitution: (input) => call("platform.createInstitution", input),
+    createInstitution,
+    issueWorkspaceAdmin: issueAccount,
     setInstitutionStatus: async (id, status) => toInstitution(await call("admin.institution.update", { id, status })),
     resendInvite: (id) => call("platform.resendInvite", { id }),
   };
