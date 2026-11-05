@@ -121,6 +121,7 @@ const KIND_LABELS: Record<ContentKind, string> = {
 };
 const REVIEW_STATUS = { READY: "IN_REVIEW", NEEDS_REVIEW: "IN_REVIEW", APPROVED: "APPROVED", REJECTED: "REJECTED" } as const;
 const USAGE_PERMISSION = { CONFIRMED: "GRANTED", RESTRICTED: "DENIED" } as const;
+const RIGHTS = { GRANTED: "CONFIRMED", DENIED: "RESTRICTED", UNKNOWN: "UNCONFIRMED" } as const;
 
 const plainText = (b: DocBlock) => (b.type === "paragraph" || b.type === "heading" ? (b.content ?? []).map((t) => t.text).join("") : "");
 
@@ -140,7 +141,7 @@ export function toContentItem(row: ConsoleContentRow, order: number, documents: 
       id: image.id,
       caption: image.altText ?? image.credit ?? "",
       creator: "",
-      copyrightHolder: image.credit ?? "",
+      copyrightHolder: image.credit ?? "", // the server keeps one credit line, so creator is not split out again
       imageSource: "",
       usagePermission: USAGE_PERMISSION[image.rights as keyof typeof USAGE_PERMISSION] ?? "UNKNOWN",
       usageScope: "",
@@ -558,7 +559,20 @@ export function createTrpcApi(): InstitutionsApi {
     removeContentItem: unavailable,
     restoreContentItem: unavailable,
     dismissDuplicate: unavailable,
-    updateMediaAsset: unavailable,
+    // Only the permission and the credit line have SPEC fields (console.image.update). `excluded`,
+    // `imageSource`, `usageScope` and `expiresOn` have none and are ignored.
+    updateMediaAsset: async (itemId, assetId, patch) => {
+      const { row, item } = knownItem(itemId);
+      const asset = item.assets.find((a) => a.id === assetId);
+      if (!asset) throw new ApiError("This image is not part of the item.");
+      const credit = [patch.creator ?? asset.creator, patch.copyrightHolder ?? asset.copyrightHolder].filter(Boolean).join(" · ");
+      await m("console.image.update", {
+        id: assetId,
+        ...(patch.usagePermission && { rights: RIGHTS[patch.usagePermission] }),
+        ...((patch.creator !== undefined || patch.copyrightHolder !== undefined) && { credit: credit || null }),
+      });
+      return remember(await m<ConsoleContentRow>("console.content.get", { id: row.id }), item.order);
+    },
     mergeContentItems: unavailable,
     splitContentItem: unavailable,
     listSuggestions: async (exhibitionId) => {
