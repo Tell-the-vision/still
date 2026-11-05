@@ -167,7 +167,7 @@ export default function Upload() {
         <div className="section__head">
           <h2 className="h2">Uploaded materials</h2>
           <span className="caption">
-            {onServer.length} files · {formatMB(totalBytes)}
+            {onServer.length} {onServer.length === 1 ? "file" : "files"} · {formatMB(totalBytes)}
             {uploading && " · uploading"}
             {failed > 0 && ` · ${failed} failed`}
           </span>

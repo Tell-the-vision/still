@@ -117,14 +117,14 @@ export default function Publish() {
               {venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}</option>)}
             </select>
             {newVenue ? (
-              <form className="inline-pick" style={{ marginTop: 8, marginBottom: 0 }} onSubmit={(e) => { e.preventDefault(); addVenue(); }}>
+              <form className="inline-pick inline-pick--venue" onSubmit={(e) => { e.preventDefault(); addVenue(); }}>
                 <input className="input" aria-label="New venue name" autoFocus placeholder="Venue name" value={newVenue.name} onChange={(e) => setNewVenue({ ...newVenue, name: e.target.value })} />
                 <input className="input" aria-label="New venue city" placeholder="City" value={newVenue.city} onChange={(e) => setNewVenue({ ...newVenue, city: e.target.value })} />
                 <button type="submit" className="btn btn--secondary" aria-disabled={!newVenue.name.trim() || !newVenue.city.trim()}>Add venue</button>
                 <button type="button" className="link-btn" onClick={() => setNewVenue(null)}>Cancel</button>
               </form>
             ) : (
-              <button type="button" className="link-btn" style={{ marginTop: 8 }} onClick={() => setNewVenue({ name: "", city: "" })}>+ Add venue</button>
+              <button type="button" className="link-btn link-btn--venue" onClick={() => setNewVenue({ name: "", city: "" })}>+ Add venue</button>
             )}
           </div>
           <div className="field field--stack">
@@ -172,7 +172,7 @@ export default function Publish() {
             </li>
           ))}
           {counts.needReview + counts.rejected > 0 && (
-            <li className="caption-sm">{counts.needReview} items in review and {counts.rejected} rejected items will not be included.</li>
+            <li className="caption-sm">{counts.needReview} {counts.needReview === 1 ? "item" : "items"} in review and {counts.rejected} rejected items will not be included.</li>
           )}
         </ul>
         {attempted && !rightsConfirmed && <p className="field-error" role="alert">Confirm content rights before publishing.</p>}

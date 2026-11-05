@@ -40,7 +40,7 @@ export default function ChangePassword() {
 
       <div className="signin__body signin__body--single">
         <form className="signin__form" onSubmit={submit} noValidate>
-          <p className="signin__note">Temporary screen (임시) · not designed yet</p>
+          <p className="signin__note signin__note--lead">Temporary screen (임시) · not designed yet</p>
           <p className="signin__eyebrow">First sign-in</p>
           <h1 className="signin__title">Choose a new password</h1>
           <p className="signin__desc">You signed in with a temporary password. Choose your own to continue. Other devices are signed out.</p>

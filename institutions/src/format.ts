@@ -38,7 +38,7 @@ export function formatAdded(iso: ISODateTime) {
   return `${formatUpdated(iso)}, ${formatTime(iso)}`;
 }
 
-export const formatMB = (bytes: number) => `${(bytes / 1e6).toFixed(1)} MB`;
+export const formatMB = (bytes: number) => (bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1e3))} KB` : `${(bytes / 1e6).toFixed(1)} MB`);
 
 export type LibraryStatus = "live" | "scheduled" | "ended" | "draft";
 
