@@ -92,16 +92,17 @@ test("console.preview.get compiles description and guide from approved, visible 
 
   const got = await preview(page, exhibition.code);
   expect(got.exhibition).toMatchObject({ code: exhibition.code, title: exhibition.title, venue: { city: "Seoul" }, audio: { playlist: null, ambienceEnabled: false }, coverImage: null });
-  expect(got.exhibition.description.blocks).toEqual([
-    { type: "paragraph", text: "Intro paragraph." },
-    { type: "paragraph", text: "Intro sentence." },
-  ]);
-  const blocks = got.guide.blocks;
-  expect(blocks.map((b: { type: string }) => b.type)).toEqual(["heading", "heading", "image", "paragraph", "sentence"]);
-  expect(blocks[0]).toEqual({ type: "heading", text: "Works" });
-  expect(blocks[1]).toEqual({ type: "heading", text: "Untitled" });
-  expect(blocks[2]).toMatchObject({ imageId: image, url: expect.stringContaining("e2e/"), width: 800 });
-  expect(blocks[4]).toMatchObject({ text: "Artwork sentence." });
+  const texts = (blocks: { content?: { text: string }[] }[]) => blocks.map((b) => (b.content ?? []).map((n) => n.text).join(""));
+  expect(got.exhibition.description).toMatchObject({ version: 1, type: "doc" });
+  expect(texts(got.exhibition.description.content)).toEqual(["Intro paragraph.", "Intro sentence."]);
+  expect(JSON.stringify(got.exhibition.description)).not.toContain("scrap");
+  const blocks = got.guide.content;
+  expect(blocks.map((b: { type: string }) => b.type)).toEqual(["heading", "heading", "stillImage", "paragraph", "paragraph"]);
+  expect(blocks[0]).toMatchObject({ attrs: { level: 1 }, content: [{ text: "Works" }] });
+  expect(blocks[1]).toMatchObject({ attrs: { level: 2 }, content: [{ text: "Untitled" }] });
+  expect(blocks[2].attrs.imageId).toBe(image);
+  expect(got.images[image]).toMatchObject({ url: expect.stringContaining("e2e/"), width: 800 });
+  expect(blocks[4].content).toMatchObject([{ text: "Artwork sentence.", marks: [{ type: "scrap", attrs: { sentenceId: expect.any(String) } }] }]);
   const text = JSON.stringify(got);
   expect(text).not.toContain("Pending theme text.");
   expect(text).not.toContain("Hidden closing text.");
@@ -130,9 +131,10 @@ test("a doc-based content compiles to heading, paragraph, sentence and image blo
   await setDraft(exhibition.id, { sections: [section("z", "CUSTOM", "Doc room", true, [id])] });
   await signInConsole(page, account);
   const got = await preview(page, exhibition.code);
-  expect(got.guide.blocks.map((b: { type: string; text?: string }) => [b.type, b.text])).toEqual([
-    ["heading", "Doc room"], ["heading", "Doc heading"], ["paragraph", "Plain start. "], ["sentence", "Marked line."], ["image", undefined],
-  ]);
+  const blocks = got.guide.content;
+  expect(blocks.map((b: { type: string; attrs: { level?: number } }) => [b.type, b.attrs.level])).toEqual([["heading", 1], ["heading", 2], ["paragraph", undefined], ["stillImage", undefined]]);
+  expect(blocks[2].attrs.id).toBe(`${id.slice(0, 8)}-d2`);
+  expect(blocks[2].content[1]).toMatchObject({ text: "Marked line.", marks: [{ type: "scrap" }] });
 });
 
 test("an image without a public copy has no url in the preview", async ({ page }) => {
@@ -145,7 +147,7 @@ test("an image without a public copy has no url in the preview", async ({ page }
   );
   await signInConsole(page, account);
   const got = await preview(page, exhibition.code);
-  expect(got.guide.blocks.find((b: { imageId?: string }) => b.imageId === bare)).toMatchObject({ url: null });
+  expect(got.images[bare]).toMatchObject({ url: null });
 });
 
 test("each publication check passes and fails on its own condition", async ({ page }) => {

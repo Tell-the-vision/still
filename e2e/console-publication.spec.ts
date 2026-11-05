@@ -86,6 +86,8 @@ test("staff publish, a visitor keeps a line, a republish keeps its id, unpublish
   // The visitor's kept line still points at the same sentence, and the guide has the new text.
   const kept = (await trpcCall(page, "scrap.list", { code: exhibition.code })).json.result.data;
   expect(kept.map((s: { sentenceId: string }) => s.sentenceId)).toEqual([first.id]);
+  const [{ guide: stored }] = await e2eSql<{ guide: unknown }>("SELECT guide FROM exhibitions WHERE id = $1", [exhibition.id]);
+  expect(JSON.stringify(stored)).toContain(first.id);
   const guide = (await trpcCall(page, "guide.get", { code: exhibition.code })).json.result.data;
   expect(JSON.stringify(guide.document)).toContain("Stillness is a way of seeing.");
   await page.reload();
@@ -210,8 +212,10 @@ test("publishing a doc-based content writes the sentence id into its scrap mark 
   };
   const first = await markId();
   expect(await liveSentences(exhibition.id)).toEqual([{ id: first.id, content: "Keep me." }]);
-  const [{ guide }] = await e2eSql<{ guide: { blocks: { type: string; sentenceId?: string }[] } }>("SELECT guide FROM exhibitions WHERE id = $1", [exhibition.id]);
-  expect(guide.blocks.filter((b) => b.type === "sentence")).toEqual([{ type: "sentence", sentenceId: first.id }]);
+  const [{ guide }] = await e2eSql<{ guide: { version: number; type: string; content: { type: string; attrs: { level?: number }; content?: { marks?: { attrs: { sentenceId: string } }[] }[] }[] } }>("SELECT guide FROM exhibitions WHERE id = $1", [exhibition.id]);
+  expect(guide).toMatchObject({ version: 1, type: "doc" });
+  expect(guide.content[0]).toMatchObject({ type: "heading", attrs: { level: 1 } });
+  expect(guide.content.flatMap((b) => b.content ?? []).flatMap((n) => n.marks ?? []).map((m) => m.attrs.sentenceId)).toEqual([first.id]);
 
   const [{ draft_revision: revision }] = await e2eSql<{ draft_revision: string }>("UPDATE exhibitions SET draft_revision = gen_random_uuid() WHERE id = $1 RETURNING draft_revision", [exhibition.id]);
   expect((await publish(page, { ...exhibition, draftRevision: revision })).status).toBe(200);

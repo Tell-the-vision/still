@@ -1,5 +1,5 @@
 import type { ContentBlock } from "../../../../shared/src/console-content";
-import { storedDocument, type StoredDocument } from "../../../../shared/src/document";
+import { scrapRuns, stillDocument, type StillDocument } from "../../../../shared/src/still-doc";
 import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "../../db/client";
@@ -83,13 +83,12 @@ async function storeSentences(tx: Tx, exhibitionId: string, loaded: LoadedDraft)
 }
 
 // Before commit: the live sentences are exactly the ones the stored guide references, each once.
-async function assertGuideMatchesSentences(tx: Tx, exhibitionId: string, guide: StoredDocument | null) {
-  const live = await tx.select({ id: guideSentences.id }).from(guideSentences).where(and(eq(guideSentences.exhibitionId, exhibitionId), isNull(guideSentences.deletedAt)));
-  const referenced = (guide?.blocks ?? []).flatMap((b) => (b.type === "sentence" ? [b.sentenceId] : []));
-  const once = new Set(referenced).size === referenced.length;
-  if (!once || referenced.length !== live.length || live.some((s) => !referenced.includes(s.id))) {
-    throw new Error("The stored guide and the live sentences differ");
-  }
+async function assertGuideMatchesSentences(tx: Tx, exhibitionId: string, guide: StillDocument | null) {
+  const live = await tx.select({ id: guideSentences.id, content: guideSentences.content }).from(guideSentences).where(and(eq(guideSentences.exhibitionId, exhibitionId), isNull(guideSentences.deletedAt)));
+  const runs = guide ? scrapRuns(guide) : [];
+  const once = new Set(runs.map((r) => r.sentenceId)).size === runs.length;
+  const sameText = live.every((s) => runs.find((r) => r.sentenceId === s.id)?.text === s.content);
+  if (!once || runs.length !== live.length || !sameText) throw new Error("The stored guide and the live sentences differ");
 }
 
 export async function publishExhibition(input: { institutionId: string; userId: string; code: string; revision: string; rightsConfirmed: boolean; rightsStatementVersion: string }) {
@@ -118,8 +117,8 @@ export async function publishExhibition(input: { institutionId: string; userId: 
     // The documents are compiled again with the stored sentence ids, so no placeholder id is stored.
     const compiled = compileDraft(draft, await storeSentences(tx, row.id, loaded), loaded.imageRows);
     const stored = {
-      description: storedDocument.nullable().parse(compiled.description),
-      guide: storedDocument.nullable().parse(compiled.guide),
+      description: stillDocument.nullable().parse(compiled.description),
+      guide: stillDocument.nullable().parse(compiled.guide),
     };
     const sentenceIds = compiled.sentences.map((s) => s.guideSentenceId!);
     await tx
