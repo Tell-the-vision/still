@@ -32,6 +32,29 @@ test("the tab bar marks the current tab and the ARCHIVE tab shows a focus ring",
   await expect(home).not.toHaveAttribute("aria-current", "page");
 });
 
+test.describe("wide touch", () => {
+  // A tablet in landscape: wide like desktop, but with a coarse pointer, so the header keeps the QR link.
+  test.use({ viewport: { width: 1280, height: 800 }, hasTouch: true, isMobile: true });
+
+  test("Home shows the QR link and /scan keeps its slot, so the tabs stay put", async ({ page, next }) => {
+    stubGoogleToken(next, newUser());
+    await stubGoogle(page);
+    await signIn(page);
+    const tabs = async () => {
+      const nav = (await page.getByRole("navigation").boundingBox())!;
+      return { left: Math.round(nav.x), right: Math.round(nav.x + nav.width) };
+    };
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "QR Scan" })).toBeVisible();
+    const home = await tabs();
+    await page.goto("/scan");
+    await expect(page.getByRole("navigation")).toBeVisible();
+    // The link would point at /scan itself, so it is gone, but its space is not.
+    await expect(page.getByRole("link", { name: "QR Scan" })).toHaveCount(0);
+    expect(await tabs()).toEqual(home);
+  });
+});
+
 test.describe("phone touch", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
