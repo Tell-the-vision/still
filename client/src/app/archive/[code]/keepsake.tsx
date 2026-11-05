@@ -1,11 +1,12 @@
 import { track } from "../../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Animated, Easing, Pressable, ScrollView, useWindowDimensions, View, type ViewStyle } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { EXCERPT_MAX, sentenceLimit } from "@still/shared/keepsake";
 import { useRequireLogin } from "../../../features/auth/require-login";
 import { keepsakePageOf, pageOf } from "../../../features/guide/pages";
+import { markKept } from "../../../features/keepsake/develop";
 import { keepsakeStrings as strings } from "../../../features/keepsake/strings";
 import { useTRPC } from "../../../lib/trpc";
 import { focusVisible } from "../../../ui/focusVisible";
@@ -66,6 +67,8 @@ export default function KeepsakeCreator() {
   // `undefined` means untouched: the card then shows what was saved, so editing starts where it was left.
   const [design, setDesign] = useState<string>();
   const [order, setOrder] = useState<string[]>();
+  // The line just put on the card, so the preview inks only that one in.
+  const [lastAdded, setLastAdded] = useState<string>();
   const [note, setNote] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -113,7 +116,15 @@ export default function KeepsakeCreator() {
   const sample = { ...card, sentences: card.sentences.length ? card.sentences : scraps.slice(0, 1) };
 
   // Tapping adds a line at the end of the card's order; tapping a line on the card takes it off.
-  const toggleLine = (id: string) => setOrder(shownIds.includes(id) ? shownIds.filter((i) => i !== id) : [...shownIds, id].slice(-limit));
+  const toggleLine = (id: string) => {
+    const on = !shownIds.includes(id);
+    setOrder(on ? [...shownIds, id].slice(-limit) : shownIds.filter((i) => i !== id));
+    setLastAdded(on ? id : undefined);
+  };
+  const pickDesign = (id: string) => {
+    setDesign(id);
+    setLastAdded(undefined);
+  };
 
   const save = async () => {
     setSaving(true);
@@ -131,6 +142,8 @@ export default function KeepsakeCreator() {
         }
       }
       const r = await saveCard.mutateAsync({ code, page, templateId, sentenceIds: shownIds.length ? shownIds : undefined, journalExcerpt: trimmedNote || undefined });
+      // Before the card updates anywhere: the card where the save lands develops once.
+      markKept(`${code}/${page}`, r.keepsake.updatedAt, fromGuide ? "guide" : "archive");
       track("keepsake_save", { exhibition_code: code, template_id: templateId, source: fromGuide ? "guide" : "archive" });
       queryClient.setQueryData(trpc.keepsake.get.queryKey({ code, page }), r.keepsake);
       void queryClient.invalidateQueries({ queryKey: trpc.keepsake.list.queryKey({ code }) });
@@ -151,9 +164,9 @@ export default function KeepsakeCreator() {
         <Stack gap="section">
           <Text variant="headline">{strings.heading}</Text>
 
-          <Settle on={templateId} style={{ width: drawnWidth, height: drawnWidth / cardTokens.aspectRatio, alignSelf: "center" }}>
-            <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} placeholder={strings.placeholder} />
-          </Settle>
+          <View style={{ width: drawnWidth, height: drawnWidth / cardTokens.aspectRatio, alignSelf: "center" }}>
+            <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} placeholder={strings.placeholder} entering={lastAdded} reinkOnLayout />
+          </View>
 
           {/* What the visitor writes goes on the card and into the visit's journal (the placeholder says so). */}
           <Stack gap="tight">
@@ -167,7 +180,7 @@ export default function KeepsakeCreator() {
           <Stack gap="inset">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.tight }} accessibilityRole="radiogroup" aria-label={strings.designs.label}>
               {designs.map((d) => (
-                <Version key={d.id} label={strings.designs[d.name]} selected={d.id === templateId} card={sample} templateId={d.id} onPress={() => setDesign(d.id)} />
+                <Version key={d.id} label={strings.designs[d.name]} selected={d.id === templateId} card={sample} templateId={d.id} onPress={() => pickDesign(d.id)} />
               ))}
             </ScrollView>
             {scraps.length > 0 && (
@@ -245,25 +258,5 @@ function Version({ label, selected, disabled = false, card, templateId, onPress 
       </View>
       <Text variant="action" style={{ fontFamily: selected ? fontFamily.bodyMedium : fontFamily.body }}>{label}</Text>
     </Pressable>
-  );
-}
-
-// The page's one authored motion: the card settles into its new look (a small rise from faint, 280ms, exponential
-// ease-out) whenever its design changes. Reduced motion shows it at once.
-function Settle({ on, style, children }: { on: string; style: ViewStyle; children: ReactNode }) {
-  const progress = useRef(new Animated.Value(1)).current;
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) { first.current = false; return; }
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (reduced) return progress.setValue(1);
-      progress.setValue(0);
-      Animated.timing(progress, { toValue: 1, duration: 280, easing: Easing.out(Easing.exp), useNativeDriver: true }).start();
-    });
-  }, [on, progress]);
-  return (
-    <Animated.View style={[style, { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }] }]}>
-      {children}
-    </Animated.View>
   );
 }

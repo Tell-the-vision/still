@@ -14,6 +14,7 @@ import { Stack } from "../../ui/Stack";
 import { Text } from "../../ui/Text";
 import { TextAction } from "../../ui/TextAction";
 import { card as cardTokens } from "../../ui/theme";
+import { useDevelop } from "./develop";
 import { DownloadPng } from "./DownloadPng";
 import { KeepsakeActions } from "./KeepsakeActions";
 import { keepsakeStrings as strings } from "./strings";
@@ -46,6 +47,8 @@ function KeepsakeEntry({ code, keepsake }: { code: string; keepsake: Keepsake })
   const queryClient = useQueryClient();
   const { onLayout, scale } = useFitScale();
   const [confirming, setConfirming] = useState(false);
+  // A card saved from here (the card maker opened from Archive) develops once when it comes back into view.
+  const develop = useDevelop(`${code}/${keepsake.page}`, keepsake.updatedAt, "archive");
   const remove = useMutation(
     trpc.keepsake.delete.mutationOptions({
       onSuccess: () => {
@@ -64,7 +67,7 @@ function KeepsakeEntry({ code, keepsake }: { code: string; keepsake: Keepsake })
     <Stack>
       <View onLayout={onLayout} style={{ width: "100%", maxWidth: cardTokens.width, alignSelf: "center" }}>
         {scale > 0 && (
-          <KeepsakeThumb scale={scale} card={keepsake.card} templateId={keepsake.templateId} accessibilityLabel={strings.thumbEditLabel} accessibilityHint={strings.thumbHint} onPress={edit} />
+          <KeepsakeThumb scale={scale} card={keepsake.card} templateId={keepsake.templateId} develop={develop} accessibilityLabel={strings.thumbEditLabel} accessibilityHint={strings.thumbHint} onPress={edit} />
         )}
       </View>
       <KeepsakeActions align="center">

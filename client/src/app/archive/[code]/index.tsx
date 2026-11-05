@@ -50,7 +50,7 @@ export default function ArchiveDetail() {
           <BackLink />
           <Text variant="headline">{archive.exhibition.title}</Text>
           <Text variant="caption">{`${archive.exhibition.venue.name.toUpperCase()} · ${year(archive.exhibition.startDate)}`}</Text>
-          {/* One card per artwork the visitor made one for. */}
+          {/* One card per artwork the visitor made one for; a card just saved here develops once. */}
           <KeepsakeList code={code} />
           <Rule />
           <Stack gap="section">

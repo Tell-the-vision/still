@@ -33,7 +33,7 @@ export const keepsakeStrings = {
     placeholder: "What stayed with you? It goes on the card and into your journal.",
   },
   save: "Save Web Card",
-  saving: "Saving…",
+  saving: "Keeping…",
   failed: "Couldn't save. Your selection is kept.",
   png: {
     download: "Download PNG",
