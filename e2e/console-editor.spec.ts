@@ -9,7 +9,7 @@ test.use({ viewport: { width: 1440, height: 900 } });
 type Doc = { content: { type: string; content?: { text: string; marks?: { type: string }[] }[] }[] };
 const docOf = async (id: string) => (await e2eSql<{ doc: Doc }>("SELECT doc FROM contents WHERE id = $1", [id]))[0].doc;
 
-async function open(page: Page) {
+async function open(page: Page, trailing: object[] = []) {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   const item = await seedContent(exhibition, {
@@ -18,6 +18,7 @@ async function open(page: Page) {
     doc: [
       { type: "heading", attrs: { id: "h1", level: 2 }, content: [{ type: "text", text: "Farewell" }] },
       { type: "paragraph", attrs: { id: "b1" }, content: [{ type: "text", text: "Old words." }] },
+      ...trailing,
     ],
   });
   await seedContent(exhibition, {
@@ -85,4 +86,19 @@ test("a save that lost to another edit loads the latest version and says so", as
   await page.keyboard.type(" Mine.");
   await expect(page.getByText("This item changed elsewhere. The latest version is loaded.")).toBeVisible();
   await expect(page.locator(".ProseMirror").getByText("Words from elsewhere.")).toBeVisible();
+});
+
+test("the slash menu turns an empty block into a quote", async ({ page }) => {
+  const item = await open(page, [{ type: "paragraph", attrs: { id: "b2" } }]);
+  await page.locator(".ProseMirror p").last().click();
+  await page.keyboard.type("/");
+  await expect(page.getByRole("listbox", { name: "Insert block" })).toBeVisible();
+  await expect(page.getByRole("listbox", { name: "Insert block" }).getByRole("option")).toHaveCount(7);
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".ProseMirror blockquote")).toHaveCount(1);
+  await expect(page.getByRole("listbox", { name: "Insert block" })).toHaveCount(0);
+  await expect.poll(async () => (await docOf(item.id)).content.map((n) => n.type)).toContain("blockquote");
 });

@@ -9,6 +9,7 @@ import { useWorkspace } from "../store";
 import { InlineSuggestions } from "./InlineSuggestions";
 import { SourceGutter } from "./SourceGutter";
 import { ImagePicker, StillImage } from "./StillImage";
+import { SlashMenu } from "./SlashMenu";
 
 // SPEC §9.4 편집기: the STILL schema only. Nothing outside it can be typed, pasted or toggled.
 const Scrap = Mark.create({
@@ -105,6 +106,7 @@ export function Editor({ itemId, exhibitionId, doc, editable, onChange }: { item
         <EditorContent editor={editor} className="input input--lg still-editor__body" />
       </SourceGutter>
       <InlineSuggestions editor={editor} itemId={itemId} editable={editable} />
+      {editable && <SlashMenu editor={editor} />}
       <p className="caption-sm" role="status" aria-live="polite">
         {error ?? (state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "")}
       </p>
