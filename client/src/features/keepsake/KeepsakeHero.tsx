@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import type { Develop } from "../../ui/motion";
 import { View } from "react-native";
 import { track } from "../../lib/analytics";
 import { KeepsakeThumb, useFitScale } from "../../ui/KeepsakeThumb";
@@ -8,7 +9,8 @@ import { useGuideKeepsake } from "./useGuideKeepsake";
 
 // The keepsake card as the main visual of Archive Detail: the saved snapshot, else today's live preview.
 // Full width up to the card's own size, centred; tapping it opens the editor.
-export function KeepsakeHero({ code, exhibition }: { code: string; exhibition: Parameters<typeof useGuideKeepsake>[1] }) {
+// `develop` is where a save from Archive Detail lands (features/keepsake/develop.ts).
+export function KeepsakeHero({ code, exhibition, develop }: { code: string; exhibition: Parameters<typeof useGuideKeepsake>[1]; develop: Develop }) {
   const router = useRouter();
   const k = useGuideKeepsake(code, exhibition);
   const { onLayout, scale } = useFitScale();
@@ -25,6 +27,7 @@ export function KeepsakeHero({ code, exhibition }: { code: string; exhibition: P
           templateId={k.templateId}
           placeholder={k.state === "guest" || k.state === "empty" ? strings.placeholder : undefined}
           entering={k.entering}
+          develop={develop}
           accessibilityLabel={strings.thumbEditLabel}
           accessibilityHint={strings.thumbHint}
           onPress={open}

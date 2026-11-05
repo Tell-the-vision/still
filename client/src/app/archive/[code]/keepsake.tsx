@@ -51,6 +51,8 @@ export default function KeepsakeCreator() {
     trpc.keepsake.upsert.mutationOptions({
       onSuccess: (r, variables) => {
         track("keepsake_save", { exhibition_code: code, template_id: variables.templateId, source: fromGuide ? "guide" : "archive" });
+        // Before the card updates anywhere: the card where the save lands develops once.
+        markKept(code, r.keepsake.updatedAt, fromGuide ? "guide" : "archive");
         queryClient.setQueryData(trpc.keepsake.get.queryKey({ code }), r.keepsake);
         if (r.created) void queryClient.invalidateQueries({ queryKey: trpc.archive.pathKey() });
         if (router.canGoBack()) router.back();
@@ -89,7 +91,15 @@ export default function KeepsakeCreator() {
     journalExcerpt: picks.journalExcerpt ?? defaults.journalExcerpt,
   };
   const paragraphs = (journal?.content ?? "").split("\n").filter((p) => p.trim() !== "");
-  const toggleSentence = (id: string) => setSentenceIds(shownIds.includes(id) ? shownIds.filter((i) => i !== id) : [...shownIds, id]);
+  const toggleSentence = (id: string) => {
+    const on = !shownIds.includes(id);
+    setSentenceIds(on ? [...shownIds, id] : shownIds.filter((i) => i !== id));
+    setLastAdded(on ? id : undefined);
+  };
+  const pickLayout = (id: string) => {
+    setPicked(id);
+    setLastAdded(undefined);
+  };
   const full = shownIds.length >= limit;
   // One rule for every artwork: the card is as wide as the column allows (up to its own width), centred.
   const drawnWidth = Math.min(width - 2 * spacing.gutter, cardTokens.width);
@@ -106,13 +116,13 @@ export default function KeepsakeCreator() {
       <Stack gap="section">
         <Text variant="headline">{strings.heading}</Text>
         <View style={{ width: drawnWidth, height: drawnHeight, alignSelf: "center" }}>
-          <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} />
+          <KeepsakeCard card={card} templateId={templateId} width={drawnWidth} entering={lastAdded} reinkOnLayout />
         </View>
         <Stack gap="inset">
           <Text variant="label">{strings.layoutLabel}</Text>
           <Stack direction="row">
             {strings.templates.map((t) => (
-              <Choice key={t.id} layout="tile" role="radio" label={t.label} selected={t.id === templateId} onPress={() => setPicked(t.id)} />
+              <Choice key={t.id} layout="tile" role="radio" label={t.label} selected={t.id === templateId} onPress={() => pickLayout(t.id)} />
             ))}
           </Stack>
         </Stack>

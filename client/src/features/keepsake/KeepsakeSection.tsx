@@ -1,6 +1,7 @@
 import { track } from "../../lib/analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import type { Develop } from "../../ui/motion";
 import { useTRPC } from "../../lib/trpc";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
@@ -14,7 +15,8 @@ import { keepsakeQueryOptions } from "./keepsakeQuery";
 import { keepsakeStrings } from "./strings";
 
 // The keepsake on Archive Detail: the shared panel, plus download and delete once a card is saved.
-export function KeepsakeSection({ code, exhibition }: { code: string; exhibition: Parameters<typeof KeepsakePresence>[0]["exhibition"] }) {
+// `statusDevelop` lets the status settle with the hero's develop; the actions are there and pressable throughout.
+export function KeepsakeSection({ code, exhibition, statusDevelop }: { code: string; exhibition: Parameters<typeof KeepsakePresence>[0]["exhibition"]; statusDevelop: Develop }) {
   const trpc = useTRPC();
   const { data: keepsake } = useQuery(keepsakeQueryOptions(trpc, code));
   const queryClient = useQueryClient();
@@ -32,7 +34,7 @@ export function KeepsakeSection({ code, exhibition }: { code: string; exhibition
   if (keepsake === undefined) return null;
   return (
     <Stack>
-        <KeepsakePresence code={code} exhibition={exhibition} hasGuide where="archive" />
+        <KeepsakePresence code={code} exhibition={exhibition} hasGuide where="archive" statusDevelop={statusDevelop} />
         {keepsake && (
           <KeepsakeActions align="center">
             <DownloadPng code={code} url={keepsake.png.url} />
