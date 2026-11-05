@@ -50,7 +50,7 @@ test("Start analysis fills the review screen with the manifest text", async ({ p
   await page.goto("/institutions/materials");
   await page.getByRole("button", { name: "Start analysis" }).click();
   await expect(page).toHaveURL(/\/materials\/review$/);
-  await expect(page.getByText(TEXT)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("textbox", { name: "Item text" }).getByText(TEXT)).toBeVisible({ timeout: 30_000 });
   const [row] = await e2eSql<{ result: string }>("SELECT analysis->>'result' AS result FROM exhibitions WHERE id = $1", [exhibition.id]);
   expect(row.result).toBe("SUCCEEDED");
 });

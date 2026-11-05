@@ -68,7 +68,8 @@ export const consoleContentRouter = router({
 });
 
 // Each sources entry with the slice [start, end) of its segments' texts. A ref whose document has no
-// manifest yet, or whose segment is unknown, contributes nothing.
+// manifest yet, or whose segment is unknown, contributes nothing; an entry none of whose refs can be
+// read has `text: null`, so it is never mistaken for an empty source.
 async function withSourceText(sources: ContentSources) {
   const refs = Object.values(sources).flatMap((s) => s.refs);
   const documentIds = [...new Set(refs.map((ref) => ref.split(":")[0]))];
@@ -80,8 +81,8 @@ async function withSourceText(sources: ContentSources) {
   }
   return Object.fromEntries(
     Object.entries(sources).map(([nodeId, s]) => {
-      const joined = s.refs.flatMap((ref) => segmentTexts.get(ref) ?? []).join(" ");
-      return [nodeId, { ...s, text: joined.slice(s.start, s.end) }];
+      const found = s.refs.flatMap((ref) => segmentTexts.get(ref) ?? []);
+      return [nodeId, { ...s, text: found.length ? found.join(" ").slice(s.start, s.end) : null }];
     }),
   );
 }

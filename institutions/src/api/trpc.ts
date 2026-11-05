@@ -104,7 +104,7 @@ export type ConsoleContentRow = {
   updatedAt: string;
   images: { id: string; altText: string | null; credit: string | null; rights: string; width: number; height: number }[];
 };
-type ConsoleSources = Record<string, { refs: string[]; start: number; end: number; text?: string }>;
+type ConsoleSources = Record<string, { refs: string[]; start: number; end: number; text?: string | null }>;
 type ConsoleFile = { id: string; name: string };
 
 const KIND_LABELS: Record<ContentKind, string> = {
@@ -547,7 +547,7 @@ export function createTrpcApi(): InstitutionsApi {
       const { order } = knownItem(itemId).item;
       const row = await q<Omit<ConsoleContentRow, "sources"> & { sources: ConsoleSources }>("console.content.get", { id: itemId });
       const source = row.sources[nodeId]?.text;
-      if (source === undefined) throw new ApiError("This block has no source to return to.");
+      if (source == null) throw new ApiError("This block has no source to return to.");
       const doc = { ...row.doc, content: row.doc.content.map((b) => (b.attrs.id === nodeId && (b.type === "paragraph" || b.type === "heading") ? { ...b, content: [{ type: "text" as const, text: source }] } : b)) };
       remember(row as ConsoleContentRow, order);
       return updateRow(itemId, { doc });
