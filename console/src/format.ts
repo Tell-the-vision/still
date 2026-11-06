@@ -53,7 +53,10 @@ export function libraryStatus(e: Exhibition, today = new Date()): LibraryStatus 
 
 // Where visitors open a guide: the origin the server also encodes in printed QR codes (set at build time,
 // see vite.config.ts). Links, the address shown to staff and QR codes all come from this one value.
-export const VISITOR_ORIGIN: string = import.meta.env.VITE_VISITOR_ORIGIN || "https://still.art";
+// The visitor app's origin, for the addresses the console shows and copies (the QR images come from the server, which
+// encodes STILL_ORIGIN). Set at build time when it is configured; otherwise the console's own origin, since one server
+// serves both apps (in dev, the console's server proxies the visitor app).
+export const VISITOR_ORIGIN: string = import.meta.env.VITE_VISITOR_ORIGIN || window.location.origin;
 export const VISITOR_HOST = `${new URL(VISITOR_ORIGIN).host}/e/`;
 /** The guide's full address, as linked and as encoded in its QR. */
 // An exhibition's guide, or with `artwork` (the first 8 characters of its content id) the guide opened at that artwork:

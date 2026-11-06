@@ -7,7 +7,7 @@ import { seedInstitutionAccount, signInConsole } from "./support/staff";
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-test("an artist page is listed, approved and published like an artwork, and visitors open it at its own address", async ({ page }) => {
+test("an artist page is listed, approved and published like an artwork, and visitors open it at its own address", async ({ page, baseURL }) => {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   const artist = await seedContent(exhibition, {
@@ -30,7 +30,8 @@ test("an artist page is listed, approved and published like an artwork, and visi
   const address = `/e/${exhibition.code}/${artist.id.slice(0, 8)}`;
   await page.getByRole("link", { name: "Go to works" }).click();
   await expect(page.getByText("William Turner", { exact: true })).toBeVisible();
-  await expect(page.getByText(new RegExp(`${address}$`))).toBeVisible();
+  // The address under its QR is on the origin visitors use (the server's own).
+  await expect(page.getByText(`${new URL(baseURL!).host}${address}`, { exact: true })).toBeVisible();
 
   await page.goto(address);
   await expect(page.getByText("Turner painted light all his life.")).toBeVisible();
