@@ -32,8 +32,6 @@ function runsOf(paragraph: StillNode): Run[] {
   return runs;
 }
 
-// About 65 characters of body text per line; images may run wider than this.
-const MEASURE = 520;
 // A gallery slide shows a part of the next one, so it reads as swipeable.
 const SLIDE_WIDTH = 260;
 
@@ -45,8 +43,8 @@ function Paragraph({ node, renderSentence }: { node: StillNode; renderSentence?:
   return (
     <View style={{ gap: spacing.tight }}>
       {runs.map((run, i) => {
-        if (!run.sentenceId || !renderSentence) return <Text key={i} style={{ maxWidth: MEASURE }}>{run.text}</Text>;
-        const quote = <Text variant="quote" style={{ maxWidth: MEASURE, textDecorationLine: "underline", textDecorationColor: colors.gray }}>{quoted(run.text)}</Text>;
+        if (!run.sentenceId || !renderSentence) return <Text key={i}>{run.text}</Text>;
+        const quote = <Text variant="quote" style={{ textDecorationLine: "underline", textDecorationColor: colors.gray }}>{quoted(run.text)}</Text>;
         return <View key={i}>{renderSentence({ sentenceId: run.sentenceId, text: run.text }, quote)}</View>;
       })}
     </View>
@@ -136,15 +134,13 @@ function Gallery({ nodes, renderSentence }: { nodes: StillNode[]; renderSentence
 /** `item`: the document is one item standing on its own (a page), so a heading it opens with is its title, as in the editor. */
 export function StillDocView({ document, renderSentence, renderPlaylist, item = false }: { document: StillDoc; renderSentence?: RenderSentence; renderPlaylist?: RenderPlaylist; item?: boolean }) {
   return (
-    // Text keeps the reading measure; an image is centred in the full column (still never past its own pixels).
+    // Every block runs the full column; an image is centred in it (still never past its own pixels).
     <View style={{ gap: spacing.gap }}>
       {document.content.map((node, i) => {
         if (node.type === "playlist") return <View key={i}>{renderPlaylist?.({ url: String(node.attrs?.url ?? ""), title: String(node.attrs?.title ?? "") })}</View>;
         if (node.type === "stillImage" && !isGallery(node)) return <Block key={i} node={node} first={i === 0} renderSentence={renderSentence} />;
-        // A paragraph spans the column so a kept line's mark lines up with the column's right edge (the listen row's
-        // arrow, the picture's edge); its text keeps the reading measure itself (Paragraph).
-        const measure = node.type === "paragraph" ? undefined : { maxWidth: MEASURE };
-        if (!isGallery(node)) return <View key={i} style={measure}><Block node={node} first={i === 0} renderSentence={renderSentence} title={item && i === 0} /></View>;
+        // Text runs the full column, as pictures and the listen row do, so every block shares one left and right edge.
+        if (!isGallery(node)) return <View key={i}><Block node={node} first={i === 0} renderSentence={renderSentence} title={item && i === 0} /></View>;
         if (i > 0 && isGallery(document.content[i - 1])) return null; // already in the row above
         const row = [node];
         for (let j = i + 1; j < document.content.length && isGallery(document.content[j]); j++) row.push(document.content[j]);
