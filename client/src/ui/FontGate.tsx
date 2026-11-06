@@ -1,6 +1,6 @@
-import { DMSans_400Regular, DMSans_500Medium } from "@expo-google-fonts/dm-sans";
+import { DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold } from "@expo-google-fonts/dm-sans";
 import { Montserrat_500Medium, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
-import { NotoSansKR_400Regular, NotoSansKR_500Medium, NotoSansKR_700Bold } from "@expo-google-fonts/noto-sans-kr";
+import { NotoSansKR_400Regular, NotoSansKR_500Medium, NotoSansKR_600SemiBold, NotoSansKR_700Bold } from "@expo-google-fonts/noto-sans-kr";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, type ReactNode } from "react";
@@ -14,8 +14,10 @@ export function FontGate({ children }: { children: ReactNode }) {
     Montserrat_700Bold,
     DMSans_400Regular,
     DMSans_500Medium,
+    DMSans_600SemiBold,
     NotoSansKR_400Regular,
     NotoSansKR_500Medium,
+    NotoSansKR_600SemiBold,
     NotoSansKR_700Bold,
   });
   const ready = loaded || error !== null;

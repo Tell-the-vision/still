@@ -15,12 +15,15 @@ export function DocumentView({
   document,
   renderSentence,
   renderPlaylist,
+  item,
 }: {
   document: ExpandedDocument | StillDoc | null;
   renderSentence?: (sentence: KeepableSentence, quote: ReactNode) => ReactNode;
   renderPlaylist?: RenderPlaylist;
+  /** One item on its own (a page): its opening heading is its title (StillDocView). */
+  item?: boolean;
 }) {
-  if (isStillDoc(document)) return <StillDocView document={document} renderSentence={renderSentence} renderPlaylist={renderPlaylist} />;
+  if (isStillDoc(document)) return <StillDocView document={document} renderSentence={renderSentence} renderPlaylist={renderPlaylist} item={item} />;
   return (
     <View style={{ gap: spacing.gap }}>
       {document?.blocks.map((block, i) => {

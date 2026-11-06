@@ -27,6 +27,13 @@ export const type = {
   // The keepsake card is artwork rendered at its own scale (and exported as a PNG); its caption keeps the
   // original size there.
   cardCaption: { face: "bodyMedium", size: 8, line: 10 },
+  // A STILL document's headings as the console's editor draws them (console/src/styles.css, "Editor polish"), so an
+  // item reads the same in the editor, its phone preview and on the visitor's page: the item's title (its first
+  // level-2 heading), then levels 1 (a guide section title), 2 and 3.
+  docTitle: { face: "display", size: 36, line: 41.4 },
+  docH1: { face: "display", size: 30, line: 36 },
+  docH2: { face: "bodySemibold", size: 22, line: 29.7 },
+  docH3: { face: "bodySemibold", size: 18, line: 30.6 },
 } as const;
 
 export const wordmark = {
