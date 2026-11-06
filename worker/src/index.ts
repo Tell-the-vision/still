@@ -22,7 +22,7 @@ type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 // SPEC §9.6 analysis failure codes, returned in the body as { error }.
 type FailureCode = "INVALID_OUTPUT" | "LOCATION_DENIED" | "QUOTA" | "RESULT_TOO_LARGE" | "UPSTREAM";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.8-flash";
 
 const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const failure = (error: FailureCode, status = 502) => json({ error }, status);
