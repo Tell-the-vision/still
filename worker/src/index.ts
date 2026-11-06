@@ -15,6 +15,8 @@ export interface Env {
   GEMINI_KEY: string;
   ANALYSIS_WORKER_SECRET: string;
   GEMINI_MODEL_STRUCTURE?: string;
+  // How hard the model thinks before it writes ("low", "medium", "high"); unset is the model's default.
+  GEMINI_THINKING_LEVEL?: string;
 }
 
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
@@ -95,10 +97,11 @@ function structurePrompt(request: StructureRequest): string {
   ].join("\n");
 }
 
-// One event of a streamed answer; an error can also arrive as an event.
+// One event of a streamed answer; an error can also arrive as an event. A part with `thought` is a summary of the
+// model's thinking, not the answer.
 type GeminiAnswer = {
-  candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
-  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  candidates?: { finishReason?: string; content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
   error?: { code?: number; message?: string };
 };
 
@@ -128,8 +131,9 @@ function fromWire(output: unknown): Record<string, unknown> {
 }
 
 // One Gemini call with structured output. Returns the parsed JSON and usage, or the failure Response.
-// The answer is streamed (server-sent events): Cloudflare ends a subrequest that has not answered within about two
-// minutes (HTTP 524), and a whole answer can take longer than that to write; a stream answers at once.
+// Cloudflare ends a subrequest that has sent nothing for about two minutes (HTTP 524). The model can think for longer
+// than that before it writes, so the answer is streamed (server-sent events) with summaries of the thinking, which
+// keep bytes coming and are then left out of the answer.
 type Part = { text: string } | { inline_data: { mime_type: string; data: string } };
 async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetcher, extra: Part[] = []): Promise<{ output: unknown; usage: object } | Response> {
   const model = env.GEMINI_MODEL_STRUCTURE || DEFAULT_MODEL;
@@ -141,7 +145,7 @@ async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetc
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }, ...extra] }],
-        generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0 },
+        generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0, thinkingConfig: { includeThoughts: true, ...(env.GEMINI_THINKING_LEVEL && { thinkingLevel: env.GEMINI_THINKING_LEVEL }) } },
       }),
     });
   } catch (error) {
@@ -165,8 +169,10 @@ async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetc
   }
   const candidates = events.map((event) => event.candidates?.[0]);
   if (candidates.some((candidate) => candidate?.finishReason === "MAX_TOKENS")) return failure("RESULT_TOO_LARGE");
-  const text = candidates.map((candidate) => candidate?.content?.parts?.map((part) => part.text ?? "").join("") ?? "").join("");
+  const answerParts = candidates.flatMap((candidate) => candidate?.content?.parts ?? []).filter((part) => !part.thought);
+  const text = answerParts.map((part) => part.text ?? "").join("");
   const usageMetadata = events.filter((event) => event.usageMetadata).at(-1)?.usageMetadata;
+  console.log(JSON.stringify({ gemini: { ms: Date.now() - started, thoughts: usageMetadata?.thoughtsTokenCount ?? 0, output: usageMetadata?.candidatesTokenCount ?? 0 } }));
   try {
     const usage = { model, inputTokens: usageMetadata?.promptTokenCount ?? 0, outputTokens: usageMetadata?.candidatesTokenCount ?? 0 };
     return { output: JSON.parse(text), usage };
