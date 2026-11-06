@@ -16,11 +16,13 @@ export function Button({ label, variant = "primary", href, onPress, disabled = f
   // A selected secondary button reads as filled, like a primary one.
   const primary = variant === "primary" || selected === true;
   const [focused, setFocused] = useState(false);
+  // A file to save is the browser's to follow: a plain link, not one of the app's screens for the router's Link.
+  const saves = href !== undefined && download === true;
   // Tracked as state because a style function would break `Link asChild`.
   const [pressed, setPressed] = useState(false);
   const pressable = (
     <Pressable
-      {...(download && { hrefAttrs: { download: "" } })}
+      {...(saves && { href: String(href), hrefAttrs: { download: "" } })}
       accessibilityRole={href === undefined ? "button" : "link"}
       accessibilityLabel={label}
       accessibilityState={selected === undefined ? undefined : { selected }}
@@ -40,7 +42,7 @@ export function Button({ label, variant = "primary", href, onPress, disabled = f
       </Text>
     </Pressable>
   );
-  return href === undefined ? pressable : <Link href={href} asChild>{pressable}</Link>;
+  return href === undefined || saves ? pressable : <Link href={href} asChild>{pressable}</Link>;
 }
 
 const styles = StyleSheet.create({

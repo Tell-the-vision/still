@@ -25,6 +25,9 @@ type Props = {
 // A borderless text action: a link with `href`, otherwise a button. `leading` and `trailing` are decorative glyphs.
 export function TextAction({ label, accessibilityLabel, variant = "action", tone, mark, leading, trailing, href, onPress, disabled = false, active, role, download, target }: Props) {
   const [focused, setFocused] = useState(false);
+  // A file to save or a page opened beside the app is the browser's to follow: a plain link. The router's Link would
+  // take it as one of the app's screens (a signed PNG under /api became "Unmatched Route").
+  const outside = href !== undefined && (download === true || target !== undefined);
   // Tracked as state because a style function would break `Link asChild`.
   const [pressed, setPressed] = useState(false);
   // A disabled action is always gray.
@@ -38,7 +41,7 @@ export function TextAction({ label, accessibilityLabel, variant = "action", tone
   );
   const pressable = (
     <Pressable
-      {...((download || target) && { hrefAttrs: { ...(download && { download: "" }), ...(target && { target, rel: "noopener noreferrer" }) } })}
+      {...(outside && { href: String(href), hrefAttrs: { ...(download && { download: "" }), ...(target && { target, rel: "noopener noreferrer" }) } })}
       accessibilityRole={role ?? (href === undefined ? "button" : "link")}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={role === "radio" ? { disabled, checked: active } : { disabled, selected: active }}
@@ -64,7 +67,7 @@ export function TextAction({ label, accessibilityLabel, variant = "action", tone
       </View>
     </Pressable>
   );
-  return href === undefined ? pressable : <Link href={href} asChild>{pressable}</Link>;
+  return href === undefined || outside ? pressable : <Link href={href} asChild>{pressable}</Link>;
 }
 
 const styles = StyleSheet.create({
