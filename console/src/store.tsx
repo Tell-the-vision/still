@@ -85,10 +85,16 @@ function useWorkspaceState() {
   };
 
   // Each part loads on its own: one failing call reports an error without blanking the others.
+  // Reads overlap (the editor opens and starts an analysis at once), and an earlier one can finish last: its older
+  // snapshot must not replace a newer one. It would undo a just-started analysis, so the console stopped watching it
+  // and never showed its result. Only the latest read lands.
+  const latestLoad = useRef(0);
   const loadExhibitionData = useCallback(async (id: string) => {
+    const load = ++latestLoad.current;
     const [files, items, events, preview, guide] = await Promise.allSettled([
       api.listFiles(id), api.listContentItems(id), api.listProcessingEvents(id), api.getPreview(id), api.getGuide(id),
     ]);
+    if (load !== latestLoad.current) return;
     const value = <T,>(part: PromiseSettledResult<T>, fallback: T) => (part.status === "fulfilled" ? part.value : fallback);
     setData({
       files: value(files, EMPTY.files),
