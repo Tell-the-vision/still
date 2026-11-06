@@ -135,6 +135,8 @@ export default function Editor() {
   const onServer = files.filter((f) => !isLocal(f));
   const uploadingCount = files.filter((f) => f.status === "QUEUED" || f.status === "UPLOADING" || f.status === "PROCESSING").length;
   const analysisFailed = events.some((ev) => ev.id === "classification" && ev.status === "FAILED");
+  // Files the analysis found no text in: named, since nothing was drafted from them and trying again would not help.
+  const noText = events.find((ev) => ev.id === "classification")?.noText ?? [];
   // With nothing picked, the first artwork still in progress; with nothing in progress, a blank page to start one.
   // An exhibition with only texts (no artworks yet) opens its first text.
   const focused = picked ?? toReview[0] ?? approvedList[0] ?? (artworks.length === 0 ? texts[0] ?? null : null);
@@ -427,6 +429,9 @@ export default function Editor() {
                   </ul>
                   {groupsGit.length === 0 && pending.length === 0 && artworks.length > 0 && (
                     <p className="rail-empty">Everything is published. Find it under Go to works.</p>
+                  )}
+                  {noText.length > 0 && !analysing && (
+                    <p className="empty">{noText.join(", ")} {noText.length === 1 ? "has" : "have"} no text to draft from: a photo or a scan. Reading those is not available yet.</p>
                   )}
                   {analysisFailed && !analysing && (
                     <p className="empty">The analysis did not finish. <button type="button" className="link-btn link-btn--strong" onClick={() => startAnalysis().catch(() => {})}>Try again</button></p>

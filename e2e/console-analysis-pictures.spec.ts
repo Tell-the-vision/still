@@ -17,6 +17,58 @@ const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const data = (res: { json: any }) => res.json.result.data;
 type Block = { type: string; attrs: { imageId?: string }; content?: { text: string }[] };
 
+async function documentWithPicture(page: Parameters<typeof signInConsole>[0], exhibition: { code: string }, lines: string[]) {
+  const put = async (url: string, body: Buffer) => expect((await page.request.put(url, { data: body })).status()).toBe(200);
+  const original = Buffer.from(`%PDF-1.4 ${randomUUID()}`);
+  const created = data(await consoleCall(page, "console.document.create", {
+    code: exhibition.code, name: "turner.pdf", mediaType: "application/pdf", byteSize: original.length, sha256: sha(original),
+  }));
+  await put(created.upload.url, original);
+  await consoleCall(page, "console.document.update", { id: created.document.id, uploaded: true });
+  const manifest = Buffer.from(JSON.stringify({
+    version: 1,
+    document: { documentId: created.document.id, sha256: sha(original), mediaType: "application/pdf", pages: 1 },
+    extractor: { name: "test", version: "1" },
+    pages: [{ page: 1, size: [100, 100] }],
+    segments: [
+      { id: "s001", page: 1, bbox: [10, 10, 90, 20], text: lines[0], sentences: [lines[0]] },
+      { id: "s002", page: 1, bbox: [10, 70, 90, 80], text: lines[1], sentences: [lines[1]] },
+    ],
+    assets: [{ id: "a01", kind: "EMBEDDED", object: "assets/a01.png", display: "assets/a01.display.webp", format: "image/png", pixels: [4, 3], sha256: sha(PICTURE), placements: [{ page: 1, bbox: [10, 30, 90, 60] }] }],
+    modelInputs: [],
+    warnings: [],
+  }));
+  const files = [
+    { name: "assets/a01.png", bytes: PICTURE },
+    { name: "assets/a01.display.webp", bytes: DISPLAY },
+    { name: "manifest.v1.json", bytes: manifest },
+  ];
+  const { uploads } = data(await consoleCall(page, "console.documentUpload.create", { documentId: created.document.id, files: files.map((f) => ({ name: f.name, size: f.bytes.length, sha256: sha(f.bytes) })) }));
+  for (const f of files) await put(uploads.find((u: { name: string }) => u.name === f.name).url, f.bytes);
+  expect(data(await consoleCall(page, "console.document.update", { id: created.document.id, manifestKey: "manifest.v1.json" })).status).toBe("EXTRACTED");
+  return created.document.id as string;
+}
+
+// The Worker gets each picture's display copy to look at (a URL it can fetch). What it writes about a picture is not
+// the source: a caption the document does not have is dropped.
+test("Gemini can look at the pictures it places, and a caption the source lacks is dropped", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account);
+  await signInConsole(page, account);
+  const documentId = await documentWithPicture(page, exhibition, ["LOOK_AT_PICTURES Turner painted light all his life.", "Harbour at dusk, 1811."]);
+  const [image] = await e2eSql<{ id: string }>("SELECT id FROM images WHERE document_id = $1 AND manifest_asset_id = 'a01'", [documentId]);
+
+  expect((await consoleCall(page, "console.analysis.create", { code: exhibition.code })).status).toBe(200);
+  await expect.poll(async () => (await e2eSql<{ result: string | null }>("SELECT analysis->>'result' AS result FROM exhibitions WHERE id = $1", [exhibition.id]))[0].result, { timeout: 30_000 }).toBe("SUCCEEDED");
+  const [content] = await e2eSql<{ doc: { content: (Block & { attrs: { caption?: string | null } })[] } }>("SELECT doc FROM contents WHERE exhibition_id = $1", [exhibition.id]);
+  // The fake Worker puts a picture it fetched first; one placed from its marker alone would follow the text.
+  expect(content.doc.content.map((b) => b.type)).toEqual(["stillImage", "paragraph"]);
+  const picture = content.doc.content[0];
+  expect(picture.attrs.imageId).toBe(image.id);
+  expect(picture?.attrs.caption ?? null).toBeNull();
+  expect(JSON.stringify(content.doc)).not.toContain("stormy");
+});
+
 test("a picture in an uploaded document is placed in the drafted page where it sits", async ({ page }) => {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);

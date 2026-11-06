@@ -19,6 +19,17 @@ test("foreign URLs and junk are rejected without navigating", async ({ page }) =
   await expect(page.getByText("STILL 전시 QR이 아닙니다")).toBeVisible();
 });
 
+// Every QR the console prints is an artwork's (/e/{code}/{page}); scanned or typed, it opens that work's page.
+test("an artwork's QR address opens that work's page", async ({ page, baseURL }) => {
+  const pages = await page.request.get(`/api/trpc/exhibition.pages?input=${encodeURIComponent(JSON.stringify({ scope: "ALL" }))}`);
+  const work = ((await pages.json()).result.data.items as { code: string; page: string }[]).find((i) => i.code === "forms-of-stillness")!;
+  await page.goto("/scan");
+  await page.getByRole("button", { name: "Enter Exhibition URL" }).click();
+  await submit(page, `${baseURL}/e/forms-of-stillness/${work.page}`);
+  await expect(page).toHaveURL(new RegExp(`/e/forms-of-stillness/${work.page}$`));
+  await expect(page.getByText("A room can hold its breath.")).toBeVisible();
+});
+
 test("a code opens the guide", async ({ page }) => {
   await openGuide(page, "forms-of-stillness");
   await expect(page).toHaveURL(/\/e\/forms-of-stillness$/);

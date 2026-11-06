@@ -124,7 +124,8 @@ function fromWire(output: unknown): Record<string, unknown> {
 }
 
 // One Gemini call with structured output. Returns the parsed JSON and usage, or the failure Response.
-async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetcher): Promise<{ output: unknown; usage: object } | Response> {
+type Part = { text: string } | { inline_data: { mime_type: string; data: string } };
+async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetcher, extra: Part[] = []): Promise<{ output: unknown; usage: object } | Response> {
   const model = env.GEMINI_MODEL_STRUCTURE || DEFAULT_MODEL;
   let upstream: Response;
   try {
@@ -132,7 +133,7 @@ async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetc
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        contents: [{ role: "user", parts: [{ text: prompt }, ...extra] }],
         generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0 },
       }),
     });
@@ -216,6 +217,7 @@ function textPrompt(input: StructureInput): string {
     "Never add, translate, reword or summarize words. Do not write anything that is not in the source.",
     "Heading levels are 2 or 3 only. `label` is only for a name that appears nowhere in the source (it will be flagged); otherwise null.",
     "Images are placed by asset id only (stillImage with imageId); put a caption only if the source has one.",
+    "An image's place in the text is marked by a line like [image a01]. The images that could be fetched are attached after this prompt, each after a line naming its id: look at them only to place each one beside the text about it. Never describe an image or write words the source does not have.",
     "`fields` repeat artwork values from those lines, copied from the source and named title, artist, year, medium, dimensions and credit where they apply; they never replace blocks.",
     "`outline` lists the guide's sections with indexes into `items`. Leave `variants` empty unless clearly needed.",
     `Document: ${input.document.mediaType}${input.document.category ? `, ${input.document.category}` : ""}`,
@@ -247,9 +249,33 @@ function cleanBlocks(blocks: unknown, offered: Set<string>): unknown {
   });
 }
 
+// SPEC §9.4 구조화 input: the pictures offered by id come with presigned URLs. Each one fetched is attached after a line
+// naming its id, so Gemini sees what it places; one that cannot be fetched is still offered by id. At most a dozen per
+// chunk, and none larger than 4 MB (display copies are far smaller).
+const PICTURES_MAX = 12;
+const PICTURE_BYTES_MAX = 4 * 1024 * 1024;
+async function pictureParts(images: StructureInput["images"], fetcher: Fetcher): Promise<Part[]> {
+  const parts: Part[] = [];
+  for (const image of images.filter((i) => i.url).slice(0, PICTURES_MAX)) {
+    try {
+      const res = await fetcher(image.url!, { method: "GET" });
+      if (!res.ok) continue;
+      const bytes = await res.arrayBuffer();
+      if (bytes.byteLength > PICTURE_BYTES_MAX) continue;
+      parts.push({ text: `Image ${image.id}:` }, { inline_data: { mime_type: res.headers.get("content-type")?.split(";")[0] || "image/webp", data: Buffer.from(bytes).toString("base64") } });
+    } catch {
+      // Offered by id only.
+    }
+  }
+  return parts;
+}
+
 async function structureText(input: StructureInput, env: Env, fetcher: Fetcher): Promise<Response> {
-  const result = await generate(textPrompt(input), textSchema, env, fetcher);
+  const pictures = await pictureParts(input.images, fetcher);
+  const result = await generate(textPrompt(input), textSchema, env, fetcher, pictures);
   if (result instanceof Response) return result;
+  // Observability: how many offered pictures Gemini was shown, and what the call cost.
+  console.log(JSON.stringify({ structure: { offered: input.images.length, attached: pictures.length / 2, usage: result.usage } }));
   const offered = new Set(input.images.map((i) => i.id));
   const wire = result.output as { items?: { blocks?: unknown; fields?: { name: string; value: string }[] }[] } | null;
   const fieldsOf = (fields: { name: string; value: string }[]) =>
