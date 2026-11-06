@@ -96,7 +96,8 @@ const isRunning = (analysis: Analysis | null, id: string) => analysis?.id === id
 async function settle({ exhibitionId, analysisId }: JobData, result: "FAILED", failures?: DocumentFailure[]) {
   await db.transaction(async (tx) => {
     const [row] = await tx.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, exhibitionId)).for("update");
-    if (isRunning(row?.analysis as Analysis | null, analysisId)) await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), result, ...(failures && { failures }) } }).where(eq(exhibitions.id, exhibitionId));
+    // Failures add to those carried over from earlier analyses (files with no text, still unread).
+    if (isRunning(row?.analysis as Analysis | null, analysisId)) await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), result, ...(failures && { failures: [...((row.analysis as Analysis).failures ?? []), ...failures] }) } }).where(eq(exhibitions.id, exhibitionId));
     if (isRunning(row?.analysis as Analysis | null, analysisId)) await notify(tx, analysisId, "failed", "Analysis failed.");
   });
 }
@@ -263,7 +264,7 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
       }
       await tx.update(documents).set({ analyzedAt: new Date() }).where(eq(documents.id, documentId));
     }
-    await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, failures, finalizedAt: new Date().toISOString() } }).where(eq(exhibitions.id, exhibitionId));
+    await tx.update(exhibitions).set({ analysis: { ...(row.analysis as Analysis), coverage, failures: [...((row.analysis as Analysis).failures ?? []), ...failures], finalizedAt: new Date().toISOString() } }).where(eq(exhibitions.id, exhibitionId));
   });
   // SPEC §10.10: analysis.suggest runs after the contents are committed, and only its end sets SUCCEEDED,
   // so the console (which stops watching at the result) sees the items with their suggestions.

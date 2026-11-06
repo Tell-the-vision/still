@@ -140,6 +140,8 @@ export interface ProcessingEvent {
   title: string;
   detail: string;
   status: EventStatus;
+  /** Classification only: files the analysis found no text in (a photo, a scan), to say why they were not drafted. */
+  noText?: string[];
 }
 
 export interface PublicationCheck {

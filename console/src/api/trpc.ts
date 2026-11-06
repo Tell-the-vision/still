@@ -229,7 +229,7 @@ function docWithText(row: ConsoleContentRow, text: string): ContentDoc {
 
 // ── Analysis (console.analysis.get) ──────────────────────
 type ConsoleAnalysis = {
-  analysis: { startedAt: string; result: "SUCCEEDED" | "FAILED" | "CANCELLED" | null } | null;
+  analysis: { startedAt: string; result: "SUCCEEDED" | "FAILED" | "CANCELLED" | null; failures?: { name: string; error: string }[] } | null;
   documents: { total: number; uploading: number; stored: number; extracted: number; failed: number; duplicate: number };
   contents: { total: number; open: number };
 };
@@ -237,16 +237,22 @@ type ConsoleAnalysis = {
 // The four steps of SPEC §9.4 진행 표시, derived from the counts and the analysis summary.
 function toProcessingEvents({ analysis, documents: d, contents: c }: ConsoleAnalysis): ProcessingEvent[] {
   const live = d.total - d.failed - d.duplicate;
+  // Files with no text (a photo, a scan) cannot be drafted until they can be read; trying again would not help, so an
+  // analysis that failed only on them did its work: nothing to draft, and the files are named.
+  const failures = analysis?.failures ?? [];
+  const noText = failures.filter((f) => f.error === "NO_TEXT_LAYER").map((f) => f.name);
+  const onlyNoText = failures.length > 0 && noText.length === failures.length;
   const classification: Pick<ProcessingEvent, "detail" | "status"> = !analysis
     ? { status: "PENDING", detail: "Analysis has not started." }
     : analysis.result === "SUCCEEDED" ? { status: "COMPLETE", detail: "Content items were extracted." }
+    : analysis.result === "FAILED" && onlyNoText ? { status: "COMPLETE", detail: "No text to draft from." }
     : analysis.result === "FAILED" ? { status: "FAILED", detail: "The analysis failed." }
     : analysis.result === "CANCELLED" ? { status: "FAILED", detail: "The analysis was cancelled." }
     : { status: "IN_PROGRESS", detail: "Analysis is running." };
   return [
     { id: "upload", at: null, title: "Upload", status: d.stored + d.extracted > 0 ? "COMPLETE" : d.uploading > 0 ? "IN_PROGRESS" : "PENDING", detail: `${d.total} files, ${d.uploading} uploading` },
     { id: "extraction", at: null, title: "Text extraction", status: live > 0 && d.extracted === live ? "COMPLETE" : "PENDING", detail: `${d.extracted} of ${live} files extracted` },
-    { id: "classification", at: analysis?.startedAt ?? null, title: "Content classification", ...classification },
+    { id: "classification", at: analysis?.startedAt ?? null, title: "Content classification", ...classification, noText },
     { id: "review", at: null, title: "Curator review", status: c.total === 0 ? "PENDING" : c.open > 0 ? "IN_PROGRESS" : "COMPLETE", detail: `${c.open} of ${c.total} items need review` },
   ];
 }

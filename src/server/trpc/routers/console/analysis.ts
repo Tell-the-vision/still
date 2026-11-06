@@ -1,6 +1,6 @@
 import { consoleAnalysisGetInput } from "@still/shared/console";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { databaseUrl } from "../../../db/url";
@@ -31,11 +31,17 @@ async function snapshot(institutionId: string, code: string) {
     const [row] = await exhibitionRows(institutionId, { where: eq(exhibitions.code, code) });
     if (!row) throw new TRPCError({ code: "NOT_FOUND" });
     const [{ analysis: raw }] = await db.select({ analysis: exhibitions.analysis }).from(exhibitions).where(eq(exhibitions.id, row.id));
-    const analysis = raw as { id: string; result: string | null } | null;
+    const analysis = raw as { id: string; result: string | null; failures?: { documentId: string; error: string }[] } | null;
+    // Each failure with its file's name, for the console to say which file could not be read and why.
+    const failed = analysis?.failures ?? [];
+    const names = failed.length
+      ? new Map((await db.select({ id: documents.id, name: documents.originalName }).from(documents).where(inArray(documents.id, failed.map((f) => f.documentId)))).map((d) => [d.id, d.name]))
+      : new Map<string, string>();
+    const failures = failed.map((f) => ({ name: names.get(f.documentId) ?? "A file", error: f.error }));
     const docs = await countByStatus(documents, row.id);
     const items = await countByStatus(contents, row.id);
     return {
-      analysis,
+      analysis: analysis && { ...analysis, failures },
       documents: {
         total: total(docs),
         uploading: docs.UPLOADING ?? 0,
@@ -68,10 +74,18 @@ export const consoleAnalysisRouter = router({
         throw new TRPCError({ code: "CONFLICT", cause: new AppError("ANALYSIS_IN_PROGRESS") });
       }
       // A picture placed in a page (category IMAGE, console uploadPicture) is not a file to draft artworks from.
-      const targets = await tx.select({ id: documents.id }).from(documents)
+      const candidates = await tx.select({ id: documents.id, updatedAt: documents.updatedAt }).from(documents)
         .where(and(eq(documents.exhibitionId, exhibition.id), eq(documents.status, "EXTRACTED"), isNull(documents.analyzedAt), or(isNull(documents.category), ne(documents.category, "IMAGE"))));
+      // A file the last analysis found no text in (a photo, a scan: SPEC §9.4's OCR is not built yet) is not taken up
+      // again until it is read anew (a new manifest touches the row); its failure carries over, so the console still
+      // names it. Without this every analysis failed on it again.
+      const previous = exhibition.analysis as { startedAt?: string; failures?: { documentId: string; error: string }[] } | null;
+      const since = previous?.startedAt ? new Date(previous.startedAt) : null;
+      const carried = (previous?.failures ?? []).filter((f) => f.error === "NO_TEXT_LAYER"
+        && candidates.some((d) => d.id === f.documentId && since !== null && d.updatedAt <= since));
+      const targets = candidates.filter((d) => !carried.some((f) => f.documentId === d.id));
       if (!targets.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing new to analyze." });
-      const analysis = { id: randomUUID(), startedAt: new Date().toISOString(), documentIds: targets.map((t) => t.id), result: null, coverage: null, suggestions: [] };
+      const analysis = { id: randomUUID(), startedAt: new Date().toISOString(), documentIds: targets.map((t) => t.id), result: null, coverage: null, suggestions: [], failures: carried };
       await tx.update(exhibitions).set({ analysis }).where(eq(exhibitions.id, exhibition.id));
       const data = { exhibitionId: exhibition.id, analysisId: analysis.id };
       await boss.send(ANALYSIS_QUEUE, data, { ...ANALYSIS_JOB_OPTIONS, db: transactionDb(tx) });
