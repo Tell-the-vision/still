@@ -34,13 +34,12 @@ function useScope() {
 
 const prefix = { ON_VIEW: "", UPCOMING: `${homeStrings.upcoming} · `, ENDED: `${homeStrings.ended} · ` };
 
-// Home 02: the works of the published guides, each its own tile opening its own page (/e/{code}/{page}), filtered
-// to those on view or all of them. No exhibition stands above them.
-export function Works() {
+// Home 02: published exhibitions, filtered to those on view or all of them (SPEC §1.1). Each opens its guide.
+export function Exhibitions() {
   const trpc = useTRPC();
   const wide = useWide();
   const [scope, choose] = useScope();
-  const { data, isError, refetch } = useQuery({ ...trpc.exhibition.pages.queryOptions({ scope }), placeholderData: keepPreviousData });
+  const { data, isError, refetch } = useQuery({ ...trpc.exhibition.list.queryOptions({ scope }), placeholderData: keepPreviousData });
   const columns = wide ? 4 : 1;
 
   return (
@@ -61,12 +60,12 @@ export function Works() {
         </Stack>
       ) : (
         <View style={{ flexDirection: "row", flexWrap: "wrap", marginRight: -spacing.gutter }}>
-          {data?.items.map(({ code, page, title, venue, startDate, endDate, image, availability }) => (
-            <View key={`${code}/${page}`} style={{ width: `${100 / columns}%`, paddingRight: spacing.gutter, paddingBottom: spacing.section }}>
-              <Link href={`/e/${code}/${page}`} asChild>
+          {data?.items.map(({ code, title, venue, startDate, endDate, coverImage, availability }) => (
+            <View key={code} style={{ width: `${100 / columns}%`, paddingRight: spacing.gutter, paddingBottom: spacing.section }}>
+              <Link href={`/e/${code}`} asChild>
                 <Pressable accessibilityRole="link">
                   <Stack gap="inset">
-                    {image && <Artwork {...image} />}
+                    {coverImage && <Artwork {...coverImage} />}
                     <Text variant="title">{title}</Text>
                     <Text variant="secondary">{`${prefix[availability]}${venue.name} · ${shortRange(startDate, endDate)}`}</Text>
                   </Stack>

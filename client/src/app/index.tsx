@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useMe, useUserState } from "../features/auth/use-me";
 import { track } from "../lib/analytics";
-import { Works } from "../features/home/Works";
+import { Exhibitions } from "../features/home/Exhibitions";
 import { homeStrings } from "../features/home/strings";
 import { Screen } from "../ui/Screen";
 import { Stack } from "../ui/Stack";
@@ -25,7 +25,7 @@ export default function Home() {
             <Text variant="headline">{homeStrings.welcome}</Text>
             <Text variant="secondary">{homeStrings.tagline}</Text>
           </Stack>
-          <Works />
+          <Exhibitions />
         </Stack>
       </Screen>
     );

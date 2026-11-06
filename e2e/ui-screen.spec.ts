@@ -102,7 +102,7 @@ test("signed-in Home keeps its sections together and the header rule clears the 
   await page.goto("/");
   const tagline = await page.getByText("Your experiences, kept in one place.").boundingBox();
   // The ON VIEW / ALL filter now starts the list (no caption above it).
-  const next_ = await page.getByRole("radiogroup", { name: "Show works" }).boundingBox();
+  const next_ = await page.getByRole("radiogroup", { name: "Show exhibitions" }).boundingBox();
   expect((next_?.y ?? Infinity) - ((tagline?.y ?? 0) + (tagline?.height ?? 0))).toBeLessThanOrEqual(48);
   const wordmark = await page.getByText("STILL.", { exact: true }).boundingBox();
   const ruleY = await page.getByText("STILL.", { exact: true }).evaluate((el) => {
