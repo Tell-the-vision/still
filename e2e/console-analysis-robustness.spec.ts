@@ -30,6 +30,21 @@ test("a document with no text layer fails the analysis as NO_TEXT_LAYER and stay
   expect(await analyzedAt(documentId)).toBeNull();
 });
 
+// The console opened on an exhibition whose only file has no text starts one analysis, which fails, and does not start
+// another by itself. It used to, round after round, until the rate limit answered 429 to every call.
+test("the console does not start a failed analysis again by itself", async ({ page }) => {
+  const { exhibition } = await extractedExhibition(page, "", 0);
+  const starts: string[] = [];
+  page.on("response", (r) => { if (r.url().includes("console.analysis.create") && r.status() === 200) starts.push(r.url()); });
+  await page.goto(`/console/exhibitions/${exhibition.code}`);
+  await expect.poll(async () => (await analysisOf(exhibition.id)).result, { timeout: 30_000 }).toBe("FAILED");
+  // The console reads the result on the watch's next event, a moment after the database has it.
+  await expect(page.getByText("The analysis did not finish.")).toBeVisible({ timeout: 15_000 });
+  // The console's chance to start another: none comes.
+  await page.waitForTimeout(6000);
+  expect(starts).toHaveLength(1);
+});
+
 // SPEC §10.10: a file failure is not a job failure. The readable document is analysed; the other is reported
 // and stays unanalysed, so the next analysis tries it again.
 test("one document failing at the Worker does not fail the others", async ({ page }) => {

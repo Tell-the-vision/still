@@ -125,6 +125,8 @@ function useWorkspaceState() {
 
   // The analysis starts by itself, with no button: after each upload, and again when a running analysis ends,
   // so files read meanwhile are picked up. console.analysis.create only takes documents not analysed yet.
+  // A failed one is not started again on its own: its files stay unanalysed and would fail again, round after round
+  // (a picture or a scan has no text yet; a Worker error would cost a Gemini call each time). Try again is a person's.
   const autoAnalyse = useCallback(async (exhibitionId: string) => {
     try {
       await api.startAnalysis(exhibitionId);
@@ -136,11 +138,12 @@ function useWorkspaceState() {
     }
     await loadExhibitionData(exhibitionId).catch(fail);
   }, [loadExhibitionData]);
+  const analysisFailed = data.events.some((ev) => ev.id === "classification" && ev.status === "FAILED");
   const wasAnalysing = useRef(false);
   useEffect(() => {
-    if (wasAnalysing.current && !analysing && currentId) void autoAnalyse(currentId);
+    if (wasAnalysing.current && !analysing && !analysisFailed && currentId) void autoAnalyse(currentId);
     wasAnalysing.current = analysing;
-  }, [analysing, currentId, autoAnalyse]);
+  }, [analysing, analysisFailed, currentId, autoAnalyse]);
 
   const exhibition = exhibitions.find((e) => e.id === currentId) ?? null;
   const replaceExhibition = (e: Exhibition) => setExhibitions((list) => list.map((x) => (x.id === e.id ? e : x)));
