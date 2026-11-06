@@ -39,7 +39,7 @@ export default function Scan() {
   function openTarget(input: string) {
     const target = parseExhibitionTarget(input, stillOrigin);
     setNotice(target ? null : entryStrings.notStill);
-    if (target) router.push(`/e/${target.code}`);
+    if (target) router.push(target.page ? `/e/${target.code}/${target.page}` : `/e/${target.code}`);
   }
 
   function onScanned(data: string) {
