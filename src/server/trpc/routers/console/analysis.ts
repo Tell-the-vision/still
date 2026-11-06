@@ -1,6 +1,6 @@
 import { consoleAnalysisGetInput } from "@still/shared/console";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, count, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { databaseUrl } from "../../../db/url";
@@ -67,8 +67,9 @@ export const consoleAnalysisRouter = router({
       if (exhibition.analysis && exhibition.analysis.result === null && (await jobAlive(tx, exhibition.analysis.id))) {
         throw new TRPCError({ code: "CONFLICT", cause: new AppError("ANALYSIS_IN_PROGRESS") });
       }
+      // A picture placed in a page (category IMAGE, console uploadPicture) is not a file to draft artworks from.
       const targets = await tx.select({ id: documents.id }).from(documents)
-        .where(and(eq(documents.exhibitionId, exhibition.id), eq(documents.status, "EXTRACTED"), isNull(documents.analyzedAt)));
+        .where(and(eq(documents.exhibitionId, exhibition.id), eq(documents.status, "EXTRACTED"), isNull(documents.analyzedAt), or(isNull(documents.category), ne(documents.category, "IMAGE"))));
       if (!targets.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing new to analyze." });
       const analysis = { id: randomUUID(), startedAt: new Date().toISOString(), documentIds: targets.map((t) => t.id), result: null, coverage: null, suggestions: [] };
       await tx.update(exhibitions).set({ analysis }).where(eq(exhibitions.id, exhibition.id));

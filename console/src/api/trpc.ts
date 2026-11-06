@@ -260,6 +260,7 @@ type ConsoleDocument = {
   errorCode: string | null;
   duplicateOfId: string | null;
   duplicateOfName: string | null;
+  category: string | null;
   createdAt: string;
 };
 const FAILURE_TEXT: Record<string, string> = {
@@ -278,6 +279,7 @@ const toSourceFile = (doc: ConsoleDocument): SourceFile => ({
   sizeBytes: doc.byteSize,
   uploadedAt: doc.createdAt,
   status: ({ UPLOADING: "UPLOADING", STORED: "UPLOADED", EXTRACTED: "PROCESSED", FAILED: "FAILED", DUPLICATE: "FAILED" } as const)[doc.status],
+  picture: doc.category === "IMAGE",
   error: doc.status === "DUPLICATE" ? `Same file as ${doc.duplicateOfName}` : doc.errorCode && (FAILURE_TEXT[doc.errorCode] ?? "The file could not be processed."),
 });
 
@@ -312,14 +314,15 @@ async function removeDocument(id: string) {
 
 // SPEC §9.4: hash in the browser, register the document, PUT the bytes straight to private R2 with the
 // presigned URL, then tell the server they are there. The server never receives the file.
-async function storeOriginal(code: string, file: File, options?: UploadOptions): Promise<{ document: ConsoleDocument; sha256: string }> {
+// `category` IMAGE stores a picture placed in a page: a picture of that page, never a file to draft artworks from.
+async function storeOriginal(code: string, file: File, options?: UploadOptions, category?: "IMAGE"): Promise<{ document: ConsoleDocument; sha256: string }> {
   // The same list the upload screen offers (it mirrors the server's DOCUMENT_FORMATS).
   const mediaType = UPLOAD_FORMATS[file.name.split(".").pop()?.toLowerCase() ?? ""];
   if (!mediaType) throw new ApiError("This format is not supported.");
   const sha256 = await sha256Hex(file);
   if (options?.signal?.aborted) throw abortError();
   const { document, upload } = await m<{ document: ConsoleDocument; upload: { url: string; headers: Record<string, string> } }>(
-    "console.document.create", { code, name: file.name, mediaType, byteSize: file.size, sha256 });
+    "console.document.create", { code, name: file.name, mediaType, byteSize: file.size, sha256, category });
   try {
     await putFile(upload, file, options);
   } catch (e) {
@@ -341,7 +344,7 @@ async function uploadDocument(code: string, file: File, options?: UploadOptions)
 // the picture as its one image, rights unconfirmed (SPEC §10.7). The same bytes stored before come back as a
 // DUPLICATE (SPEC §10.6): the earlier document holds the picture, and the second row goes again.
 async function uploadPicture(code: string, file: File): Promise<ExhibitionImage> {
-  const { document, sha256 } = await storeOriginal(code, file);
+  const { document, sha256 } = await storeOriginal(code, file, undefined, "IMAGE");
   if (document.status === "FAILED") throw new ApiError(toSourceFile(document).error ?? "The picture could not be stored.");
   const holder = document.status === "DUPLICATE" && document.duplicateOfId ? document.duplicateOfId : document.id;
   if (holder !== document.id) await removeDocument(document.id).catch(() => {});

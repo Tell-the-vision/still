@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api, ApiError, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type GuideSection, type MediaAssetPatch, type Me, type NewExhibition, type ProcessingEvent,
+  api, ApiError, isPage, isUnauthorized, type ContentItem, type ContentItemPatch, type Exhibition, type Guide, type GuideSection, type MediaAssetPatch, type Me, type NewExhibition, type ProcessingEvent,
   type PublicationCheck, type PublicationDetails, type SignInRequest, type SourceFile, type VisitorDraft, type Workspace,
 } from "./api";
 
@@ -224,6 +224,9 @@ function useWorkspaceState() {
       setData((d) => ({ ...d, guide }));
     }
     replaceExhibition(await api.publishExhibition(currentId));
+    // What was just published is read back: the guide has no unpublished changes now (so Go to works takes the
+    // emphasis), and the items carry the sentence ids the publication stored.
+    await loadExhibitionData(currentId);
   };
 
   // Wraps a mutation: clears the old error, reports a new one, rethrows so callers can stop.
@@ -299,7 +302,7 @@ function useWorkspaceState() {
       if (approved.size === 0) { replaceExhibition(await api.unpublishExhibition(currentId)); return; }
       let sections = data.guide.sections.map((section) => ({ ...section, contentIds: section.contentIds.filter((id) => approved.has(id)) }));
       const listed = new Set(sections.flatMap((section) => section.contentIds));
-      const missing = data.items.filter((i) => i.kind === "Artwork" && approved.has(i.id) && !listed.has(i.id)).map((i) => i.id);
+      const missing = data.items.filter((i) => isPage(i) && approved.has(i.id) && !listed.has(i.id)).map((i) => i.id);
       if (missing.length) {
         const at = sections.findIndex((section) => section.kind === "ARTWORK_HIGHLIGHTS");
         sections = at >= 0

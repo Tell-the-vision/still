@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type ContentItem, type Exhibition } from "./api";
+import { api, isPage, type ContentItem, type Exhibition } from "./api";
 
 /** An artwork's short id in addresses and QR codes: the first 8 characters of its content id (SPEC §1.2). */
 export const short = (item: ContentItem) => item.id.slice(0, 8);
@@ -15,7 +15,7 @@ export function useLiveArtworks(exhibitions: Exhibition[]): Record<string, Conte
     let current = true;
     for (const e of exhibitions) {
       api.peekContentItems(e.id).then((items) => {
-        const live = items.filter((i) => i.kind === "Artwork" && i.reviewStatus === "APPROVED" && !!e.publishedAt && !!i.approvedAt && i.approvedAt <= e.publishedAt);
+        const live = items.filter((i) => isPage(i) && i.reviewStatus === "APPROVED" && !!e.publishedAt && !!i.approvedAt && i.approvedAt <= e.publishedAt);
         if (current) setWorks((w) => ({ ...w, [e.id]: live }));
       }, () => {});
     }

@@ -13,10 +13,19 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 const PICTURE = readFileSync("e2e/fixtures/cover.png"); // 4 x 3
 const DISPLAY = readFileSync("e2e/fixtures/cover.webp");
+// Another picture: the same image with bytes after its end, which decoders ignore (a different file, not a duplicate).
+const SECOND = Buffer.concat([PICTURE, Buffer.from("a second picture")]);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const data = (res: { json: { result: { data: unknown } } }) => res.json.result.data as Record<string, any>;
 type Doc = { content: { type: string; attrs: { imageId?: string } }[] };
+const stillImagesIn = async (contentId: string) =>
+  (await e2eSql<{ doc: Doc }>("SELECT doc FROM contents WHERE id = $1", [contentId]))[0].doc.content.filter((b) => b.type === "stillImage").length;
+// ProseMirror takes a clicked caret a moment (~40ms) after the click; keys pressed sooner (as no person does) would
+// act at the old caret, so a test waits until the caret is in the block it clicked.
+type EditorElement = HTMLElement & { editor: { state: { selection: { $from: { parent: { textContent: string } } } } } };
+const caretIn = (page: Page, text: string) =>
+  expect.poll(() => page.evaluate(() => (document.querySelector(".ProseMirror") as EditorElement).editor.state.selection.$from.parent.textContent)).toBe(text);
 const imageIdIn = async (contentId: string) =>
   (await e2eSql<{ doc: Doc }>("SELECT doc FROM contents WHERE id = $1", [contentId]))[0].doc.content.find((b) => b.type === "stillImage")?.attrs.imageId ?? null;
 
@@ -63,6 +72,7 @@ test("a picture placed with / Image shows at once, is stored as an image of the 
   await page.goto("/console/");
 
   await page.locator(".ProseMirror").getByText("Oil on canvas.").click();
+  await caretIn(page, "Oil on canvas.");
   await page.keyboard.press("End");
   await page.keyboard.press("Enter");
   await page.keyboard.type("/Image");
@@ -93,6 +103,42 @@ test("a picture placed with / Image shows at once, is stored as an image of the 
   // Its rights are confirmed where it stands: only a confirmed image is published (SPEC §10.7).
   await page.getByRole("button", { name: "Confirm rights" }).click();
   await expect.poll(async () => (await e2eSql<{ rights: string }>("SELECT rights FROM images WHERE id = $1", [imageId]))[0].rights).toBe("CONFIRMED");
+});
+
+// A picture placed in a page is a picture of that page, not a file to draft artworks from. An analysis used to take it
+// up, fail on it for having no text, and start again, round after round, reloading the editor under the curator.
+test("pictures placed one after another stay pictures of the page and are never drafted from", async ({ page }) => {
+  const account = await seedInstitutionAccount();
+  const exhibition = await seedExhibition(account);
+  const artwork = await seedContent(exhibition, {
+    kind: "ARTWORK",
+    status: "READY",
+    doc: [
+      { type: "heading", attrs: { id: "h1", level: 2 }, content: [{ type: "text", text: "Harbour at dusk" }] },
+      { type: "paragraph", attrs: { id: "p1" }, content: [{ type: "text", text: "Oil on canvas." }] },
+      { type: "paragraph", attrs: { id: "p2" }, content: [{ type: "text", text: "Painted at dusk." }] },
+    ],
+  });
+  await signInConsole(page, account);
+  await page.goto("/console/");
+
+  for (const [n, line, name, bytes] of [[1, "Oil on canvas.", "harbour.png", PICTURE], [2, "Painted at dusk.", "dusk.png", SECOND]] as const) {
+    await page.locator(".ProseMirror").getByText(line).click();
+    await caretIn(page, line);
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("/Image");
+    const chooser = page.waitForEvent("filechooser");
+    await page.keyboard.press("Enter");
+    await (await chooser).setFiles({ name, mimeType: "image/png", buffer: bytes });
+    await expect.poll(() => stillImagesIn(artwork.id), { timeout: 15_000 }).toBe(n);
+  }
+
+  // Stored as pictures of the page: no analysis drafts from them, and they are not listed as files being drafted.
+  const documents = await e2eSql<Record<string, unknown>>("SELECT category, analyzed_at FROM documents WHERE exhibition_id = $1", [exhibition.id]);
+  expect(documents).toEqual([{ category: "IMAGE", analyzed_at: null }, { category: "IMAGE", analyzed_at: null }]);
+  expect((await consoleCall(page, "console.analysis.create", { code: exhibition.code })).status).toBe(400);
+  await expect(page.getByText("Drafting artworks…")).toHaveCount(0);
 });
 
 test("the image route answers with a document image's display file, published or not, and only to its institution", async ({ page, browser, baseURL }) => {

@@ -44,6 +44,8 @@ export interface SourceFile {
   note?: string; // client only: something to know about a healthy row ("Text extraction for DOCX is not available yet.")
   /** Client only: upload progress 0–100 while UPLOADING. */
   progress?: number;
+  /** A picture placed in a page (uploadPicture): a picture of that page, never a file to draft artworks from. */
+  picture?: boolean;
 }
 export interface UploadOptions {
   onProgress?: (percent: number) => void;
@@ -111,6 +113,12 @@ export interface ContentItem {
   /** The server wants a person to look at it (NEEDS_REVIEW): approvable one by one, never in bulk. */
   needsReview?: boolean;
 }
+/**
+ * Every content but the exhibition's introduction is a page of its own, with its own address and QR: an artwork, or
+ * an artist, a theme, ... (one page per artwork, and a page may be about an artist too).
+ */
+export const isPage = (item: Pick<ContentItem, "kind">) => item.kind !== "Introduction";
+
 export type ContentItemPatch = Partial<Pick<ContentItem, "text" | "theme" | "contentType" | "note">>;
 
 // SPEC §10.7 images: rights, credit and alt text are all the console records (console.image.update).

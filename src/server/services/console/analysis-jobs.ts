@@ -139,17 +139,60 @@ function mergeOutputs(outputs: StructureOutput[]): StructureOutput {
   return merged;
 }
 
-async function structureChunk(analysisId: string, chunk: number, document: { mediaType: string; category: string | null }, pages: { page: number; text: string }[]) {
-  const body = JSON.stringify(structureInput.parse({ analysisId, chunk, document, pages, images: [] }));
+async function structureChunk(analysisId: string, chunk: number, document: { mediaType: string; category: string | null }, pages: { page: number; text: string }[], images: { id: string; page: number; url: null }[]) {
+  const body = JSON.stringify(structureInput.parse({ analysisId, chunk, document, pages, images }));
   const headers = await signWorkerRequest(process.env.ANALYSIS_WORKER_SECRET ?? "", body, Math.floor(Date.now() / 1000));
   const res = await fetch(`${process.env.ANALYSIS_WORKER_URL}/structure/text`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
   if (!res.ok) throw new Error(`Worker answered HTTP ${res.status} for chunk ${chunk}: ${(await res.text()).slice(0, 200)}`);
   return structureOutput.parse(await res.json());
 }
 
-async function structure(analysisId: string, document: { mediaType: string; category: string | null }, manifest: Awaited<ReturnType<typeof readManifest>>) {
+type Manifest = Awaited<ReturnType<typeof readManifest>>;
+type OutputBlock = StructureOutput["items"][number]["blocks"][number];
+
+// The text of each page in reading order, with each picture of the document (not page renders) as an "[image a01]"
+// line where it sits: before the first line below its top edge, or after the page's lines when there are no positions.
+function linesOf(manifest: Manifest) {
+  const pictures = manifest.assets.filter((a) => a.kind !== "PAGE_IMAGE" && !a.variantOf && a.placements.length > 0);
+  const pageNumbers = [...new Set([...manifest.segments.map((s) => s.page), ...pictures.map((a) => a.placements[0].page)])].sort((a, b) => a - b);
   const byPage = new Map<number, string[]>();
-  for (const s of manifest.segments) byPage.set(s.page, [...(byPage.get(s.page) ?? []), s.text]);
+  for (const page of pageNumbers) {
+    const lines = manifest.segments.filter((s) => s.page === page).map((s) => ({ top: s.bbox?.[1] ?? null, text: s.text }));
+    for (const picture of pictures.filter((a) => a.placements[0].page === page)) {
+      const top = picture.placements[0].bbox[1];
+      const at = lines.findIndex((line) => line.top !== null && line.top > top);
+      lines.splice(at < 0 ? lines.length : at, 0, { top, text: `[image ${picture.id}]` });
+    }
+    byPage.set(page, lines.map((line) => line.text));
+  }
+  return { byPage, pictures };
+}
+
+// Gemini places a picture as a stillImage block at its "[image a01]" line. A marker copied as text instead becomes that
+// block, one left inside a paragraph is taken out (the picture follows the paragraph), and each picture is placed once.
+function withPictures(output: StructureOutput): StructureOutput {
+  const placed = new Set<string>();
+  const picture = (imageId: string): OutputBlock[] => {
+    if (placed.has(imageId)) return [];
+    placed.add(imageId);
+    return [{ type: "stillImage", imageId, display: "INLINE", caption: null }];
+  };
+  const items = output.items.map((item) => ({
+    ...item,
+    blocks: item.blocks.flatMap((block): OutputBlock[] => {
+      if (block.type === "stillImage") return picture(block.imageId).length ? [block] : [];
+      if (block.type !== "paragraph" && block.type !== "quote") return [block];
+      const ids = [...block.text.matchAll(/\[image (a\d{2,})\]/g)].map((m) => m[1]);
+      if (!ids.length) return [block];
+      const text = block.text.replace(/\s*\[image a\d{2,}\]\s*/g, " ").trim();
+      return [...(text ? [{ ...block, text }] : []), ...ids.flatMap(picture)];
+    }),
+  }));
+  return { ...output, items };
+}
+
+async function structure(analysisId: string, document: { mediaType: string; category: string | null }, manifest: Manifest) {
+  const { byPage, pictures } = linesOf(manifest);
   // A page bigger than a chunk (a long TXT is one page) is cut at segment boundaries into parts.
   const pages = [...byPage].flatMap(([page, texts]) => {
     const parts: { page: number; text: string }[] = [];
@@ -161,8 +204,13 @@ async function structure(analysisId: string, document: { mediaType: string; cate
     return parts;
   });
   const outputs: StructureOutput[] = [];
-  for (const [chunk, chunkPagesList] of chunkPages(pages).entries()) outputs.push(await structureChunk(analysisId, chunk, document, chunkPagesList));
-  return mergeOutputs(outputs);
+  for (const [chunk, chunkPagesList] of chunkPages(pages).entries()) {
+    // Each chunk is offered the pictures on its pages, to place by asset id.
+    const onPages = new Set(chunkPagesList.map((p) => p.page));
+    const offered = pictures.filter((a) => onPages.has(a.placements[0].page)).map((a) => ({ id: a.id, page: a.placements[0].page, url: null }));
+    outputs.push(await structureChunk(analysisId, chunk, document, chunkPagesList, offered));
+  }
+  return withPictures(mergeOutputs(outputs));
 }
 
 async function runAnalysis({ exhibitionId, analysisId }: JobData) {
