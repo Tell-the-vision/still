@@ -10,5 +10,7 @@
   // Gemini rejects some Cloudflare locations (HKG: "User location is not supported"); pin to Seoul.
   "placement": { "region": "gcp:asia-northeast3" },
   // Secrets (wrangler secret put): GEMINI_KEY, ANALYSIS_WORKER_SECRET.
-  "vars": { "GEMINI_MODEL_STRUCTURE": "gemini-3.8-flash" }
+  // Thinking "low": at the model's default, a 5,000-character chunk took 268 s (38k thinking tokens), at "medium"
+  // 154 s; "low" wrote the same draft (same items, blocks, pictures and text) in 25 s.
+  "vars": { "GEMINI_MODEL_STRUCTURE": "gemini-3.8-flash", "GEMINI_THINKING_LEVEL": "low" }
 }
