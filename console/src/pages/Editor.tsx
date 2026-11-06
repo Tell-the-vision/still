@@ -5,7 +5,7 @@ import type { ContentItem, ReviewStatus, SourceFile, StillDoc } from "../api";
 import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
-import { api } from "../api";
+import { api, isPage } from "../api";
 import { Editor as RichEditor } from "../editor/Editor";
 import { ARTWORK_TEMPLATE_CSV, UPLOAD_ACCEPT, UPLOAD_EXTENSIONS, UPLOAD_FORMATS_LABEL, UPLOAD_MAX_BYTES } from "../constants";
 import { VISITOR_HOST } from "../format";
@@ -31,8 +31,6 @@ const FILE_STATE: Partial<Record<SourceFile["status"], { label: string; tone: st
   CANCELED: { label: "Canceled", tone: "tone-gray" },
   FAILED: { label: "Failed", tone: "tone-amber" },
 };
-// SPEC §10.8 kind ARTWORK, shown with its label.
-const isArtwork = (i: ContentItem) => i.kind === "Artwork";
 const isLocal = (f: SourceFile) => ["QUEUED", "UPLOADING", "FAILED", "CANCELED"].includes(f.status);
 
 /**
@@ -92,10 +90,10 @@ export default function Editor() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void analysePending(); }, [exhibition?.id]);
 
-  // The editor is organised by artwork (SPEC §10.8 kind ARTWORK: one content per artwork); the exhibition's
-  // other texts (introduction, statements, sections) follow. Both keep source order.
-  const artworks = useMemo(() => items.filter(isArtwork), [items]);
-  const texts = useMemo(() => items.filter((i) => !isArtwork(i)), [items]);
+  // The editor is organised by page (isPage: an artwork, or an artist, ...; one content per page); the exhibition's
+  // introduction follows. Both keep source order.
+  const artworks = useMemo(() => items.filter(isPage), [items]);
+  const texts = useMemo(() => items.filter((i) => !isPage(i)), [items]);
   // Like a version-control panel, the rail lists the work still to do: what needs a decision and what is approved
   // (staged), plus what was rejected. Published artworks (committed) leave it and are listed in Go to works. An
   // artwork approved before the last publish is in the live guide; any edit since sends it back to review
@@ -129,8 +127,8 @@ export default function Editor() {
     { key: "rejected", label: "Rejected", list: rejectedList },
   ].filter((g) => g.list.length > 0); // empty groups are not shown, as in a version-control panel
 
-  // Files not settled into artworks yet: uploading, reading, failed.
-  const pending = files.filter((f) => FILE_STATE[f.status] || (analysing && f.status === "PROCESSED" && !items.some((i) => i.sourceFileName === f.name)));
+  // Files not settled into artworks yet: uploading, reading, failed. A picture placed in a page is not one of them.
+  const pending = files.filter((f) => !f.picture && (FILE_STATE[f.status] || (analysing && f.status === "PROCESSED" && !items.some((i) => i.sourceFileName === f.name))));
 
   if (!exhibition) return <NoExhibition title="Editor" onCreate={createExhibition} />;
 
