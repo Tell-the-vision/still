@@ -95,15 +95,19 @@ function structurePrompt(request: StructureRequest): string {
   ].join("\n");
 }
 
+// One event of a streamed answer; an error can also arrive as an event.
 type GeminiAnswer = {
   candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  error?: { code?: number; message?: string };
 };
 
-// Failures of the call itself (not of the model's answer), mapped to SPEC §9.6 codes.
-async function geminiFailure(response: Response): Promise<FailureCode> {
-  if (response.status === 429) return "QUOTA";
+// Failures of the call itself (not of the model's answer), mapped to SPEC §9.6 codes. Gemini's own status and
+// message are logged: the code alone does not say why a call failed.
+async function geminiFailure(response: Response, ms: number): Promise<FailureCode> {
   const message = await response.text();
+  console.log(JSON.stringify({ gemini: { status: response.status, ms, message: message.slice(0, 500) } }));
+  if (response.status === 429) return "QUOTA";
   if (/location is not supported/i.test(message)) return "LOCATION_DENIED";
   if (/quota|resource_exhausted/i.test(message)) return "QUOTA";
   return "UPSTREAM";
@@ -124,12 +128,15 @@ function fromWire(output: unknown): Record<string, unknown> {
 }
 
 // One Gemini call with structured output. Returns the parsed JSON and usage, or the failure Response.
+// The answer is streamed (server-sent events): Cloudflare ends a subrequest that has not answered within about two
+// minutes (HTTP 524), and a whole answer can take longer than that to write; a stream answers at once.
 type Part = { text: string } | { inline_data: { mime_type: string; data: string } };
 async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetcher, extra: Part[] = []): Promise<{ output: unknown; usage: object } | Response> {
   const model = env.GEMINI_MODEL_STRUCTURE || DEFAULT_MODEL;
+  const started = Date.now();
   let upstream: Response;
   try {
-    upstream = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    upstream = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
       body: JSON.stringify({
@@ -137,17 +144,31 @@ async function generate(prompt: string, schema: unknown, env: Env, fetcher: Fetc
         generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0 },
       }),
     });
-  } catch {
+  } catch (error) {
+    console.log(JSON.stringify({ gemini: { error: String(error), ms: Date.now() - started } }));
     return failure("UPSTREAM");
   }
-  if (!upstream.ok) return failure(await geminiFailure(upstream));
+  if (!upstream.ok) return failure(await geminiFailure(upstream, Date.now() - started));
 
-  const answer = (await upstream.json().catch(() => null)) as GeminiAnswer | null;
-  const candidate = answer?.candidates?.[0];
-  if (candidate?.finishReason === "MAX_TOKENS") return failure("RESULT_TOO_LARGE");
-  const text = candidate?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
+  // Each "data:" line is a piece of the answer: its text in order, the finish reason and the usage on the last ones.
+  let events: GeminiAnswer[];
   try {
-    const usage = { model, inputTokens: answer?.usageMetadata?.promptTokenCount ?? 0, outputTokens: answer?.usageMetadata?.candidatesTokenCount ?? 0 };
+    events = (await upstream.text()).split("\n").filter((line) => line.startsWith("data:")).map((line) => JSON.parse(line.slice(5)) as GeminiAnswer);
+  } catch (error) {
+    console.log(JSON.stringify({ gemini: { error: String(error), ms: Date.now() - started } })); // the stream broke off
+    return failure("UPSTREAM");
+  }
+  const streamError = events.find((event) => event.error)?.error;
+  if (streamError) {
+    console.log(JSON.stringify({ gemini: { status: streamError.code, ms: Date.now() - started, message: streamError.message?.slice(0, 500) } }));
+    return failure(streamError.code === 429 ? "QUOTA" : "UPSTREAM");
+  }
+  const candidates = events.map((event) => event.candidates?.[0]);
+  if (candidates.some((candidate) => candidate?.finishReason === "MAX_TOKENS")) return failure("RESULT_TOO_LARGE");
+  const text = candidates.map((candidate) => candidate?.content?.parts?.map((part) => part.text ?? "").join("") ?? "").join("");
+  const usageMetadata = events.filter((event) => event.usageMetadata).at(-1)?.usageMetadata;
+  try {
+    const usage = { model, inputTokens: usageMetadata?.promptTokenCount ?? 0, outputTokens: usageMetadata?.candidatesTokenCount ?? 0 };
     return { output: JSON.parse(text), usage };
   } catch {
     return failure("INVALID_OUTPUT");

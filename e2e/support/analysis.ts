@@ -7,8 +7,8 @@ const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const data = (res: { json: any }) => res.json.result.data;
 
-// Leaves one EXTRACTED document (via the API and the dry-run R2 store) in a new exhibition.
-export async function extractedExhibition(page: Page, text: string, pageCount = 1) {
+// Leaves one EXTRACTED document (via the API and the dry-run R2 store) in a new exhibition. An array is one text per page.
+export async function extractedExhibition(page: Page, text: string | string[], pageCount = Array.isArray(text) ? text.length : 1) {
   const account = await seedInstitutionAccount();
   const exhibition = await seedExhibition(account);
   await signInConsole(page, account);
@@ -17,13 +17,13 @@ export async function extractedExhibition(page: Page, text: string, pageCount = 
 }
 
 // One more EXTRACTED document in an exhibition the page is signed in for. `pageCount` 0 is a scan with no
-// text layer (no segments).
+// text layer (no segments). An array is one text per page.
 export async function extractedDocument(
   page: Page,
   account: { institutionId: string },
   exhibition: { id: string; code: string },
-  text: string,
-  pageCount = 1,
+  text: string | string[],
+  pageCount = Array.isArray(text) ? text.length : 1,
 ) {
   const put = async (url: string, body: Buffer) => expect((await page.request.put(url, { data: body })).status()).toBe(200);
   const original = Buffer.from(`%PDF-1.4 ${randomUUID()}`);
@@ -38,7 +38,7 @@ export async function extractedDocument(
     extractor: { name: "test", version: "1" },
     pages: Array.from({ length: pageCount }, (_, i) => ({ page: i + 1, size: [100, 100] })),
     segments: Array.from({ length: pageCount }, (_, i) => {
-      const pageText = pageCount === 1 ? text : `${text} Page ${i + 1}.`;
+      const pageText = Array.isArray(text) ? text[i] : pageCount === 1 ? text : `${text} Page ${i + 1}.`;
       return { id: `s${String(i + 1).padStart(3, "0")}`, page: i + 1, bbox: null, text: pageText, sentences: [pageText] };
     }),
     assets: [], modelInputs: [], warnings: pageCount === 0 ? [{ code: "NO_TEXT_LAYER" }] : [],

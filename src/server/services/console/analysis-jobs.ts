@@ -102,25 +102,25 @@ async function settle({ exhibitionId, analysisId }: JobData, result: "FAILED", f
   });
 }
 
-// SPEC §10.10 analysis.structure: a document goes to the Worker in chunks of at most 100 pages or about
-// 100k input tokens. Tokens are estimated from characters (3 per token, cautious for Korean text).
+// SPEC §10.10 analysis.structure: a document goes to the Worker in chunks of at most 100 pages or 100k input
+// tokens, each chunk on its own. The model copies a chunk's text back out (SPEC §9.4), about one output token
+// per character of Korean, so a call lasts as long as its chunk is long: 12,000 characters took gemini-3.8-flash
+// 65–120 s. Chunks of 5,000 characters stay well under a minute, and a few are sent at once.
 const CHUNK_PAGES = 100;
-// SPEC's ceiling is 100k input tokens, but the model copies the text back out, and its output is capped
-// lower (65,536 tokens for gemini-2.5-flash); chunks stay well under that.
-const CHUNK_TOKENS = 30_000;
+const CHUNK_CHARS = 5_000;
+const CHUNKS_AT_ONCE = 4;
 export function chunkPages<T extends { text: string }>(pages: T[]): T[][] {
   const chunks: T[][] = [];
   let current: T[] = [];
-  let tokens = 0;
+  let chars = 0;
   for (const page of pages) {
-    const pageTokens = Math.ceil(page.text.length / 3);
-    if (current.length && (current.length >= CHUNK_PAGES || tokens + pageTokens > CHUNK_TOKENS)) {
+    if (current.length && (current.length >= CHUNK_PAGES || chars + page.text.length > CHUNK_CHARS)) {
       chunks.push(current);
       current = [];
-      tokens = 0;
+      chars = 0;
     }
     current.push(page);
-    tokens += pageTokens;
+    chars += page.text.length;
   }
   if (current.length) chunks.push(current);
   return chunks;
@@ -213,18 +213,25 @@ async function structure(analysisId: string, document: { mediaType: string; cate
     const parts: { page: number; text: string }[] = [];
     for (const text of texts) {
       const last = parts.at(-1);
-      if (last && Math.ceil((last.text.length + text.length) / 3) <= CHUNK_TOKENS) last.text += `\n${text}`;
+      if (last && last.text.length + text.length <= CHUNK_CHARS) last.text += `\n${text}`;
       else parts.push({ page, text });
     }
     return parts;
   });
-  const outputs: StructureOutput[] = [];
-  for (const [chunk, chunkPagesList] of chunkPages(pages).entries()) {
-    // Each chunk is offered the pictures on its pages, to place by asset id, each with its display copy to look at.
-    const onPages = new Set(chunkPagesList.map((p) => p.page));
-    const offered = await Promise.all(pictures.filter((a) => onPages.has(a.placements[0].page))
+  // Each chunk is offered the pictures whose "[image aNN]" line it holds, to place by asset id, each with its
+  // display copy to look at.
+  const structureOne = async (chunkPagesList: { page: number; text: string }[], chunk: number) => {
+    const text = chunkPagesList.map((p) => p.text).join("\n");
+    const offered = await Promise.all(pictures.filter((a) => text.includes(`[image ${a.id}]`))
       .map(async (a) => ({ id: a.id, page: a.placements[0].page, url: await pictureUrl(`${prefix}${a.display}`) })));
-    outputs.push(await structureChunk(analysisId, chunk, document, chunkPagesList, offered));
+    return structureChunk(analysisId, chunk, document, chunkPagesList, offered);
+  };
+  // A few chunks at a time; the answers stay in chunk order.
+  const chunks = chunkPages(pages);
+  const outputs: StructureOutput[] = [];
+  for (let first = 0; first < chunks.length; first += CHUNKS_AT_ONCE) {
+    const batch = chunks.slice(first, first + CHUNKS_AT_ONCE);
+    outputs.push(...(await Promise.all(batch.map((chunkPagesList, i) => structureOne(chunkPagesList, first + i)))));
   }
   return withPictures(mergeOutputs(outputs), manifest.segments.map((s) => s.text).join("\n"));
 }
