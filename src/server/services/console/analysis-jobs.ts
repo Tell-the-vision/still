@@ -140,7 +140,7 @@ function mergeOutputs(outputs: StructureOutput[]): StructureOutput {
   return merged;
 }
 
-async function structureChunk(analysisId: string, chunk: number, document: { mediaType: string; category: string | null }, pages: { page: number; text: string }[], images: { id: string; page: number; url: null }[]) {
+async function structureChunk(analysisId: string, chunk: number, document: { mediaType: string; category: string | null }, pages: { page: number; text: string }[], images: { id: string; page: number; url: string | null }[]) {
   const body = JSON.stringify(structureInput.parse({ analysisId, chunk, document, pages, images }));
   const headers = await signWorkerRequest(process.env.ANALYSIS_WORKER_SECRET ?? "", body, Math.floor(Date.now() / 1000));
   const res = await fetch(`${process.env.ANALYSIS_WORKER_URL}/structure/text`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
@@ -171,7 +171,10 @@ function linesOf(manifest: Manifest) {
 
 // Gemini places a picture as a stillImage block at its "[image a01]" line. A marker copied as text instead becomes that
 // block, one left inside a paragraph is taken out (the picture follows the paragraph), and each picture is placed once.
-function withPictures(output: StructureOutput): StructureOutput {
+// A caption stays only if the source has its words: seeing the picture must not put new words on the page.
+function withPictures(output: StructureOutput, source: string): StructureOutput {
+  const flat = (text: string) => text.replace(/\s+/g, " ").trim();
+  const sourceText = flat(source);
   const placed = new Set<string>();
   const picture = (imageId: string): OutputBlock[] => {
     if (placed.has(imageId)) return [];
@@ -181,7 +184,10 @@ function withPictures(output: StructureOutput): StructureOutput {
   const items = output.items.map((item) => ({
     ...item,
     blocks: item.blocks.flatMap((block): OutputBlock[] => {
-      if (block.type === "stillImage") return picture(block.imageId).length ? [block] : [];
+      if (block.type === "stillImage") {
+        if (!picture(block.imageId).length) return [];
+        return [{ ...block, caption: block.caption && sourceText.includes(flat(block.caption)) ? block.caption : null }];
+      }
       if (block.type !== "paragraph" && block.type !== "quote") return [block];
       const ids = [...block.text.matchAll(/\[image (a\d{2,})\]/g)].map((m) => m[1]);
       if (!ids.length) return [block];
@@ -192,7 +198,15 @@ function withPictures(output: StructureOutput): StructureOutput {
   return { ...output, items };
 }
 
-async function structure(analysisId: string, document: { mediaType: string; category: string | null }, manifest: Manifest) {
+// A picture's display copy, presigned for the Worker to attach (dry-run URLs are local paths).
+async function pictureUrl(key: string) {
+  let { url } = await presignPrivateGet(key);
+  if (url.startsWith("/")) url = `${process.env.STILL_ORIGIN}${url}`;
+  return url;
+}
+
+// `prefix`: the document's folder in the private bucket, where its pictures' display copies are.
+async function structure(analysisId: string, document: { mediaType: string; category: string | null }, manifest: Manifest, prefix: string) {
   const { byPage, pictures } = linesOf(manifest);
   // A page bigger than a chunk (a long TXT is one page) is cut at segment boundaries into parts.
   const pages = [...byPage].flatMap(([page, texts]) => {
@@ -206,12 +220,13 @@ async function structure(analysisId: string, document: { mediaType: string; cate
   });
   const outputs: StructureOutput[] = [];
   for (const [chunk, chunkPagesList] of chunkPages(pages).entries()) {
-    // Each chunk is offered the pictures on its pages, to place by asset id.
+    // Each chunk is offered the pictures on its pages, to place by asset id, each with its display copy to look at.
     const onPages = new Set(chunkPagesList.map((p) => p.page));
-    const offered = pictures.filter((a) => onPages.has(a.placements[0].page)).map((a) => ({ id: a.id, page: a.placements[0].page, url: null }));
+    const offered = await Promise.all(pictures.filter((a) => onPages.has(a.placements[0].page))
+      .map(async (a) => ({ id: a.id, page: a.placements[0].page, url: await pictureUrl(`${prefix}${a.display}`) })));
     outputs.push(await structureChunk(analysisId, chunk, document, chunkPagesList, offered));
   }
-  return withPictures(mergeOutputs(outputs));
+  return withPictures(mergeOutputs(outputs), manifest.segments.map((s) => s.text).join("\n"));
 }
 
 async function runAnalysis({ exhibitionId, analysisId }: JobData) {
@@ -230,7 +245,7 @@ async function runAnalysis({ exhibitionId, analysisId }: JobData) {
       const manifest = await readManifest(doc.manifestObjectKey!);
       // A scan without a text layer needs OCR (SPEC §9.4); until then it is reported, not passed as analyzed.
       if (!manifest.segments.length) { failures.push({ documentId: doc.id, error: "NO_TEXT_LAYER" }); continue; }
-      const output = await structure(analysisId, { mediaType: doc.mediaType, category: doc.category }, manifest);
+      const output = await structure(analysisId, { mediaType: doc.mediaType, category: doc.category }, manifest, doc.manifestObjectKey!.replace(/[^/]+$/, ""));
       const rows = await db.select({ id: images.id, assetId: images.manifestAssetId }).from(images).where(eq(images.documentId, doc.id));
       const result = alignStructure({ output, documentId: doc.id, manifest, images: Object.fromEntries(rows.map((r) => [r.assetId!, r.id])) });
       aligned.push({ documentId: doc.id, contents: result.contents });

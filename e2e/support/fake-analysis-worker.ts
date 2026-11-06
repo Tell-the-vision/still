@@ -28,9 +28,22 @@ createServer(async (req, res) => {
     const file = Buffer.from(await (await fetch(url)).arrayBuffer());
     return reply(200, { results: ranges.map((r) => ({ assetId: r.assetId, ok: createHash("sha256").update(file.subarray(r.offset, r.offset + r.length)).digest("hex") === r.sha256 })) });
   }
-  const input = JSON.parse(body) as { pages: { text: string }[] };
+  const input = JSON.parse(body) as { pages: { text: string }[]; images: { id: string; url: string | null }[] };
   if (input.pages.some((p) => p.text.includes("FAIL_STRUCTURE"))) return reply(502, { error: "INVALID_OUTPUT" }); // lets a test fail one document
   if (input.pages.some((p) => p.text.includes("SLOW"))) await new Promise((r) => setTimeout(r, 20000)); // lets a test cancel mid-run
+  // "LOOK_AT_PICTURES": like the real Worker, fetch each offered picture. Each one fetched goes first (a picture placed
+  // from its "[image a01]" marker alone would follow the text, so a test can tell it was seen), with a caption the
+  // source does not have, which the server must drop.
+  if (input.pages.some((p) => p.text.includes("LOOK_AT_PICTURES"))) {
+    const seen = [];
+    for (const image of input.images) if (image.url && (await fetch(image.url).catch(() => null))?.ok) seen.push(image.id);
+    return reply(200, {
+      items: [{ kind: "ARTWORK", label: null, blocks: [...seen.map((id) => ({ type: "stillImage", imageId: id, display: "INLINE", caption: "A stormy sea at dusk" })), ...input.pages.map((p) => ({ type: "paragraph", text: p.text.replace(/\s*\[image a\d{2,}\]\s*/g, " ").trim() }))], fields: {}, suggestions: [] }],
+      outline: [],
+      variants: [],
+      usage: { model: "fake", inputTokens: 1, outputTokens: 1 },
+    });
+  }
   reply(200, {
     items: [{ kind: "ARTWORK", label: null, blocks: input.pages.map((p) => ({ type: "paragraph", text: p.text })), fields: {}, suggestions: [] }],
     outline: [],
