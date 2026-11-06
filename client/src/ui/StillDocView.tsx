@@ -53,15 +53,30 @@ function Paragraph({ node, renderSentence }: { node: StillNode; renderSentence?:
   );
 }
 
-function Block({ node, first, renderSentence }: { node: StillNode; first: boolean; renderSentence?: RenderSentence }) {
+// Headings as the editor draws them (tokens.ts docTitle…docH3): the size comes from the level, and an item's first
+// level-2 heading is its title. A level 1 is a guide section title, which only a whole guide has.
+const HEADING_VARIANTS = { 1: "docH1", 2: "docH2", 3: "docH3" } as const;
+
+function Heading({ node, first, title }: { node: StillNode; first: boolean; title: boolean }) {
+  const level = node.attrs?.level === 1 || node.attrs?.level === 3 ? node.attrs.level : 2;
+  const isTitle = title && level === 2;
+  return (
+    <Text
+      accessibilityRole="header"
+      aria-level={isTitle ? 1 : level + 1}
+      variant={isTitle ? "docTitle" : HEADING_VARIANTS[level]}
+      style={[isTitle && { letterSpacing: -0.36 }, !first && { marginTop: spacing.section - spacing.tight }]}
+    >
+      {(node.content ?? []).map((n) => n.text ?? "").join("")}
+    </Text>
+  );
+}
+
+function Block({ node, first, renderSentence, title = false }: { node: StillNode; first: boolean; renderSentence?: RenderSentence; title?: boolean }) {
   const children = (node.content ?? []).map((child, i) => <Block key={i} node={child} first={false} renderSentence={renderSentence} />);
   switch (node.type) {
     case "heading":
-      return (
-        <Text accessibilityRole="header" variant="subhead" style={first ? undefined : { marginTop: spacing.section - spacing.tight }}>
-          {(node.content ?? []).map((n) => n.text ?? "").join("")}
-        </Text>
-      );
+      return <Heading node={node} first={first} title={title} />;
     case "paragraph":
       return <Paragraph node={node} renderSentence={renderSentence} />;
     case "blockquote":
@@ -118,14 +133,15 @@ function Gallery({ nodes, renderSentence }: { nodes: StillNode[]; renderSentence
   );
 }
 
-export function StillDocView({ document, renderSentence, renderPlaylist }: { document: StillDoc; renderSentence?: RenderSentence; renderPlaylist?: RenderPlaylist }) {
+/** `item`: the document is one item standing on its own (a page), so a heading it opens with is its title, as in the editor. */
+export function StillDocView({ document, renderSentence, renderPlaylist, item = false }: { document: StillDoc; renderSentence?: RenderSentence; renderPlaylist?: RenderPlaylist; item?: boolean }) {
   return (
     // Text keeps the reading measure; an image is centred in the full column (still never past its own pixels).
     <View style={{ gap: spacing.gap }}>
       {document.content.map((node, i) => {
         if (node.type === "playlist") return <View key={i}>{renderPlaylist?.({ url: String(node.attrs?.url ?? ""), title: String(node.attrs?.title ?? "") })}</View>;
         if (node.type === "stillImage" && !isGallery(node)) return <Block key={i} node={node} first={i === 0} renderSentence={renderSentence} />;
-        if (!isGallery(node)) return <View key={i} style={{ maxWidth: MEASURE }}><Block node={node} first={i === 0} renderSentence={renderSentence} /></View>;
+        if (!isGallery(node)) return <View key={i} style={{ maxWidth: MEASURE }}><Block node={node} first={i === 0} renderSentence={renderSentence} title={item && i === 0} /></View>;
         if (i > 0 && isGallery(document.content[i - 1])) return null; // already in the row above
         const row = [node];
         for (let j = i + 1; j < document.content.length && isGallery(document.content[j]); j++) row.push(document.content[j]);

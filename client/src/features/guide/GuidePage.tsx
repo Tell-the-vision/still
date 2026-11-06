@@ -26,6 +26,7 @@ export function GuidePage({ code, page, exhibition, document, renderSentence }: 
     <>
       <DocumentView
         document={document}
+        item
         renderSentence={renderSentence}
         renderPlaylist={(playlist) => <PlaylistRow code={code} playlist={{ ...playlist, provider: playlist.url.startsWith("https://open.spotify.com/") ? "SPOTIFY" : "APPLE_MUSIC" }} />}
       />

@@ -53,6 +53,8 @@ const faces = {
   display: { fontFamily: "Montserrat, Noto Sans KR", fontWeight: 500 },
   body: { fontFamily: "DM Sans, Noto Sans KR", fontWeight: 400 },
   bodyMedium: { fontFamily: "DM Sans, Noto Sans KR", fontWeight: 500 },
+  // Only document headings use it; the card never does, so its font is not loaded here.
+  bodySemibold: { fontFamily: "DM Sans, Noto Sans KR", fontWeight: 600 },
 } as const;
 
 // A Text variant (client/src/ui/Text.tsx) at PNG scale: same face, size and line height; gray only where the web card
