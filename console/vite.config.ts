@@ -4,15 +4,14 @@ import tidewave from 'tidewave/vite-plugin';
 
 // The console app is a separate bundle served by Next at /console (see next.config.ts).
 // It is built after the Expo web export, into public/console, so visitors never download its code.
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
   const target = env.VITE_API_PROXY || "http://localhost:3000";
-  // The visitor app's origin: the same one the server encodes in printed QR codes (STILL_ORIGIN, SPEC §1.2).
-  // The Docker build passes it as EXPO_PUBLIC_STILL_ORIGIN for the visitor app; in dev the visitor pages are
-  // served by the same server the API proxy points at.
-  // In dev this server also serves the visitor app (proxied below), so guide links stay on its own origin.
-  const visitorOrigin = process.env.EXPO_PUBLIC_STILL_ORIGIN || env.EXPO_PUBLIC_STILL_ORIGIN || env.STILL_ORIGIN
-    || (command === "serve" ? "http://localhost:5180" : new URL(target).origin);
+  // The visitor app's origin: the same one the server encodes in printed QR codes (STILL_ORIGIN, SPEC §1.2), when the
+  // build is given one. Without it the console uses its own origin at run time (format.ts): one server serves both
+  // apps, and in dev this server proxies the visitor app. A guess here (the API proxy's origin) put localhost:3000 into
+  // production's addresses when the image was built without EXPO_PUBLIC_STILL_ORIGIN.
+  const visitorOrigin = process.env.EXPO_PUBLIC_STILL_ORIGIN || env.EXPO_PUBLIC_STILL_ORIGIN || env.STILL_ORIGIN || "";
   // Proxied requests carry the server's own Origin (cookie calls must match STILL_ORIGIN, SPEC §2.3; dev only).
   const toServer = {
     target,
