@@ -13,13 +13,19 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 const PICTURE = readFileSync("e2e/fixtures/cover.png"); // 4 x 3
 const DISPLAY = readFileSync("e2e/fixtures/cover.webp");
-const DETAIL = readFileSync("e2e/fixtures/detail.png"); // 1 x 1
+// Another picture: the same image with bytes after its end, which decoders ignore (a different file, not a duplicate).
+const SECOND = Buffer.concat([PICTURE, Buffer.from("a second picture")]);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const data = (res: { json: { result: { data: unknown } } }) => res.json.result.data as Record<string, any>;
 type Doc = { content: { type: string; attrs: { imageId?: string } }[] };
 const stillImagesIn = async (contentId: string) =>
   (await e2eSql<{ doc: Doc }>("SELECT doc FROM contents WHERE id = $1", [contentId]))[0].doc.content.filter((b) => b.type === "stillImage").length;
+// ProseMirror takes a clicked caret a moment (~40ms) after the click; keys pressed sooner (as no person does) would
+// act at the old caret, so a test waits until the caret is in the block it clicked.
+type EditorElement = HTMLElement & { editor: { state: { selection: { $from: { parent: { textContent: string } } } } } };
+const caretIn = (page: Page, text: string) =>
+  expect.poll(() => page.evaluate(() => (document.querySelector(".ProseMirror") as EditorElement).editor.state.selection.$from.parent.textContent)).toBe(text);
 const imageIdIn = async (contentId: string) =>
   (await e2eSql<{ doc: Doc }>("SELECT doc FROM contents WHERE id = $1", [contentId]))[0].doc.content.find((b) => b.type === "stillImage")?.attrs.imageId ?? null;
 
@@ -64,10 +70,9 @@ test("a picture placed with / Image shows at once, is stored as an image of the 
   });
   await signInConsole(page, account);
   await page.goto("/console/");
-  // The workspace loads twice on arrival (the exhibition, then its list); typing before that settles can land at the top.
-  await page.waitForLoadState("networkidle");
 
   await page.locator(".ProseMirror").getByText("Oil on canvas.").click();
+  await caretIn(page, "Oil on canvas.");
   await page.keyboard.press("End");
   await page.keyboard.press("Enter");
   await page.keyboard.type("/Image");
@@ -116,11 +121,10 @@ test("pictures placed one after another stay pictures of the page and are never 
   });
   await signInConsole(page, account);
   await page.goto("/console/");
-  // The workspace loads twice on arrival (the exhibition, then its list); typing before that settles can land at the top.
-  await page.waitForLoadState("networkidle");
 
-  for (const [n, line, name, bytes] of [[1, "Oil on canvas.", "harbour.png", PICTURE], [2, "Painted at dusk.", "detail.png", DETAIL]] as const) {
+  for (const [n, line, name, bytes] of [[1, "Oil on canvas.", "harbour.png", PICTURE], [2, "Painted at dusk.", "dusk.png", SECOND]] as const) {
     await page.locator(".ProseMirror").getByText(line).click();
+    await caretIn(page, line);
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
     await page.keyboard.type("/Image");
