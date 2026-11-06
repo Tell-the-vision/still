@@ -4,6 +4,21 @@ import { verifyWorkerRequest } from "../../shared/src/analysis-worker-signature"
 
 // A stand-in for the analysis Worker's POST /structure/text: checks the signature, then answers with one
 // item whose paragraphs are the page texts it was sent.
+
+// "TOGETHER <n>": a chunk is answered once n chunks of its analysis are in flight at the same time, and fails after
+// 8 s otherwise, so chunks sent one after another (or retried one by one) can never pass.
+const together = new Map<string, { waiting: number; open: boolean }>();
+async function waitTogether(analysisId: string, needed: number) {
+  const group = together.get(analysisId) ?? { waiting: 0, open: false };
+  together.set(analysisId, group);
+  group.waiting += 1;
+  if (group.waiting >= needed) group.open = true;
+  const deadline = Date.now() + 8000;
+  while (!group.open && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100));
+  group.waiting -= 1;
+  return group.open;
+}
+
 createServer(async (req, res) => {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
@@ -28,7 +43,9 @@ createServer(async (req, res) => {
     const file = Buffer.from(await (await fetch(url)).arrayBuffer());
     return reply(200, { results: ranges.map((r) => ({ assetId: r.assetId, ok: createHash("sha256").update(file.subarray(r.offset, r.offset + r.length)).digest("hex") === r.sha256 })) });
   }
-  const input = JSON.parse(body) as { pages: { text: string }[]; images: { id: string; url: string | null }[] };
+  const input = JSON.parse(body) as { analysisId: string; pages: { text: string }[]; images: { id: string; url: string | null }[] };
+  const needed = /TOGETHER (\d+)/.exec(input.pages.map((p) => p.text).join(" "));
+  if (needed && !(await waitTogether(input.analysisId, Number(needed[1])))) return reply(502, { error: "UPSTREAM" });
   if (input.pages.some((p) => p.text.includes("FAIL_STRUCTURE"))) return reply(502, { error: "INVALID_OUTPUT" }); // lets a test fail one document
   if (input.pages.some((p) => p.text.includes("SLOW"))) await new Promise((r) => setTimeout(r, 20000)); // lets a test cancel mid-run
   // "LOOK_AT_PICTURES": like the real Worker, fetch each offered picture. Each one fetched goes first (a picture placed
