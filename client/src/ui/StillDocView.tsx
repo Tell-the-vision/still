@@ -45,8 +45,8 @@ function Paragraph({ node, renderSentence }: { node: StillNode; renderSentence?:
   return (
     <View style={{ gap: spacing.tight }}>
       {runs.map((run, i) => {
-        if (!run.sentenceId || !renderSentence) return <Text key={i}>{run.text}</Text>;
-        const quote = <Text variant="quote" style={{ textDecorationLine: "underline", textDecorationColor: colors.gray }}>{quoted(run.text)}</Text>;
+        if (!run.sentenceId || !renderSentence) return <Text key={i} style={{ maxWidth: MEASURE }}>{run.text}</Text>;
+        const quote = <Text variant="quote" style={{ maxWidth: MEASURE, textDecorationLine: "underline", textDecorationColor: colors.gray }}>{quoted(run.text)}</Text>;
         return <View key={i}>{renderSentence({ sentenceId: run.sentenceId, text: run.text }, quote)}</View>;
       })}
     </View>
@@ -141,7 +141,10 @@ export function StillDocView({ document, renderSentence, renderPlaylist, item = 
       {document.content.map((node, i) => {
         if (node.type === "playlist") return <View key={i}>{renderPlaylist?.({ url: String(node.attrs?.url ?? ""), title: String(node.attrs?.title ?? "") })}</View>;
         if (node.type === "stillImage" && !isGallery(node)) return <Block key={i} node={node} first={i === 0} renderSentence={renderSentence} />;
-        if (!isGallery(node)) return <View key={i} style={{ maxWidth: MEASURE }}><Block node={node} first={i === 0} renderSentence={renderSentence} title={item && i === 0} /></View>;
+        // A paragraph spans the column so a kept line's mark lines up with the column's right edge (the listen row's
+        // arrow, the picture's edge); its text keeps the reading measure itself (Paragraph).
+        const measure = node.type === "paragraph" ? undefined : { maxWidth: MEASURE };
+        if (!isGallery(node)) return <View key={i} style={measure}><Block node={node} first={i === 0} renderSentence={renderSentence} title={item && i === 0} /></View>;
         if (i > 0 && isGallery(document.content[i - 1])) return null; // already in the row above
         const row = [node];
         for (let j = i + 1; j < document.content.length && isGallery(document.content[j]); j++) row.push(document.content[j]);
